@@ -12,10 +12,47 @@ At this point, the `winhttp.dll` file and the `LastOrigin.exe` file must be in t
 This section explains each feature within the plugin.
 
 ### WindowedResize
-This feature allows you to resize the game window after switching to windowed mode with `Alt+Enter`. It also remembers the adjusted window size and position.\
+This feature allows you to resize and maximize the game window after switching to windowed mode with `Enter`. It also remembers the adjusted window size and position.\
 There are no settings for the user to configure.
 
 If you need to reset the settings due to issues such as <ins>the window moving off-screen</ins>, you can resolve it by deleting the `Symphony.WindowedResize.cfg` file located in the `BepInEx/config` folder and restarting the game.
+
+### MaximumFrame
+Limits the game's maximum framerate.\
+To configure, open the `Symphony.MaximumFrame.cfg` file in the `BepInEx/config` folder with an editor and modify the `maximumFrame = -1` value.
+
+A value of `-1` means the game will use its original framerate. If you set it to `30`, the game's screen refresh rate will be limited to `30` frames.\
+A game restart is not required for the changes to take effect (the configuration is re-read every 5 seconds).
+
+### BattleHotkey
+Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Wait`, `Select Enemy`, `Select Enemy Tile`, `Confirm (after selecting an enemy or tile)`, and `Start Action` buttons in combat.\
+To configure, open the `Symphony.BattleHotkey.cfg` file in the `BepInEx/config` folder with an editor and change each entry to your desired key.\
+Leaving a key assignment blank will disable the shortcut for that action. (Deleting a configuration line will cause it to revert to the default value).
+
+The default values are as follows:
+| Function | Key |
+|--------------------|------------|
+| Skill 1 | Number 1 |
+| Skill 2 | Number 2 |
+| Move | Number 3 |
+| Wait | Number 4 |
+| Select Enemy/Tile | Numpad 1-9 |
+| Start Action | Numpad + |
+
+`Confirm (after selecting an enemy or tile)` is triggered by pressing the key corresponding to the selected enemy or tile a second time.
+The numbering for enemies and tiles corresponds to the layout of a numpad (`Enemy 1` is located at the bottom left).
+
+A game restart is not required for the changes to take effect (the configuration is re-read every time you enter the battle screen).
+
+### LobbyHide
+Assigns a keyboard shortcut to hide the UI on the lobby screen, a feature that was originally triggered by clicking an empty area.
+To configure, open the `Symphony.LobbyHide.cfg` file in the `BepInEx/config` folder with an editor and change it to your desired key.
+Leaving the key assignment blank will disable the shortcut. (Deleting the configuration line will cause it to revert to the default value).
+
+The default shortcut is `Tab`.
+
+A game restart is not required for the changes to take effect (the configuration is re-read every time you enter the lobby screen).
+
 
 ## Updates
 If the plugin requires an update, the following message will be displayed when the game starts.

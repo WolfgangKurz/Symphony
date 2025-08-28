@@ -3,8 +3,9 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>Symphony</AssemblyName>
-    <Product>Symphony is LastOrigin PC client BepInEx plugin for QoL</Product>
-    <Version>0.1.0</Version>
+    <Product>Symphony</Product>
+    <Description>Symphony is LastOrigin PC client BepInEx plugin for QoL</Description>
+    <Version>0.2.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <RestoreAdditionalProjectSources>
@@ -14,7 +15,15 @@
     </RestoreAdditionalProjectSources>
     <RootNamespace>Symphony</RootNamespace>
     <Platforms>AnyCPU</Platforms>
+    <Copyright>Wolfgang Kurz</Copyright>
+    <PackageProjectUrl>https://github.com/WolfgangKurz/Symphony</PackageProjectUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <RepositoryUrl>https://github.com/WolfgangKurz/Symphony</RepositoryUrl>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="_IgnoreGameGuard.cs" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
@@ -33,7 +42,14 @@
     </Reference>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="README.md">
+      <Pack>True</Pack>
+      <PackagePath>\</PackagePath>
+    </None>
+  </ItemGroup>
+
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="COPY /Y &quot;$(TargetDir)Symphony.dll&quot; &quot;H:\VFUN\LastOrigin\BepInEx\plugins\Symphony\Symphony.dll&quot;" />
+    <Exec Command="COPY /Y &quot;$(TargetDir)Symphony.dll&quot; &quot;H:\VFUN\LastOrigin\BepInEx\plugins\Symphony.dll&quot;" />
   </Target>
 </Project>
