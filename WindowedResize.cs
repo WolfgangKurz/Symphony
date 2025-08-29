@@ -1,9 +1,14 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
 
+using HarmonyLib;
+
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
+using System.Reflection.Emit;
 using System.Runtime.InteropServices;
 
 using UnityEngine;
@@ -11,36 +16,45 @@ using UnityEngine.XR;
 
 namespace Symphony {
 	internal class WindowedResize : MonoBehaviour {
-		[DllImport("user32.dll")]
-		private static extern IntPtr GetActiveWindow();
+		private class WindowedResize_Patch {
+			public static IEnumerable<CodeInstruction> Patch_Update(MethodBase original, IEnumerable<CodeInstruction> instructions) {
+				Plugin.Logger.LogInfo("[Symphony::WindowedResize] Start to patch GameManager.Update");
 
-		[DllImport("user32.dll")]
-		private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+				var Input_GetKeyDown_KeyCode = AccessTools.Method(typeof(Input), "GetKeyDown", [typeof(KeyCode)]);
 
-		[DllImport("user32.dll")]
-		private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+				var matcher = new CodeMatcher(instructions);
+				matcher.MatchForward(false,
+					/* if (!Input.GetKeyDown(KeyCode.Return) && !Input.GetKeyDown(KeyCode.KeypadEnter)) return; */
+					new CodeMatch(OpCodes.Ldc_I4_S, (sbyte)13), // Return KeyCode
+					new CodeMatch(OpCodes.Call, Input_GetKeyDown_KeyCode), // Input.GetKeyDown(KeyCode)
+					new CodeMatch(OpCodes.Brtrue), // == true -> goto OPERAND
 
-		[DllImport("user32.dll")]
-		private static extern int GetWindowRect(IntPtr hWnd, out Helper.RECT rc);
+					new CodeMatch(OpCodes.Ldc_I4, 271), // KeypadEnter KeyCode
+					new CodeMatch(OpCodes.Call, Input_GetKeyDown_KeyCode), // Input.GetKeyDown(KeyCode)
+					new CodeMatch(OpCodes.Brfalse) // == false -> goto OPERAND
+				);
 
-		[DllImport("user32.dll")]
-		private static extern int SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+				if (matcher.IsInvalid) {
+					Plugin.Logger.LogWarning("[Symphony::WindowedResize] Failed to patch GameManager.Update, target instructions not found");
+					return instructions;
+				}
 
-		[DllImport("user32.dll")]
-		private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+				var new_inst = new CodeInstruction(
+					OpCodes.Call,
+					AccessTools.Method(typeof(WindowedResize), nameof(WindowedResize.IsFullScreenKeyDowned))
+				);
+				new_inst.labels = matcher.Instruction.labels;
 
+				matcher.RemoveInstructions(5); // remove except 'return;'
+				matcher.Insert(new_inst);
+				return matcher.InstructionEnumeration();
+			}
+		}
 		private enum WindowType : int {
 			Window = 0,
 			Maximized = 1,
 			FullScreen = 2,
 		}
-
-		private const int GWL_STYLE = -16;
-		private const int WS_MAXIMIZEBOX = 0x00010000;
-		private const int WS_THICKFRAME = 0x00040000;
-		private const int SW_SHOWMINIMIZED = 2;
-		private const int SW_MAXIMIZE = 3;
-		private const int SW_RESTORE = 9;
 
 		private ConfigEntry<int> lastWindowSize_left;
 		private ConfigEntry<int> lastWindowSize_top;
@@ -49,10 +63,21 @@ namespace Symphony {
 
 		private ConfigEntry<int> lastWindowedMode;
 
+		private ConfigEntry<string> Key_Mode;
+
 		private bool ready = false;
 
+		private static ConfigFile config = new ConfigFile(Path.Combine(Paths.ConfigPath, "Symphony.WindowedResize.cfg"), true);
+		private static KeyCode FullScreenKey = KeyCode.F11;
+
 		public void Awake() {
-			var config = new ConfigFile(Path.Combine(Paths.ConfigPath, "Symphony.WindowedResize.cfg"), true);
+			var harmony = new Harmony("Symphony.WindowedResize");
+			harmony.Patch(
+				AccessTools.Method(typeof(GameManager), "Update"),
+				transpiler: new HarmonyMethod(typeof(WindowedResize_Patch), nameof(WindowedResize_Patch.Patch_Update))
+			);
+
+			this.Key_Mode = config.Bind("WindowedResize", "Key_Mode", "F11", "Window mode change button replacement. Clear will not regsiter hotkey");
 
 			this.lastWindowSize_left = config.Bind("WindowedResize", "LastWindowSize_Left", 0, "Last left position of window on windowed mode");
 			this.lastWindowSize_top = config.Bind("WindowedResize", "LastWindowSize_Top", 0, "Last top position of window on windowed mode");
@@ -84,7 +109,7 @@ namespace Symphony {
 				yield return new WaitForEndOfFrame();
 
 				if (this.lastWindowedMode.Value == (int)WindowType.Maximized)
-					ShowWindow(hWnd, SW_MAXIMIZE); // Maximize window
+					Helper.MaximizeWindow(hWnd); // Maximize window
 			}
 
 			this.ready = true;
@@ -94,13 +119,14 @@ namespace Symphony {
 			if (!this.ready) return;
 			this.Patch_WindowedResize();
 			this.Measure_WindowSize();
+			this.Update_FullScreenKey();
 		}
 
 		private void ApplyLastWindowSize() {
 			if (Screen.fullScreen) return;
 
-			var hwnd = Plugin.hWnd;
-			if (hwnd == IntPtr.Zero) {
+			var hWnd = Plugin.hWnd;
+			if (hWnd == IntPtr.Zero) {
 				Plugin.Logger.LogError("[Symphony::WindowedResize] Failed to get Game Window Handle");
 				return;
 			}
@@ -113,7 +139,7 @@ namespace Symphony {
 				this.lastWindowSize_right.Value,
 				this.lastWindowSize_bottom.Value
 			);
-			SetWindowPos(hwnd, IntPtr.Zero, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, 0x14); // SWP_NOZORDER | SWP_NOACTIVE
+			Helper.ResizeWindow(hWnd, rc);
 			Plugin.Logger.LogDebug($"[Symphony::WindowedResize]  > {rc.left}, {rc.top}, {rc.right - rc.left}, {rc.bottom - rc.top}");
 		}
 
@@ -140,35 +166,34 @@ namespace Symphony {
 
 			Plugin.Logger.LogDebug($"[Symphony::WindowedResize] Screen mode change detected, into {winType.ToString()}");
 
-			int style = GetWindowLong(hWnd, GWL_STYLE);
 			if (winType == WindowType.FullScreen) {
-				Plugin.Logger.LogDebug($"[Symphony::WindowedResize] Remove WS_THICKFRAME, WS_MAXIMIZEBOX");
-				SetWindowLong(hWnd, GWL_STYLE, style & ~WS_THICKFRAME & ~WS_MAXIMIZEBOX);
+				Plugin.Logger.LogDebug($"[Symphony::WindowedResize] Remove resizable window styles");
+				Helper.ResizableWindow(hWnd, false);
 			}
 			else {
-				Plugin.Logger.LogDebug($"[Symphony::WindowedResize] Add WS_THICKFRAME, WS_MAXIMIZEBOX");
-				SetWindowLong(hWnd, GWL_STYLE, style | WS_THICKFRAME | WS_MAXIMIZEBOX);
+				Plugin.Logger.LogDebug($"[Symphony::WindowedResize] Add resizable window styles");
+				Helper.ResizableWindow(hWnd, true);
 
 				if (!init && winType == WindowType.Window) // Save position & size when windowed only
 					this.ApplyLastWindowSize();
 			}
 		}
 
-		private float lastTime = 0f;
+		private float lastTime_Measure_WindowSize = 0f;
 		private void Measure_WindowSize() {
 			var cur = Time.realtimeSinceStartup;
-			if (cur - this.lastTime < 0.2f) return;
-			this.lastTime = cur;
+			if (cur - this.lastTime_Measure_WindowSize < 0.2f) return;
+			this.lastTime_Measure_WindowSize = cur;
 
 			if (this.lastWindowedMode.Value != (int)WindowType.Window) return;
 
-			var hwnd = Plugin.hWnd;
-			if (hwnd == IntPtr.Zero) {
+			var hWnd = Plugin.hWnd;
+			if (hWnd == IntPtr.Zero) {
 				Plugin.Logger.LogError("[Symphony::WindowedResize] Failed to get Game Window Handle");
 				return;
 			}
 
-			if (GetWindowRect(hwnd, out var rc) != 0) { // Save last window size 
+			if (Helper.GetWindowRect(hWnd, out var rc)) { // Save last window size 
 				if (
 					this.lastWindowSize_left.Value != rc.left ||
 					this.lastWindowSize_top.Value != rc.top ||
@@ -184,5 +209,27 @@ namespace Symphony {
 				}
 			}
 		}
+
+		private float lastTime_FullScreenKey = 0f;
+		private void Update_FullScreenKey() {
+			var cur = Time.realtimeSinceStartup;
+			if (cur - this.lastTime_FullScreenKey < 5.0f) return;
+			this.lastTime_FullScreenKey = cur;
+
+			string prevKey = this.Key_Mode.Value;
+
+			config.Reload();
+			if (this.Key_Mode.Value != prevKey) {
+				if (this.Key_Mode.Value != "") {
+					if (Helper.KeyCodeParse(this.Key_Mode.Value, out var kc)) {
+						Plugin.Logger.LogInfo($"[Symphony::WindowedResize] > Key for Fullscreen toggle is '{this.Key_Mode.Value}', KeyCode is {kc}");
+						WindowedResize.FullScreenKey = kc;
+					}
+				}
+				else
+					Plugin.Logger.LogInfo($"[Symphony::WindowedResize] > Key for Fullscreen toggle is '{this.Key_Mode.Value}', KeyCode is not valid");
+			}
+		}
+		private static bool IsFullScreenKeyDowned() => Input.GetKeyDown(WindowedResize.FullScreenKey);
 	}
 }

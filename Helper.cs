@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 using UnityEngine;
+using UnityEngine.XR;
 
 namespace Symphony {
 	internal class Helper {
@@ -43,7 +44,26 @@ namespace Symphony {
 			public int Y;
 		}
 
-		private static class WindowHandleFinder {
+		private static Dictionary<string, string> KeyCodeAlias = new() {
+			{ "1", "Alpha1" },
+			{ "2", "Alpha2" },
+			{ "3", "Alpha3" },
+			{ "4", "Alpha4" },
+			{ "5", "Alpha5" },
+			{ "6", "Alpha6" },
+			{ "7", "Alpha7" },
+			{ "8", "Alpha8" },
+			{ "9", "Alpha9" },
+			{ "0", "Alpha0" },
+		};
+		public static bool KeyCodeParse(string name, out KeyCode keyCode) {
+			if(KeyCodeAlias.ContainsKey(name)) 
+				name = KeyCodeAlias[name];
+
+			return Enum.TryParse<KeyCode>(name, out keyCode);
+		}
+
+		private class WindowHandleFinder {
 			private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
 			[DllImport("user32.dll")]
@@ -84,7 +104,7 @@ namespace Symphony {
 		}
 		public static IntPtr GetMainWindowHandle() => WindowHandleFinder.GetMainWindowHandle();
 
-		private static class WindowMaximizedChecker {
+		private class WindowMaximizedChecker {
 			[DllImport("user32.dll", SetLastError = true)]
 			[return: MarshalAs(UnmanagedType.Bool)]
 			private static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
@@ -116,23 +136,51 @@ namespace Symphony {
 		}
 		public static bool IsWindowMaximized(IntPtr hWnd) => WindowMaximizedChecker.IsWindowMaximized(hWnd);
 
-		private static Dictionary<string, string> KeyCodeAlias = new() {
-			{ "1", "Alpha1" },
-			{ "2", "Alpha2" },
-			{ "3", "Alpha3" },
-			{ "4", "Alpha4" },
-			{ "5", "Alpha5" },
-			{ "6", "Alpha6" },
-			{ "7", "Alpha7" },
-			{ "8", "Alpha8" },
-			{ "9", "Alpha9" },
-			{ "0", "Alpha0" },
-		};
-		public static bool KeyCodeParse(string name, out KeyCode keyCode) {
-			if(KeyCodeAlias.ContainsKey(name)) 
-				name = KeyCodeAlias[name];
+		private static class WindowDisplayHelper {
 
-			return Enum.TryParse<KeyCode>(name, out keyCode);
+			[DllImport("user32.dll")]
+			private static extern IntPtr GetActiveWindow();
+
+			[DllImport("user32.dll")]
+			private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+			[DllImport("user32.dll")]
+			private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+			[DllImport("user32.dll", EntryPoint = "GetWindowRect")]
+			private static extern int GetWindowRect_API(IntPtr hWnd, out Helper.RECT rc);
+
+			[DllImport("user32.dll")]
+			private static extern int SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
+
+			[DllImport("user32.dll")]
+			private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+			private const int GWL_STYLE = -16;
+			private const int WS_MAXIMIZEBOX = 0x00010000;
+			private const int WS_THICKFRAME = 0x00040000;
+			private const int SW_MAXIMIZE = 3;
+
+			private const int _WS_RESIZABLE = WS_THICKFRAME | WS_MAXIMIZEBOX;
+
+			public static void MaximizeWindow(IntPtr hWnd) => ShowWindow(hWnd, SW_MAXIMIZE);
+			public static void ResizeWindow(IntPtr hWnd, RECT rc)
+				=> SetWindowPos(hWnd, IntPtr.Zero, rc.left, rc.top, rc.right - rc.left, rc.bottom - rc.top, 0x14 /* SWP_NOZORDER | SWP_NOACTIVE */);
+			public static void ResizableWindow(IntPtr hWnd, bool resizable) {
+				int style = GetWindowLong(hWnd, GWL_STYLE);
+				SetWindowLong(
+					hWnd,
+					GWL_STYLE,
+					resizable
+						? style | _WS_RESIZABLE
+						: style & ~_WS_RESIZABLE
+				);
+			}
+			public static bool GetWindowRect(IntPtr hWnd, out RECT rc) => GetWindowRect_API(hWnd, out rc) != 0;
 		}
+		public static void MaximizeWindow(IntPtr hWnd) => WindowDisplayHelper.MaximizeWindow(hWnd);
+		public static void ResizeWindow(IntPtr hWnd, RECT rc) => WindowDisplayHelper.ResizeWindow(hWnd, rc);
+		public static void ResizableWindow(IntPtr hWnd, bool resizable) => WindowDisplayHelper.ResizableWindow(hWnd, resizable);
+		public static bool GetWindowRect(IntPtr hWnd, out RECT rc) => WindowDisplayHelper.GetWindowRect(hWnd, out rc);
 	}
 }

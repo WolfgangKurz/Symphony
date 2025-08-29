@@ -27,7 +27,6 @@ namespace Symphony {
 		}
 
 		private float lastTime = 0f;
-
 		private void Check_Framerate() {
 			var cur = Time.realtimeSinceStartup;
 			if (cur - this.lastTime < 5.0f) return;

@@ -12,10 +12,13 @@ At this point, the `winhttp.dll` file and the `LastOrigin.exe` file must be in t
 This section explains each feature within the plugin.
 
 ### WindowedResize
-This feature allows you to resize and maximize the game window after switching to windowed mode with `Enter`. It also remembers the adjusted window size and position.\
-There are no settings for the user to configure.
+This feature allows you to switch to windowed mode with a set key, after which you can resize and maximize the window. It also remembers the adjusted position and size.\
+To specify the key for toggling between fullscreen and windowed mode, open the `Symphony.WindowedResize.cfg` file in the `BepInEx/config` folder with an editor and modify the `Key_Mode` value.\
+If you leave the key field blank, no hotkey will be assigned. (The game's default `Enter` and `Keypad Enter` will be used.)
 
-If you need to reset the settings due to issues such as <ins>the window moving off-screen</ins>, you can resolve it by deleting the `Symphony.WindowedResize.cfg` file located in the `BepInEx/config` folder and restarting the game.
+The default key for toggling fullscreen/windowed mode is `F11`.
+
+If you encounter a problem, <ins>such as the window moving off-screen</ins>, and need to reset the settings, you can resolve it by deleting all values in the config file except for `Key_Mode` and then restarting.
 
 ### MaximumFrame
 Limits the game's maximum framerate.\

@@ -41,7 +41,7 @@ namespace Symphony {
 					Plugin.Logger.LogInfo("[Symphony::LobbyHide] Lobby scene detected, load hotkeys");
 
 					var config = new ConfigFile(Path.Combine(Paths.ConfigPath, "Symphony.LobbyHide.cfg"), true);
-					var keyCodeName = this.Key_HideToggle = config.Bind("LobbyHide", "Toggle", "Tab", $"Play button hotkey. Clear will not regsiter hotkey");
+					var keyCodeName = this.Key_HideToggle = config.Bind("LobbyHide", "Toggle", "Tab", $"Toggle Lobby UI button hotkey. Clear will not regsiter hotkey");
 					if (keyCodeName.Value != "") {
 						if (Helper.KeyCodeParse(keyCodeName.Value, out var kc))
 							Plugin.Logger.LogInfo($"[Symphony::LobbyHide] > Key for Toggle is '{keyCodeName.Value}', KeyCode is {kc}");
@@ -62,8 +62,6 @@ namespace Symphony {
 		}
 		private void CheckToggle() {
 			if (this.Key_HideToggle == null) return;
-
-			
 
 			if (this.Key_HideToggle.Value != "" && Helper.KeyCodeParse(this.Key_HideToggle.Value, out var kc) && Input.GetKeyDown(kc)) { // Key downed?
 				var panel_lobby = GameObject.FindObjectOfType<Panel_Lobby>();
