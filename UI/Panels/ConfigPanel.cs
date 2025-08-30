@@ -116,12 +116,22 @@ namespace Symphony.UI.Panels {
 			GUIX.Heading(new Rect(4, offset, 240, 20), "WindowedResize");
 			offset += 20 + 4;
 
-			GUIX.Label(new Rect(4, offset, 88, 20), "전체화면 키");
-			GUIX.KeyBinder("WindowedResize:Key_Mode", new Rect(120, offset, 120, 20), WindowedResize.Key_Mode.Value, KeyCode => {
-				WindowedResize.Key_Mode.Value = KeyCode.ToString();
-				WindowedResize.config.Save();
-			});
-			offset += 20 + 4;
+			{
+				var value = GUIX.Toggle(new Rect(4, offset, 240, 20), WindowedResize.Use_FullScreenKey.Value, "전체화면 키 변경 사용");
+				if (value != WindowedResize.Use_FullScreenKey.Value) {
+					WindowedResize.Use_FullScreenKey.Value = value;
+					WindowedResize.config.Save();
+				}
+				offset += 20 + 4;
+			}
+			if (WindowedResize.Use_FullScreenKey.Value) {
+				GUIX.Label(new Rect(4, offset, 88, 20), "전체화면 키");
+				GUIX.KeyBinder("WindowedResize:Key_Mode", new Rect(120, offset, 120, 20), WindowedResize.Key_Mode.Value, KeyCode => {
+					WindowedResize.Key_Mode.Value = KeyCode.ToString();
+					WindowedResize.config.Save();
+				});
+				offset += 20 + 4;
+			}
 			#endregion
 
 			GUIX.HLine(new Rect(4, offset, 240, 0));
