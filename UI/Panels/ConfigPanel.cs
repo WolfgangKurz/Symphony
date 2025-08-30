@@ -107,6 +107,15 @@ namespace Symphony.UI.Panels {
 				}
 				offset += 20 + 4;
 			}
+
+			{
+				var value = GUIX.Toggle(new Rect(4, offset, 240, 20), SimpleTweaks.MuteOnBackground.Value, "백그라운드에서 음소거");
+				if (value != SimpleTweaks.MuteOnBackground.Value) {
+					SimpleTweaks.MuteOnBackground.Value = value;
+					SimpleTweaks.config.Save();
+				}
+				offset += 20 + 4;
+			}
 			#endregion
 
 			GUIX.HLine(new Rect(4, offset, 240, 0));

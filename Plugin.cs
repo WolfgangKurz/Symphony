@@ -80,19 +80,8 @@ namespace Symphony {
 			try {
 				var json = req.downloadHandler.text;
 				var tag = JsonMapper.ToObject<GithubReleaseInfo>(json).tag_name;
-				if (tag != Plugin.VersionTag) {
-					SceneBase.Instance.ShowMessage(
-						$"Symphony 플러그인에 업데이트가 있습니다.\n" +
-						$"새 버전: {tag}\n" +
-						$"현재 버전: {Plugin.VersionTag}\n\n" +
-						"Github 페이지로 이동하시겠습니까?",
-						"Symphony",
-						"이동하기", "닫기", "",
-						GlobalDefines.MessageType.YESNO, () => {
-							Application.OpenURL("https://github.com/WolfgangKurz/Symphony/releases");
-						}
-					);
-				}
+				if (tag != Plugin.VersionTag) 
+					this.uiManager.AddPanel(new UpdateAvailablePanel(tag));
 			}
 			catch (Exception e) {
 				Logger.LogError($"[Symphony] Cannot fetch update data: {e.ToString()}");

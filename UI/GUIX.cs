@@ -126,6 +126,12 @@ namespace Symphony.UI {
 			GUI.color = c;
 		}
 
+
+		public static void Group(Rect rc, Action perform) {
+			GUI.BeginGroup(rc);
+			perform.Invoke();
+			GUI.EndGroup();
+		}
 		public static Rect Window(int id, Rect clientRect, GUI.WindowFunction func, string text, bool resizable = false) {
 			return GUI.Window(
 				id,
@@ -136,9 +142,7 @@ namespace Symphony.UI {
 					GUI.DragWindow(new Rect(0, 0, rc.width, 24));
 
 					rc = rc.Shrink(0, 18, 0, 0).Shrink(1);
-					GUI.BeginGroup(rc);
-					func(id);
-					GUI.EndGroup();
+					GUIX.Group(rc, () => func(id));
 				},
 				text,
 				GUIStyle.none
@@ -156,9 +160,7 @@ namespace Symphony.UI {
 					GUI.DragWindow(new Rect(0, 0, rc.width, 24));
 
 					rc = rc.Shrink(0, 18, 0, 0).Shrink(1);
-					GUI.BeginGroup(rc);
-					func(id);
-					GUI.EndGroup();
+					GUIX.Group(rc, () => func(id));
 				},
 				text,
 				GUIStyle.none
@@ -337,54 +339,5 @@ namespace Symphony.UI {
 		public static void HLine(Rect rc, Color? color = null) {
 			GUIX.Fill(rc.Height(1), color ?? Colors.Border);
 		}
-
-		#region Rect
-		private static Rect Shrink(this Rect rc, float left, float top, float right, float bottom) => Rect.MinMaxRect(
-			rc.xMin + left,
-			rc.yMin + top,
-			rc.xMax - right,
-			rc.yMax - bottom
-		);
-		private static Rect Shrink(this Rect rc, float horizontal, float vertical) => rc.Shrink(horizontal, vertical, horizontal, vertical);
-		private static Rect Shrink(this Rect rc, float amount) => rc.Shrink(amount, amount, amount, amount);
-
-		private static Rect Resize(this Rect rc, float width, float height) => Rect.MinMaxRect(rc.xMin, rc.yMin, rc.xMin + width, rc.yMin + height);
-		private static Rect Width(this Rect rc, float width) => Rect.MinMaxRect(rc.xMin, rc.yMin, rc.xMin + width, rc.yMax);
-		private static Rect Height(this Rect rc, float height) => Rect.MinMaxRect(rc.xMin, rc.yMin, rc.xMax, rc.yMin + height);
-
-		private static Rect Move(this Rect rc, float x, float y) => Rect.MinMaxRect(rc.xMin + x, rc.yMin + y, rc.xMax + x, rc.yMax + y);
-		private static Rect ZeroOffset(this Rect rc) => rc.Move(-rc.xMin, -rc.yMin);
-		private static Rect LockInScreen(this Rect rc) {
-			var ret = rc;
-
-			if (ret.xMax > Screen.width) {
-				var d = ret.xMax - Screen.width;
-				ret.xMin -= d;
-				ret.width -= d;
-			}
-			if (ret.yMax > Screen.height) {
-				var d = ret.yMax - Screen.height;
-				ret.yMin -= d;
-				ret.height -= d;
-			}
-			if(ret.xMin < 0) {
-				var d = -ret.xMin;
-				ret.xMin = 0;
-				ret.width += d;
-			}
-			if (ret.yMin < 0) {
-				var d = -ret.yMin;
-				ret.yMin = 0;
-				ret.height += d;
-			}
-			return ret;
-		}
-		private static Rect Clip(this Rect rc, Rect to) => Rect.MinMaxRect(
-			Mathf.Clamp(rc.xMin, to.xMin, to.xMax),
-			Mathf.Clamp(rc.yMin, to.yMin, to.yMax),
-			Mathf.Clamp(rc.xMax, to.xMin, to.xMax),
-			Mathf.Clamp(rc.yMax, to.yMin, to.xMax)
-		);
-		#endregion
 	}
 }

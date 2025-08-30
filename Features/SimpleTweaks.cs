@@ -25,6 +25,8 @@ namespace Symphony.Features {
 
 		internal static ConfigEntry<bool> UseFormationFix = config.Bind("SimpleTweaks", "UseFormationFix", true, $"Fix character selection bug on Formation scene");
 
+		internal static ConfigEntry<bool> MuteOnBackground = config.Bind("SimpleTweaks", "MuteOnBackground", false, $"Mute all sound when game go to background");
+
 		private FrameLimit DisplayFPSLimit = new(0.5f);
 
 		private GUIStyle FPSStyle;
@@ -88,6 +90,13 @@ namespace Symphony.Features {
 				GUIX.Fill(new Rect(5, 5, 50, 20), GUIX.Colors.WindowBG);
 				GUI.Label(new Rect(5, 5, 50, 20), lastFPS, FPSStyle);
 			}
+		}
+
+		public void OnApplicationFocus(bool hasFocus) {
+			if (hasFocus)
+				AudioListener.volume = 1.0f;
+			else if (MuteOnBackground.Value)
+				AudioListener.volume = 0.0f;
 		}
 
 		private void Check_LobbyUIToggle() {

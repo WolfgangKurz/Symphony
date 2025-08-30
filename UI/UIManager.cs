@@ -35,11 +35,11 @@ namespace Symphony.UI {
 
 				var w = Screen.width;
 				GUIX.Fill(new Rect(w / 2 - cw / 2, 5, cw, 8 + 32), GUIX.Colors.WindowBG);
-				GUI.BeginGroup(new Rect(w / 2 - cw / 2 + 4, 5 + 4, cw - 8, 32));
-				GUIX.Heading(new Rect(0, 0, 80, 16), "Symphony", Color.yellow);
-				GUIX.Label(new Rect(80, 0, cw - 8 - 80, 16), Plugin.VersionTag);
-				GUIX.Label(new Rect(0, 16, cw - 8, 16), description);
-				GUI.EndGroup();
+				GUIX.Group(new Rect(w / 2 - cw / 2 + 4, 5 + 4, cw - 8, 32), () => {
+					GUIX.Heading(new Rect(0, 0, 80, 16), "Symphony", Color.yellow);
+					GUIX.Label(new Rect(80, 0, cw - 8 - 80, 16), Plugin.VersionTag);
+					GUIX.Label(new Rect(0, 16, cw - 8, 16), description);
+				});
 			}
 		}
 

@@ -251,6 +251,59 @@ namespace Symphony {
 			}
 		}
 		public static void ChangeCursor(CursorType type) => CursorHelper.ChangeCursor(type);
+
+		#region Rect
+		public static Rect Shrink(this Rect rc, float left, float top, float right, float bottom) => Rect.MinMaxRect(
+			rc.xMin + left,
+			rc.yMin + top,
+			rc.xMax - right,
+			rc.yMax - bottom
+		);
+		public static Rect Shrink(this Rect rc, float horizontal, float vertical) => rc.Shrink(horizontal, vertical, horizontal, vertical);
+		public static Rect Shrink(this Rect rc, float amount) => rc.Shrink(amount, amount, amount, amount);
+
+		public static Rect Expand(this Rect rc, float left, float top, float right, float bottom) => rc.Shrink(-left,-top,-right,-bottom);
+		public static Rect Expand(this Rect rc, float horizontal, float vertical) => rc.Expand(horizontal, vertical, horizontal, vertical);
+		public static Rect Expand(this Rect rc, float amount) => rc.Expand(amount, amount, amount, amount);
+
+		public static Rect Resize(this Rect rc, float width, float height) => Rect.MinMaxRect(rc.xMin, rc.yMin, rc.xMin + width, rc.yMin + height);
+		public static Rect Width(this Rect rc, float width) => Rect.MinMaxRect(rc.xMin, rc.yMin, rc.xMin + width, rc.yMax);
+		public static Rect Height(this Rect rc, float height) => Rect.MinMaxRect(rc.xMin, rc.yMin, rc.xMax, rc.yMin + height);
+
+		public static Rect Move(this Rect rc, float x, float y) => Rect.MinMaxRect(rc.xMin + x, rc.yMin + y, rc.xMax + x, rc.yMax + y);
+		public static Rect ZeroOffset(this Rect rc) => rc.Move(-rc.xMin, -rc.yMin);
+		public static Rect LockInScreen(this Rect rc) {
+			var ret = rc;
+
+			if (ret.xMax > Screen.width) {
+				var d = ret.xMax - Screen.width;
+				ret.xMin -= d;
+				ret.width -= d;
+			}
+			if (ret.yMax > Screen.height) {
+				var d = ret.yMax - Screen.height;
+				ret.yMin -= d;
+				ret.height -= d;
+			}
+			if (ret.xMin < 0) {
+				var d = -ret.xMin;
+				ret.xMin = 0;
+				ret.width += d;
+			}
+			if (ret.yMin < 0) {
+				var d = -ret.yMin;
+				ret.yMin = 0;
+				ret.height += d;
+			}
+			return ret;
+		}
+		public static Rect Clip(this Rect rc, Rect to) => Rect.MinMaxRect(
+			Mathf.Clamp(rc.xMin, to.xMin, to.xMax),
+			Mathf.Clamp(rc.yMin, to.yMin, to.yMax),
+			Mathf.Clamp(rc.xMax, to.xMin, to.xMax),
+			Mathf.Clamp(rc.yMax, to.yMin, to.xMax)
+		);
+		#endregion
 	}
 
 	public class EnumX {
