@@ -21,7 +21,7 @@ namespace Symphony {
 		internal static new ManualLogSource Logger;
 		internal static readonly Version Ver = Assembly.GetExecutingAssembly().GetName().Version;
 
-		internal static readonly string VersionTag = $"v{Ver.Major}.{Ver.Minor}.{Ver.Revision}";
+		internal static readonly string VersionTag = $"v{Ver.Major}.{Ver.Minor}.{Ver.Build}";
 
 		internal static IntPtr hWnd => Helper.GetMainWindowHandle();
 
