@@ -2,6 +2,8 @@
 `Symphony`는 `VALOFE` 의 게임 `LastOrigin` PC 클라이언트를 위한 [BepInEx](https://github.com/BepInEx/BepInEx) 플러그인입니다.
 각종 사용자 편의 기능(QoL)을 제공하는 것을 목표로 하고 있습니다.
 
+✨ Powered by [UniverseLib](https://github.com/sinai-dev/UniverseLib)
+
 ## 설치 방법
 1. [BepInEx](https://github.com/BepInEx/BepInEx) 6의 **BepInEx-Unity.Mono-win-x64** 버전을  [다운로드 페이지](https://github.com/BepInEx/BepInEx/releases/tag/v6.0.0-pre.2)에서 다운로드합니다.
 2. 압축 파일을 풀어 `LastOrigin.exe` 파일이 존재하는 설치 폴더에 붙여넣기 합니다.\

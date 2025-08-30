@@ -14,7 +14,7 @@ using System.Runtime.InteropServices;
 using UnityEngine;
 using UnityEngine.XR;
 
-namespace Symphony {
+namespace Symphony.Features {
 	internal class WindowedResize : MonoBehaviour {
 		private class WindowedResize_Patch {
 			public static IEnumerable<CodeInstruction> Patch_Update(MethodBase original, IEnumerable<CodeInstruction> instructions) {
@@ -41,7 +41,7 @@ namespace Symphony {
 
 				var new_inst = new CodeInstruction(
 					OpCodes.Call,
-					AccessTools.Method(typeof(WindowedResize), nameof(WindowedResize.IsFullScreenKeyDowned))
+					AccessTools.Method(typeof(WindowedResize), nameof(IsFullScreenKeyDowned))
 				);
 				new_inst.labels = matcher.Instruction.labels;
 
@@ -56,18 +56,19 @@ namespace Symphony {
 			FullScreen = 2,
 		}
 
-		private ConfigEntry<int> lastWindowSize_left;
-		private ConfigEntry<int> lastWindowSize_top;
-		private ConfigEntry<int> lastWindowSize_right;
-		private ConfigEntry<int> lastWindowSize_bottom;
-
-		private ConfigEntry<int> lastWindowedMode;
-
-		private ConfigEntry<string> Key_Mode;
-
 		private bool ready = false;
 
-		private static ConfigFile config = new ConfigFile(Path.Combine(Paths.ConfigPath, "Symphony.WindowedResize.cfg"), true);
+		internal static readonly ConfigFile config = new ConfigFile(Path.Combine(Paths.ConfigPath, "Symphony.WindowedResize.cfg"), true);
+		internal static readonly ConfigEntry<bool> Use_FullScreenKey = config.Bind("WindowedResize", "Use_FullScreenKey", true, "Use FullScreen mode key change");
+		internal static readonly ConfigEntry<string> Key_Mode = config.Bind("WindowedResize", "Key_Mode", "F11", "Window mode change button replacement");
+
+		internal static readonly ConfigEntry<int> lastWindowSize_left = config.Bind("WindowedResize", "LastWindowSize_Left", 0, "Last left position of window on windowed mode");
+		internal static readonly ConfigEntry<int> lastWindowSize_top = config.Bind("WindowedResize", "LastWindowSize_Top", 0, "Last top position of window on windowed mode");
+		internal static readonly ConfigEntry<int> lastWindowSize_right = config.Bind("WindowedResize", "LastWindowSize_Right", 1280, "Last right position of window on windowed mode");
+		internal static readonly ConfigEntry<int> lastWindowSize_bottom = config.Bind("WindowedResize", "LastWindowSize_Bottom", 720, "Last bottom position of window on windowed mode");
+
+		internal static readonly ConfigEntry<int> lastWindowedMode = config.Bind("WindowedResize", "LastWindowed", 0, "Last window type flag. 0 is Windowed, 1 is Maximized, 2 is FullScreen");
+
 		private static KeyCode FullScreenKey = KeyCode.F11;
 
 		public void Awake() {
@@ -77,49 +78,46 @@ namespace Symphony {
 				transpiler: new HarmonyMethod(typeof(WindowedResize_Patch), nameof(WindowedResize_Patch.Patch_Update))
 			);
 
-			this.Key_Mode = config.Bind("WindowedResize", "Key_Mode", "F11", "Window mode change button replacement. Clear will not regsiter hotkey");
+			Key_Mode.SettingChanged += (s, e) => this.Update_FullScreenKey();
+			this.Update_FullScreenKey();
 
-			this.lastWindowSize_left = config.Bind("WindowedResize", "LastWindowSize_Left", 0, "Last left position of window on windowed mode");
-			this.lastWindowSize_top = config.Bind("WindowedResize", "LastWindowSize_Top", 0, "Last top position of window on windowed mode");
-			this.lastWindowSize_right = config.Bind("WindowedResize", "LastWindowSize_Right", 1280, "Last right position of window on windowed mode");
-			this.lastWindowSize_bottom = config.Bind("WindowedResize", "LastWindowSize_Bottom", 720, "Last bottom position of window on windowed mode");
-
-			if (this.lastWindowSize_right.Value <= 30 || this.lastWindowSize_bottom.Value <= 40) {
-				this.lastWindowSize_left.Value = 0;
-				this.lastWindowSize_top.Value = 0;
-				this.lastWindowSize_right.Value = 1280;
-				this.lastWindowSize_bottom.Value = 720;
+			if (lastWindowSize_right.Value <= 30 || lastWindowSize_bottom.Value <= 40) {
+				lastWindowSize_left.Value = 0;
+				lastWindowSize_top.Value = 0;
+				lastWindowSize_right.Value = 1280;
+				lastWindowSize_bottom.Value = 720;
 			}
 
-			this.lastWindowedMode = config.Bind("WindowedResize", "LastWindowed", 0, "Last window type flag. 0 is Windowed, 1 is Maximized, 2 is FullScreen");
+			StartCoroutine(LazyStart());
+		}
 
-			StartCoroutine(this.LazyStart());
+		private void Key_Mode_SettingChanged(object sender, EventArgs e) {
+			throw new NotImplementedException();
 		}
 
 		private IEnumerator LazyStart() {
 			yield return new WaitForEndOfFrame();
 
 			var hWnd = Plugin.hWnd;
-			if (this.lastWindowedMode.Value != (int)WindowType.FullScreen) {
+			if (lastWindowedMode.Value != (int)WindowType.FullScreen) {
 				Screen.fullScreen = false;
 
-				this.Patch_WindowedResize(true); // Apply window style
-				this.ApplyLastWindowSize();      // Move & Resize window for windowed mode
+				Patch_WindowedResize(true); // Apply window style
+				ApplyLastWindowSize();      // Move & Resize window for windowed mode
 
 				yield return new WaitForEndOfFrame();
 
-				if (this.lastWindowedMode.Value == (int)WindowType.Maximized)
+				if (lastWindowedMode.Value == (int)WindowType.Maximized)
 					Helper.MaximizeWindow(hWnd); // Maximize window
 			}
 
-			this.ready = true;
+			ready = true;
 		}
 
 		public void Update() {
-			if (!this.ready) return;
-			this.Patch_WindowedResize();
-			this.Measure_WindowSize();
-			this.Update_FullScreenKey();
+			if (!ready) return;
+			Patch_WindowedResize();
+			Measure_WindowSize();
 		}
 
 		private void ApplyLastWindowSize() {
@@ -134,10 +132,10 @@ namespace Symphony {
 			Plugin.Logger.LogInfo($"[Symphony::WindowedResize] Applying latest windowed position");
 
 			var rc = new Helper.RECT(
-				this.lastWindowSize_left.Value,
-				this.lastWindowSize_top.Value,
-				this.lastWindowSize_right.Value,
-				this.lastWindowSize_bottom.Value
+				lastWindowSize_left.Value,
+				lastWindowSize_top.Value,
+				lastWindowSize_right.Value,
+				lastWindowSize_bottom.Value
 			);
 			Helper.ResizeWindow(hWnd, rc);
 			Plugin.Logger.LogDebug($"[Symphony::WindowedResize]  > {rc.left}, {rc.top}, {rc.right - rc.left}, {rc.bottom - rc.top}");
@@ -152,7 +150,7 @@ namespace Symphony {
 
 			var winType = WindowType.Window;
 			if (init) {
-				winType = (WindowType)this.lastWindowedMode.Value;
+				winType = (WindowType)lastWindowedMode.Value;
 			}
 			else {
 				if (Screen.fullScreen)
@@ -160,8 +158,8 @@ namespace Symphony {
 				else if (Helper.IsWindowMaximized(hWnd))
 					winType = WindowType.Maximized;
 
-				if ((int)winType == this.lastWindowedMode.Value) return;
-				this.lastWindowedMode.Value = (int)winType;
+				if ((int)winType == lastWindowedMode.Value) return;
+				lastWindowedMode.Value = (int)winType;
 			}
 
 			Plugin.Logger.LogDebug($"[Symphony::WindowedResize] Screen mode change detected, into {winType.ToString()}");
@@ -175,17 +173,15 @@ namespace Symphony {
 				Helper.ResizableWindow(hWnd, true);
 
 				if (!init && winType == WindowType.Window) // Save position & size when windowed only
-					this.ApplyLastWindowSize();
+					ApplyLastWindowSize();
 			}
 		}
 
-		private float lastTime_Measure_WindowSize = 0f;
-		private void Measure_WindowSize() {
-			var cur = Time.realtimeSinceStartup;
-			if (cur - this.lastTime_Measure_WindowSize < 0.2f) return;
-			this.lastTime_Measure_WindowSize = cur;
 
-			if (this.lastWindowedMode.Value != (int)WindowType.Window) return;
+		private FrameLimit MeasureWindowSizeLimit = new(0.2f); 
+		private void Measure_WindowSize() {
+			if (!MeasureWindowSizeLimit.Valid()) return;
+			if (lastWindowedMode.Value != (int)WindowType.Window) return;
 
 			var hWnd = Plugin.hWnd;
 			if (hWnd == IntPtr.Zero) {
@@ -195,41 +191,30 @@ namespace Symphony {
 
 			if (Helper.GetWindowRect(hWnd, out var rc)) { // Save last window size 
 				if (
-					this.lastWindowSize_left.Value != rc.left ||
-					this.lastWindowSize_top.Value != rc.top ||
-					this.lastWindowSize_right.Value != rc.right ||
-					this.lastWindowSize_bottom.Value != rc.bottom
+					lastWindowSize_left.Value != rc.left ||
+					lastWindowSize_top.Value != rc.top ||
+					lastWindowSize_right.Value != rc.right ||
+					lastWindowSize_bottom.Value != rc.bottom
 				) {
 					Plugin.Logger.LogInfo($"[Symphony::WindowedResize] Window position change detected, save it");
 
-					this.lastWindowSize_left.Value = rc.left;
-					this.lastWindowSize_top.Value = rc.top;
-					this.lastWindowSize_right.Value = rc.right;
-					this.lastWindowSize_bottom.Value = rc.bottom;
+					lastWindowSize_left.Value = rc.left;
+					lastWindowSize_top.Value = rc.top;
+					lastWindowSize_right.Value = rc.right;
+					lastWindowSize_bottom.Value = rc.bottom;
 				}
 			}
 		}
 
-		private float lastTime_FullScreenKey = 0f;
 		private void Update_FullScreenKey() {
-			var cur = Time.realtimeSinceStartup;
-			if (cur - this.lastTime_FullScreenKey < 5.0f) return;
-			this.lastTime_FullScreenKey = cur;
-
-			string prevKey = this.Key_Mode.Value;
-
-			config.Reload();
-			if (this.Key_Mode.Value != prevKey) {
-				if (this.Key_Mode.Value != "") {
-					if (Helper.KeyCodeParse(this.Key_Mode.Value, out var kc)) {
-						Plugin.Logger.LogInfo($"[Symphony::WindowedResize] > Key for Fullscreen toggle is '{this.Key_Mode.Value}', KeyCode is {kc}");
-						WindowedResize.FullScreenKey = kc;
-					}
-				}
-				else
-					Plugin.Logger.LogInfo($"[Symphony::WindowedResize] > Key for Fullscreen toggle is '{this.Key_Mode.Value}', KeyCode is not valid");
+			if (Helper.KeyCodeParse(Key_Mode.Value, out var kc)) {
+				Plugin.Logger.LogInfo($"[Symphony::WindowedResize] > Key for Fullscreen toggle is '{Key_Mode.Value}', KeyCode is {kc}");
+				FullScreenKey = kc;
 			}
 		}
-		private static bool IsFullScreenKeyDowned() => Input.GetKeyDown(WindowedResize.FullScreenKey);
+
+		private static bool IsFullScreenKeyDowned() => Use_FullScreenKey.Value
+			? Input.GetKeyDown(FullScreenKey)
+			: Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter); // Game default value
 	}
 }

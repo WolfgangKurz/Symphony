@@ -4,9 +4,12 @@ using BepInEx.Unity.Mono;
 
 using LitJson;
 
+using Symphony.Features;
+using Symphony.UI;
+using Symphony.UI.Panels;
+
 using System;
 using System.Collections;
-using System.Diagnostics;
 using System.Reflection;
 
 using UnityEngine;
@@ -21,6 +24,9 @@ namespace Symphony {
 		internal static readonly string VersionTag = $"v{Ver.Major}.{Ver.Minor}.{Ver.Revision}";
 
 		internal static IntPtr hWnd => Helper.GetMainWindowHandle();
+
+		private UIManager uiManager;
+		private ConfigPanel configPanel;
 
 		private class GithubReleaseInfo {
 			public string tag_name { get; set; }
@@ -42,10 +48,24 @@ namespace Symphony {
 				StartCoroutine(this.CheckUpdate());
 			}
 
-			this.gameObject.AddComponent<Symphony.WindowedResize>();
-			this.gameObject.AddComponent<Symphony.MaximumFrame>();
-			this.gameObject.AddComponent<Symphony.BattleHotkey>();
-			this.gameObject.AddComponent<Symphony.LobbyHide>();
+			StartCoroutine(this.InitUI());
+
+			this.gameObject.AddComponent<SimpleTweaks>();
+			this.gameObject.AddComponent<WindowedResize>();
+			this.gameObject.AddComponent<BattleHotkey>();
+		}
+
+		private IEnumerator InitUI() {
+			yield return new WaitForEndOfFrame();
+
+			this.uiManager = this.gameObject.AddComponent<UIManager>();
+			this.configPanel = this.uiManager.AddPanel(new ConfigPanel());
+			this.configPanel.enabled = false;
+		}
+
+		public void Update() {
+			if (Input.GetKeyDown(KeyCode.F12))
+				this.configPanel.enabled = !this.configPanel.enabled;
 		}
 
 		private IEnumerator CheckUpdate() {

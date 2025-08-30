@@ -1,7 +1,10 @@
-﻿using System;
+﻿using BepInEx.Logging;
+
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -9,7 +12,7 @@ using UnityEngine;
 using UnityEngine.XR;
 
 namespace Symphony {
-	internal class Helper {
+	internal static class Helper {
 		[Serializable]
 		[StructLayout(LayoutKind.Sequential)]
 		public struct RECT {
@@ -61,6 +64,20 @@ namespace Symphony {
 				name = KeyCodeAlias[name];
 
 			return Enum.TryParse<KeyCode>(name, out keyCode);
+		}
+		public static bool IsReservedKey(KeyCode k) => new KeyCode[] {
+			KeyCode.Escape, KeyCode.F12
+		}.Contains(k);
+
+		public static LogLevel ToLogLevel(this LogType t) {
+			switch(t) {
+				case LogType.Error:
+				case LogType.Assert: return LogLevel.Error;
+				case LogType.Warning: return LogLevel.Warning;
+				case LogType.Log: return LogLevel.Message;
+				case LogType.Exception: return LogLevel.Error;
+			}
+			return LogLevel.None;
 		}
 
 		private class WindowHandleFinder {
@@ -182,5 +199,64 @@ namespace Symphony {
 		public static void ResizeWindow(IntPtr hWnd, RECT rc) => WindowDisplayHelper.ResizeWindow(hWnd, rc);
 		public static void ResizableWindow(IntPtr hWnd, bool resizable) => WindowDisplayHelper.ResizableWindow(hWnd, resizable);
 		public static bool GetWindowRect(IntPtr hWnd, out RECT rc) => WindowDisplayHelper.GetWindowRect(hWnd, out rc);
+
+		public enum CursorType : ushort {
+			Arrow = 32512,
+			IBeam = 32513,
+			Wait = 32514,
+			Cross = 32515,
+			UpArrow = 32516,
+
+			SizeNWSE = 32642,
+			SIZENESW = 32643,
+			SizeWE = 32644,
+			SizeNS = 32645,
+			SizeAll = 32646,
+
+			No = 32648,
+			Hand = 32649,
+			AppStarting = 32650,
+			Help = 32651,
+			Pin = 32671,
+			Person = 32672,
+
+			_Pen = 32631,
+			_ArrowNS = 32652,
+			_ArrowWE = 32653,
+			_ArrowAll = 32654,
+			_ArrowN = 32655,
+			_ArrowS = 32656,
+			_ArrowW = 32657,
+			_ArrowE = 32658,
+			_ArrowNW = 32659,
+			_ArrowNE = 32660,
+			_ArrowSW = 32661,
+			_ArrowSE = 32662,
+			_CD = 32663,
+		}
+
+		private static class CursorHelper {
+			[DllImport("user32.dll", CharSet = CharSet.Ansi)]
+			private static extern IntPtr LoadImageA(IntPtr hInst, IntPtr name, uint type, int cx, int cy, uint fuLoad);
+			[DllImport("user32.dll")]
+			private static extern IntPtr SetCursor(IntPtr hCursor);
+
+			private const uint IMAGE_CURSOR = 2;
+			private const uint LR_SHARED = 0x8000;
+
+			public static void ChangeCursor(CursorType type) {
+				var cursor = LoadImageA(IntPtr.Zero, new IntPtr((ushort)type), IMAGE_CURSOR, 0, 0, LR_SHARED);
+				if (cursor != IntPtr.Zero)
+					SetCursor(cursor);
+			}
+		}
+		public static void ChangeCursor(CursorType type) => CursorHelper.ChangeCursor(type);
+	}
+
+	public class EnumX {
+		public static T[] GetValues<T>() where T : Enum {
+
+			return (T[])Enum.GetValues(typeof(T));
+		}
 	}
 }

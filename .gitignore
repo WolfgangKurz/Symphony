@@ -3,3 +3,4 @@ bin/
 obj/
 ref/
 _*.cs
+*.xsd
