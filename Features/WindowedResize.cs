@@ -9,10 +9,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
 using System.Reflection.Emit;
-using System.Runtime.InteropServices;
 
 using UnityEngine;
-using UnityEngine.XR;
 
 namespace Symphony.Features {
 	internal class WindowedResize : MonoBehaviour {

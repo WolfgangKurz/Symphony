@@ -1,6 +1,4 @@
-﻿using Symphony.Features;
-
-using System;
+﻿using System;
 
 using UnityEngine;
 
@@ -22,7 +20,6 @@ namespace Symphony.UI {
 			public static readonly Color ButtonHover = new(0.26f, 0.59f, 0.98f);
 			public static readonly Color ButtonActive = new(0.06f, 0.53f, 0.98f);
 
-			public static readonly Color SliderBG = new(0.02f, 0.02f, 0.02f, 0.53f);
 			public static readonly Color SliderThumb = new(0.24f, 0.52f, 0.88f);
 			public static readonly Color SliderThumbActive = new(0.26f, 0.59f, 0.98f);
 		}

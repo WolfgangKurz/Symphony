@@ -1,19 +1,13 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
 
-using HarmonyLib;
-
 using Symphony.UI;
 
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Reflection;
-using System.Text;
 
 using UnityEngine;
 using UnityEngine.SceneManagement;
-using UnityEngine.UIElements;
 
 namespace Symphony.Features {
 	internal class SimpleTweaks : MonoBehaviour {
