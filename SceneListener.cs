@@ -16,8 +16,8 @@ namespace Symphony {
 		private Dictionary<string, List<Action>> listenersExit = new();
 		private SceneListener() {
 			SceneManager.activeSceneChanged += (prev, _new) => {
-				var namePrev = prev.name;
-				var nameNew = _new.name;
+				var namePrev = prev.name ?? "";
+				var nameNew = _new.name ?? "";
 				Plugin.Logger.LogDebug($"[Symphony::SceneListener] Scene change detected, was '{namePrev}', to '{nameNew}'");
 
 				lock (lockExit) {
