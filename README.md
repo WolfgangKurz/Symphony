@@ -16,7 +16,7 @@ The following is a description of each feature within the plugin.
 ### SimpleTweaks
 A collection of various simple quality-of-life improvements for the game.
 
-It provides features to display game FPS, limit FPS, a hotkey to hide the lobby UI, bug patches, and mute audio when the game is in the background.
+It provides features to display game FPS, limit FPS, limit FPS for Battle scene, a hotkey to hide the lobby UI, bug patches, mute audio when the game is in the background, and game volume control.
 
 ### WindowedResize
 This feature allows you to switch to windowed mode with a set key, after which the window can be resized and maximized. It also remembers the window's last position and size.

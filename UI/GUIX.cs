@@ -21,8 +21,18 @@ namespace Symphony.UI {
 			public static readonly Color Button = new(0.26f, 0.59f, 0.98f, 0.4f);
 			public static readonly Color ButtonHover = new(0.26f, 0.59f, 0.98f);
 			public static readonly Color ButtonActive = new(0.06f, 0.53f, 0.98f);
+
+			public static readonly Color SliderBG = new(0.02f, 0.02f, 0.02f, 0.53f);
+			public static readonly Color SliderThumb = new(0.24f, 0.52f, 0.88f);
+			public static readonly Color SliderThumbActive = new(0.26f, 0.59f, 0.98f);
 		}
 
+		public enum SliderAxis {
+			Horizontal,
+			Vertical,
+		}
+		private const float SLIDER_THUMB_SIZE = 12f;
+		private const float SLIDER_THUMB_PADDING = 2f;
 
 		private static RenderTexture tex_CheckMark;
 		static GUIX() {
@@ -258,6 +268,114 @@ namespace Symphony.UI {
 			if (box.Contains(Event.current.mousePosition))
 				Helper.ChangeCursor(Helper.CursorType.IBeam);
 			return GUI.TextField(rc, text, style);
+		}
+
+		public static int HorizontalSlider(
+			Rect rc, int value, int leftValue, int rightValue,
+			Func<int, string> template = null,
+			Color? normal = null, Color? hover = null, Color? active = null,
+			Color? thumb_normal = null, Color? thumb_active = null
+		) => (int)Mathf.Round(GUIX.Slider(
+			rc, value, leftValue, rightValue, SliderAxis.Horizontal,
+			template != null ? (v => template((int)Mathf.Round(v))) : (v => v.ToString()),
+			normal, hover, active,
+			thumb_normal, thumb_active
+		));
+		public static int VerticalSlider(
+			Rect rc, int value, int leftValue, int rightValue,
+			Func<int, string> template = null,
+			Color? normal = null, Color? hover = null, Color? active = null,
+			Color? thumb_normal = null, Color? thumb_active = null
+		) => (int)Mathf.Round(GUIX.Slider(
+			rc, value, leftValue, rightValue, SliderAxis.Vertical,
+			template != null ? (v => template((int)Mathf.Round(v))) : (v => v.ToString()),
+			normal, hover, active,
+			thumb_normal, thumb_active
+		));
+
+		public static float HorizontalSlider(
+			Rect rc, float value, float leftValue, float rightValue,
+			Func<float, string> template = null,
+			Color? normal = null, Color? hover = null, Color? active = null,
+			Color? thumb_normal = null, Color? thumb_active = null
+		) => GUIX.Slider(
+			rc, value, leftValue, rightValue, SliderAxis.Horizontal,
+			template,
+			normal, hover, active,
+			thumb_normal, thumb_active
+		);
+		public static float VerticalSlider(
+			Rect rc, float value, float leftValue, float rightValue,
+			Func<float, string> template = null,
+			Color? normal = null, Color? hover = null, Color? active = null,
+			Color? thumb_normal = null, Color? thumb_active = null
+		) => GUIX.Slider(
+			rc, value, leftValue, rightValue, SliderAxis.Vertical,
+			template,
+			normal, hover, active,
+			thumb_normal, thumb_active
+		);
+		public static float Slider(
+			Rect rc, float value, float leftValue, float rightValue, SliderAxis axis,
+			Func<float, string> template = null,
+			Color? normal = null, Color? hover = null, Color? active = null,
+			Color? thumb_normal = null, Color? thumb_active = null
+		) {
+			var ret = axis == SliderAxis.Horizontal
+				? GUI.HorizontalSlider(rc.Shrink(5, 0, 5, 0), value, leftValue, rightValue, GUIStyle.none, GUIStyle.none)
+				: GUI.VerticalSlider(rc.Shrink(0, 5, 0, 5), value, leftValue, rightValue, GUIStyle.none, GUIStyle.none);
+
+			var f_hover = false;
+			var f_active = false;
+			if (rc.Contains(Event.current.mousePosition))
+				f_hover = true;
+			if (f_hover && Input.GetMouseButton(0))
+				f_active = true;
+
+			var color = !f_hover && !f_active
+				? normal ?? Colors.FrameBG
+				: f_hover && !f_active
+					? hover ?? Colors.FrameBGHover
+					: active ?? Colors.FrameBGActive;
+			GUIX.Fill(rc, color);
+
+			Rect rcThumb;
+			if (rightValue != leftValue) { // cannot be same
+				var norm = (value - leftValue) / (rightValue - leftValue);
+
+				if (axis == SliderAxis.Horizontal) {
+					var sz = rc.width - GUIX.SLIDER_THUMB_SIZE - GUIX.SLIDER_THUMB_PADDING * 2f;
+					rcThumb = Rect.MinMaxRect(
+						GUIX.SLIDER_THUMB_PADDING + Mathf.Lerp(rc.xMin, rc.xMin + sz, norm),
+						rc.yMin + GUIX.SLIDER_THUMB_PADDING,
+						GUIX.SLIDER_THUMB_PADDING + Mathf.Lerp(rc.xMin, rc.xMin + sz, norm) + GUIX.SLIDER_THUMB_SIZE,
+						rc.yMax - GUIX.SLIDER_THUMB_PADDING
+					);
+				}
+				else {
+					var sz = rc.height - GUIX.SLIDER_THUMB_SIZE - GUIX.SLIDER_THUMB_PADDING * 2f;
+					rcThumb = Rect.MinMaxRect(
+						rc.xMin + GUIX.SLIDER_THUMB_PADDING,
+						Mathf.Lerp(rc.yMin, rc.yMin + sz, norm),
+						rc.xMax - GUIX.SLIDER_THUMB_PADDING,
+						Mathf.Lerp(rc.yMin, rc.yMin + sz, norm) + GUIX.SLIDER_THUMB_SIZE
+					);
+				}
+
+				var th_active = false;
+				if (rcThumb.Contains(Event.current.mousePosition) && Input.GetMouseButton(0))
+					th_active = true;
+
+				var th_color = !th_active
+					? normal ?? Colors.SliderThumb
+					: active ?? Colors.SliderThumbActive;
+				GUIX.Fill(rcThumb, th_color);
+			}
+
+			if (template == null)
+				template = v => v.ToString();
+			GUIX.Label(rc, template(value), Color.white, TextAnchor.MiddleCenter);
+			return ret;
 		}
 
 		public static void KeyBinder(string id, Rect rc, string key, Action<KeyCode> onChange) {

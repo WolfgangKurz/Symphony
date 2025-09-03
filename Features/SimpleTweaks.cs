@@ -1,15 +1,19 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
 
+using HarmonyLib;
+
 using Symphony.UI;
 
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using System.Text;
 
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UIElements;
 
 namespace Symphony.Features {
 	internal class SimpleTweaks : MonoBehaviour {
@@ -18,7 +22,9 @@ namespace Symphony.Features {
 		internal static ConfigEntry<bool> DisplayFPS = config.Bind("SimpleTweaks", "DisplayFPS", false, "Display FPS to screen");
 
 		internal static ConfigEntry<bool> LimitFPS = config.Bind("SimpleTweaks", "LimitFPS", false, "Limits game framerate. Uses MaxFPS value");
+		internal static ConfigEntry<bool> LimitBattleFPS = config.Bind("SimpleTweaks", "LimitBattleFPS", true, "Limits battle framerate. Uses MaxBattleFPS value");
 		internal static ConfigEntry<int> MaxFPS = config.Bind("SimpleTweaks", "MaxFPS", 60, "Framerate");
+		internal static ConfigEntry<int> MaxBattleFPS = config.Bind("SimpleTweaks", "MaxBattleFPS", 60, "Framerate");
 
 		internal static ConfigEntry<bool> UseLobbyHide = config.Bind("SimpleTweaks", "UseLobbyHide", true, $"Use hotkey to toggle lobby UI");
 		internal static ConfigEntry<string> LobbyUIHideKey = config.Bind("SimpleTweaks", "LobbyHideKey", "Tab", $"Key to toggle lobby UI");
@@ -26,6 +32,37 @@ namespace Symphony.Features {
 		internal static ConfigEntry<bool> UseFormationFix = config.Bind("SimpleTweaks", "UseFormationFix", true, $"Fix character selection bug on Formation scene");
 
 		internal static ConfigEntry<bool> MuteOnBackground = config.Bind("SimpleTweaks", "MuteOnBackground", false, $"Mute all sound when game go to background");
+
+		internal static float VolumeBGM {
+			get => GameOption.BgmVolume;
+			set {
+				if (value != GameOption.BgmVolume) {
+					GameOption.BgmVolume = value;
+					GameSoundManager.Instance.ChangeVolumeBGM();
+					GameOption.SaveSetting();
+				}
+			}
+		}
+		internal static float VolumeSFX {
+			get => GameOption.SfxVolume;
+			set {
+				if (value != GameOption.SfxVolume) {
+					GameOption.SfxVolume = value;
+					GameSoundManager.Instance.ChangeVolumeEffect();
+					GameOption.SaveSetting();
+				}
+			}
+		}
+		internal static float VolumeVoice {
+			get => GameOption.VoiceVolume;
+			set {
+				if (value != GameOption.VoiceVolume) {
+					GameOption.VoiceVolume = value;
+					GameSoundManager.Instance.ChangeVolumeVoice();
+					GameOption.SaveSetting();
+				}
+			}
+		}
 
 		private FrameLimit DisplayFPSLimit = new(0.5f);
 
@@ -119,9 +156,9 @@ namespace Symphony.Features {
 			if (SceneManager.GetActiveScene().name != "Scene_Formation2") return;
 
 			var objects = GameObject.FindObjectsOfType<FormationCharacterPick>();
-			foreach(var obj in objects) {
+			foreach (var obj in objects) {
 				var go = obj.gameObject;
-				if(!go.TryGetComponent(typeof(UIButton), out var _)) {
+				if (!go.TryGetComponent(typeof(UIButton), out var _)) {
 					var btn = go.AddComponent<UIButton>();
 					btn.onClick.Add(new EventDelegate(obj.Pick));
 
@@ -151,12 +188,22 @@ namespace Symphony.Features {
 				originalVSyncCount = QualitySettings.vSyncCount;
 			}
 
-			if (!LimitFPS.Value) {
+			if (!LimitFPS.Value && !LimitBattleFPS.Value) {
 				ResetFPS();
 				return;
 			}
 
-			if (MaxFPS.Value > 0) { // framerate has set
+			if (SceneManager.GetActiveScene().name == "Scene_StageBattle" && LimitBattleFPS.Value && MaxBattleFPS.Value > 0) {
+				if (Application.targetFrameRate != MaxBattleFPS.Value || QualitySettings.vSyncCount != 0) { // should update
+					Application.targetFrameRate = MaxBattleFPS.Value;
+					QualitySettings.vSyncCount = 0;
+					Plugin.Logger.LogInfo(
+						$"[Symphony::SimpleTweak] Set battle framerate limit to {MaxBattleFPS.Value}" +
+						(originalVSyncCount > 0 ? ", VSync also disabled" : "")
+					);
+				}
+			}
+			else if (LimitFPS.Value && MaxFPS.Value > 0) { // framerate has set
 				if (Application.targetFrameRate != MaxFPS.Value || QualitySettings.vSyncCount != 0) { // should update
 					Application.targetFrameRate = MaxFPS.Value;
 					QualitySettings.vSyncCount = 0;

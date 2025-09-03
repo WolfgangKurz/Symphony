@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace Symphony.UI.Panels {
 	internal class ConfigPanel : UIPanelBase {
-		public override Rect rc { get; set; } = new Rect(10f, 30f, 250f, 500f);
+		public override Rect rc { get; set; } = new Rect(10f, 30f, 252f, 500f);
 
 		private Rect panelRect => new Rect(0, 0, 268, rc.height - 18 - 2);
 		private Rect panelViewport = new Rect(0, 0, 248, 0);
@@ -72,16 +72,36 @@ namespace Symphony.UI.Panels {
 				offset += 20 + 4;
 
 				if (SimpleTweaks.LimitFPS.Value) {
-					GUIX.Label(new Rect(4, offset, 88, 20), "최대 FPS");
-					var input = GUIX.TextField(new Rect(96, offset, 50, 20), SimpleTweaks.MaxFPS.Value.ToString());
-					if (int.TryParse(input, out var input_i)) {
-						SimpleTweaks.MaxFPS.Value = input_i;
+					GUIX.Label(new Rect(4, offset, 80, 20), "최대 FPS");
+					var input = GUIX.HorizontalSlider(new Rect(84, offset, 164, 20), SimpleTweaks.MaxFPS.Value, 1, 240);
+					if (input != SimpleTweaks.MaxFPS.Value) {
+						SimpleTweaks.MaxFPS.Value = input;
 						SimpleTweaks.config.Save();
 					}
 					offset += 20 + 4;
 				}
 			}
 
+			{
+				var value = GUIX.Toggle(new Rect(4, offset, 240, 20), SimpleTweaks.LimitBattleFPS.Value, "전투 FPS 제한하기");
+				if (value != SimpleTweaks.LimitBattleFPS.Value) {
+					SimpleTweaks.LimitBattleFPS.Value = value;
+					SimpleTweaks.config.Save();
+				}
+				offset += 20 + 4;
+
+				if (SimpleTweaks.LimitBattleFPS.Value) {
+					GUIX.Label(new Rect(4, offset, 80, 20), "최대 FPS");
+					var input = GUIX.HorizontalSlider(new Rect(84, offset, 164, 20), SimpleTweaks.MaxBattleFPS.Value, 1, 240);
+					if (input != SimpleTweaks.MaxBattleFPS.Value) {
+						SimpleTweaks.MaxBattleFPS.Value = input;
+						SimpleTweaks.config.Save();
+					}
+					offset += 20 + 4;
+				}
+			}
+
+			offset += 10;
 			{
 				var value = GUIX.Toggle(new Rect(4, offset, 240, 20), SimpleTweaks.UseLobbyHide.Value, "로비 UI 토글 사용");
 				if (value != SimpleTweaks.UseLobbyHide.Value) {
@@ -92,26 +112,40 @@ namespace Symphony.UI.Panels {
 			}
 			if (SimpleTweaks.UseLobbyHide.Value) {
 				GUIX.Label(new Rect(4, offset, 88, 20), "로비 UI 토글 키");
-				GUIX.KeyBinder("SimpleTweak:LobbyUIHideKey", new Rect(120, offset, 120, 20), SimpleTweaks.LobbyUIHideKey.Value, KeyCode => {
+				GUIX.KeyBinder("SimpleTweak:LobbyUIHideKey", new Rect(124, offset, 124, 20), SimpleTweaks.LobbyUIHideKey.Value, KeyCode => {
 					SimpleTweaks.LobbyUIHideKey.Value = KeyCode.ToString();
 					SimpleTweaks.config.Save();
 				});
 				offset += 20 + 4;
 			}
 
+			offset += 10;
 			{
-				var value = GUIX.Toggle(new Rect(4, offset, 240, 20), SimpleTweaks.UseFormationFix.Value, "편성 화면 선택 버그 수정");
-				if (value != SimpleTweaks.UseFormationFix.Value) {
-					SimpleTweaks.UseFormationFix.Value = value;
+				var value = GUIX.Toggle(new Rect(4, offset, 240, 20), SimpleTweaks.MuteOnBackground.Value, "백그라운드에서 음소거");
+				if (value != SimpleTweaks.MuteOnBackground.Value) {
+					SimpleTweaks.MuteOnBackground.Value = value;
 					SimpleTweaks.config.Save();
 				}
 				offset += 20 + 4;
 			}
 
+			GUIX.Label(new Rect(4, offset, 80, 20), "BGM");
+			SimpleTweaks.VolumeBGM = GUIX.HorizontalSlider(new Rect(84, offset, 164, 20), SimpleTweaks.VolumeBGM, 0f, 1f, v => (v * 100f).ToString("0.0") + " %");
+			offset += 20 + 4;
+
+			GUIX.Label(new Rect(4, offset, 80, 20), "SFX");
+			SimpleTweaks.VolumeSFX = GUIX.HorizontalSlider(new Rect(84, offset, 164, 20), SimpleTweaks.VolumeSFX, 0f, 1f, v => (v * 100f).ToString("0.0") + " %");
+			offset += 20 + 4;
+
+			GUIX.Label(new Rect(4, offset, 80, 20), "Voice");
+			SimpleTweaks.VolumeVoice = GUIX.HorizontalSlider(new Rect(84, offset, 164, 20), SimpleTweaks.VolumeVoice, 0f, 1f, v => (v * 100f).ToString("0.0") + " %");
+			offset += 20 + 4;
+
+			offset += 10;
 			{
-				var value = GUIX.Toggle(new Rect(4, offset, 240, 20), SimpleTweaks.MuteOnBackground.Value, "백그라운드에서 음소거");
-				if (value != SimpleTweaks.MuteOnBackground.Value) {
-					SimpleTweaks.MuteOnBackground.Value = value;
+				var value = GUIX.Toggle(new Rect(4, offset, 240, 20), SimpleTweaks.UseFormationFix.Value, "편성 화면 선택 버그 수정");
+				if (value != SimpleTweaks.UseFormationFix.Value) {
+					SimpleTweaks.UseFormationFix.Value = value;
 					SimpleTweaks.config.Save();
 				}
 				offset += 20 + 4;
@@ -135,7 +169,7 @@ namespace Symphony.UI.Panels {
 			}
 			if (WindowedResize.Use_FullScreenKey.Value) {
 				GUIX.Label(new Rect(4, offset, 88, 20), "전체화면 키");
-				GUIX.KeyBinder("WindowedResize:Key_Mode", new Rect(120, offset, 120, 20), WindowedResize.Key_Mode.Value, KeyCode => {
+				GUIX.KeyBinder("WindowedResize:Key_Mode", new Rect(124, offset, 124, 20), WindowedResize.Key_Mode.Value, KeyCode => {
 					WindowedResize.Key_Mode.Value = KeyCode.ToString();
 					WindowedResize.config.Save();
 				});
@@ -160,28 +194,28 @@ namespace Symphony.UI.Panels {
 			}
 			if (BattleHotkey.Use_SkillPanel.Value) {
 				GUIX.Label(new Rect(24, offset, 70, 20), "액티브 스킬 1");
-				GUIX.KeyBinder("BattleHotkey:Skill1", new Rect(120, offset, 120, 20), BattleHotkey.Key_SkillPanel[0].Value, KeyCode => {
+				GUIX.KeyBinder("BattleHotkey:Skill1", new Rect(124, offset, 120, 20), BattleHotkey.Key_SkillPanel[0].Value, KeyCode => {
 					BattleHotkey.Key_SkillPanel[0].Value = KeyCode.ToString();
 					BattleHotkey.config.Save();
 				});
 				offset += 20 + 4;
 
 				GUIX.Label(new Rect(24, offset, 70, 20), "액티브 스킬 2");
-				GUIX.KeyBinder("BattleHotkey:Skill2", new Rect(120, offset, 120, 20), BattleHotkey.Key_SkillPanel[1].Value, KeyCode => {
+				GUIX.KeyBinder("BattleHotkey:Skill2", new Rect(124, offset, 120, 20), BattleHotkey.Key_SkillPanel[1].Value, KeyCode => {
 					BattleHotkey.Key_SkillPanel[1].Value = KeyCode.ToString();
 					BattleHotkey.config.Save();
 				});
 				offset += 20 + 4;
 
 				GUIX.Label(new Rect(24, offset, 70, 20), "이동");
-				GUIX.KeyBinder("BattleHotkey:Move", new Rect(120, offset, 120, 20), BattleHotkey.Key_SkillPanel[2].Value, KeyCode => {
+				GUIX.KeyBinder("BattleHotkey:Move", new Rect(124, offset, 120, 20), BattleHotkey.Key_SkillPanel[2].Value, KeyCode => {
 					BattleHotkey.Key_SkillPanel[2].Value = KeyCode.ToString();
 					BattleHotkey.config.Save();
 				});
 				offset += 20 + 4;
 
 				GUIX.Label(new Rect(24, offset, 70, 20), "대기");
-				GUIX.KeyBinder("BattleHotkey:Wait", new Rect(120, offset, 120, 20), BattleHotkey.Key_SkillPanel[3].Value, KeyCode => {
+				GUIX.KeyBinder("BattleHotkey:Wait", new Rect(124, offset, 120, 20), BattleHotkey.Key_SkillPanel[3].Value, KeyCode => {
 					BattleHotkey.Key_SkillPanel[3].Value = KeyCode.ToString();
 					BattleHotkey.config.Save();
 				});
@@ -198,7 +232,7 @@ namespace Symphony.UI.Panels {
 			}
 			if (BattleHotkey.Use_PlayButton.Value) {
 				GUIX.Label(new Rect(24, offset, 70, 20), "행동 개시");
-				GUIX.KeyBinder("BattleHotkey:Play", new Rect(120, offset, 120, 20), BattleHotkey.Key_Play.Value, KeyCode => {
+				GUIX.KeyBinder("BattleHotkey:Play", new Rect(124, offset, 124, 20), BattleHotkey.Key_Play.Value, KeyCode => {
 					BattleHotkey.Key_Play.Value = KeyCode.ToString();
 					BattleHotkey.config.Save();
 				});
@@ -218,7 +252,7 @@ namespace Symphony.UI.Panels {
 					GUIX.Label(new Rect(24, offset, 70, 20), $"아군 위치 {i + 1}");
 					GUIX.DrawGrid33(new Rect(98, offset + 2, 16, 16), i);
 
-					GUIX.KeyBinder($"BattleHotkey:TeamGrid{i + 1}", new Rect(120, offset, 120, 20), BattleHotkey.Key_TeamGrid[i].Value, keyCode => {
+					GUIX.KeyBinder($"BattleHotkey:TeamGrid{i + 1}", new Rect(124,  offset, 124, 20), BattleHotkey.Key_TeamGrid[i].Value, keyCode => {
 						BattleHotkey.Key_TeamGrid[i].Value = keyCode.ToString();
 						BattleHotkey.config.Save();
 					});
@@ -239,7 +273,7 @@ namespace Symphony.UI.Panels {
 					GUIX.Label(new Rect(24, offset, 70, 20), $"적군 위치 {i + 1}");
 					GUIX.DrawGrid33(new Rect(98, offset + 2, 16, 16), i);
 
-					GUIX.KeyBinder($"BattleHotkey:EnemyGrid{i + 1}", new Rect(120, offset, 120, 20), BattleHotkey.Key_EnemyGrid[i].Value, keyCode => {
+					GUIX.KeyBinder($"BattleHotkey:EnemyGrid{i + 1}", new Rect(124, offset, 124, 20), BattleHotkey.Key_EnemyGrid[i].Value, keyCode => {
 						BattleHotkey.Key_EnemyGrid[i].Value = keyCode.ToString();
 						BattleHotkey.config.Save();
 					});

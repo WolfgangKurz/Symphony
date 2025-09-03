@@ -11,7 +11,6 @@ using System.Linq;
 using System.Reflection;
 
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 namespace Symphony.Features {
 	internal class BattleHotkey : MonoBehaviour, Listener {
@@ -65,19 +64,15 @@ namespace Symphony.Features {
 			yield return new WaitForEndOfFrame();
 
 			Plugin.Logger.LogInfo("[Symphony::BattleHotkey] Scene change detecting start");
-			SceneManager.activeSceneChanged += (prev, _new) => {
-				Plugin.Logger.LogDebug($"[Symphony::BattleHotkey] Scene change detected, new one is {_new.name}");
-
-				inBattleScene = _new.name == "Scene_StageBattle";
-				if (inBattleScene) {
-					Plugin.Logger.LogInfo("[Symphony::BattleHotkey] Battle scene detected, load hotkeys");
-
-					Handler.RegListner(this, eType.SKillConfirm); // Detect skill confirm button appears where.
-				}
-				else {
-					Handler.RemoveListner(this);
-				}
-			};
+			SceneListener.Instance.OnEnter("Scene_StageBattle", () => {
+				inBattleScene = true;
+				Plugin.Logger.LogInfo("[Symphony::BattleHotkey] Battle scene detected, load hotkeys");
+				Handler.RegListner(this, eType.SKillConfirm); // Detect skill confirm button appears where.
+			});
+			SceneListener.Instance.OnExit("Scene_StageBattle", () => {
+				inBattleScene = false;
+				Handler.RemoveListner(this);
+			});
 		}
 
 		public void Update() {
