@@ -454,5 +454,8 @@ namespace Symphony.UI {
 		public static void HLine(Rect rc, Color? color = null) {
 			GUIX.Fill(rc.Height(1), color ?? Colors.Border);
 		}
+		public static void VLine(Rect rc, Color? color = null) {
+			GUIX.Fill(rc.Width(1), color ?? Colors.Border);
+		}
 	}
 }

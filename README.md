@@ -18,6 +18,12 @@ A collection of various simple quality-of-life improvements for the game.
 
 It provides features to display game FPS, limit FPS, limit FPS for Battle scene, a hotkey to hide the lobby UI, bug patches, mute audio when the game is in the background, and game volume control.
 
+### SimpleUI
+This modifies parts of the UI to make them easier to use.
+
+You can reduce the display size of the various combatant, equipment, and consumable lists. (This allows you to see more items on one screen.)
+You can also sort the consumable list.
+
 ### WindowedResize
 This feature allows you to switch to windowed mode with a set key, after which the window can be resized and maximized. It also remembers the window's last position and size.
 
