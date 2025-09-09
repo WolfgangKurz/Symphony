@@ -23,6 +23,7 @@ This modifies parts of the UI to make them easier to use.
 
 You can reduce the display size of the various combatant, equipment, and consumable lists. (This allows you to see more items on one screen.)
 You can also sort the consumable list.
+You can now press Enter to search in some search boxes.
 
 ### WindowedResize
 This feature allows you to switch to windowed mode with a set key, after which the window can be resized and maximized. It also remembers the window's last position and size.

@@ -94,7 +94,8 @@ namespace Symphony.UI.Panels {
 								SimpleTweaks.config.Save();
 							}
 							offset += 20 + 4;
-						}; {
+						}
+						; {
 							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleTweaks.LimitFPS.Value, "FPS 제한하기");
 							if (value != SimpleTweaks.LimitFPS.Value) {
 								SimpleTweaks.LimitFPS.Value = value;
@@ -111,7 +112,8 @@ namespace Symphony.UI.Panels {
 								}
 								offset += 20 + 4;
 							}
-						}; {
+						}
+						; {
 							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleTweaks.LimitBattleFPS.Value, "전투 FPS 제한하기");
 							if (value != SimpleTweaks.LimitBattleFPS.Value) {
 								SimpleTweaks.LimitBattleFPS.Value = value;
@@ -204,14 +206,16 @@ namespace Symphony.UI.Panels {
 								SimpleUI.config.Save();
 							}
 							offset += 20 + 4;
-						}; {
+						}
+						; {
 							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.Small_CharSelection.Value, "더 작은 전투원 선택 항목");
 							if (value != SimpleUI.Small_CharSelection.Value) {
 								SimpleUI.Small_CharSelection.Value = value;
 								SimpleUI.config.Save();
 							}
 							offset += 20 + 4;
-						}; {
+						}
+						; {
 							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.Small_CharScrapbook.Value, "더 작은 전투원 도감 항목");
 							if (value != SimpleUI.Small_CharScrapbook.Value) {
 								SimpleUI.Small_CharScrapbook.Value = value;
@@ -264,6 +268,42 @@ namespace Symphony.UI.Panels {
 							offset += 20 + 4;
 						}
 						;
+
+						GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						offset += 1 + 4;
+
+						; {
+							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.EnterToSearch_CharWarehouse.Value, "전투원 목록에서 Enter로 검색");
+							if (value != SimpleUI.EnterToSearch_CharWarehouse.Value) {
+								SimpleUI.EnterToSearch_CharWarehouse.Value = value;
+								SimpleUI.config.Save();
+							}
+							offset += 20 + 4;
+						}
+						; {
+							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.EnterToSearch_CharSelection.Value, "전투원 선택에서 Enter로 검색");
+							if (value != SimpleUI.EnterToSearch_CharSelection.Value) {
+								SimpleUI.EnterToSearch_CharSelection.Value = value;
+								SimpleUI.config.Save();
+							}
+							offset += 20 + 4;
+						}
+						; {
+							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.EnterToSearch_ItemWarehouse.Value, "장비 목록에서 Enter로 검색");
+							if (value != SimpleUI.EnterToSearch_ItemWarehouse.Value) {
+								SimpleUI.EnterToSearch_ItemWarehouse.Value = value;
+								SimpleUI.config.Save();
+							}
+							offset += 20 + 4;
+						}
+						; {
+							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.EnterToSearch_ItemSelection.Value, "장비 선택에서 Enter로 검색");
+							if (value != SimpleUI.EnterToSearch_ItemSelection.Value) {
+								SimpleUI.EnterToSearch_ItemSelection.Value = value;
+								SimpleUI.config.Save();
+							}
+							offset += 20 + 4;
+						}
 						#endregion
 						break;
 
@@ -273,7 +313,21 @@ namespace Symphony.UI.Panels {
 					case "WindowedResize":
 						#region WindowedResize Section
 						GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "WindowedResize");
-						offset += 20 + 4; {
+						offset += 20 + 4;
+
+						; {
+							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), WindowedResize.Use_Feature.Value, "크기 조절 허용 및 기억 사용하기");
+							if (value != WindowedResize.Use_Feature.Value) {
+								WindowedResize.Use_Feature.Value = value;
+								WindowedResize.config.Save();
+							}
+							offset += 20 + 4;
+						}
+
+						GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						offset += 1 + 4;
+
+						; {
 							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), WindowedResize.Use_FullScreenKey.Value, "전체화면 키 변경 사용");
 							if (value != WindowedResize.Use_FullScreenKey.Value) {
 								WindowedResize.Use_FullScreenKey.Value = value;

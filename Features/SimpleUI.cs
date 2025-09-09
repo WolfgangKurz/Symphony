@@ -25,6 +25,11 @@ namespace Symphony.Features {
 		internal static ConfigEntry<bool> Small_Consumables = config.Bind("SimpleUI", "Small_Consumables", false, "Display more items for Consumables");
 		internal static ConfigEntry<bool> Sort_Consumables = config.Bind("SimpleUI", "Sort_Consumables", false, "Sort consumable items");
 
+		internal static ConfigEntry<bool> EnterToSearch_CharWarehouse = config.Bind("SimpleUI", "EnterToSearch_CharWarehouse", false, "Press enter to search for Character Warehouse");
+		internal static ConfigEntry<bool> EnterToSearch_CharSelection = config.Bind("SimpleUI", "EnterToSearch_CharSelection", false, "Press enter to search for Character Selection");
+		internal static ConfigEntry<bool> EnterToSearch_ItemWarehouse = config.Bind("SimpleUI", "EnterToSearch_ItemWarehouse", false, "Press enter to search for Item Warehouse");
+		internal static ConfigEntry<bool> EnterToSearch_ItemSelection = config.Bind("SimpleUI", "EnterToSearch_ItemSelection", false, "Press enter to search for Item Selection");
+
 		public void Start() {
 			#region Patch
 			var harmony = new Harmony("Symphony.SimpleUI");
@@ -81,7 +86,6 @@ namespace Symphony.Features {
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.DataSortPatch_DataManager_List))
 			);
 			#endregion
-
 		}
 
 		private const float SMALL_ORIGINAL6_RATIO = (1f / 8f * 6f); // 6 -> 8
@@ -99,18 +103,35 @@ namespace Symphony.Features {
 			_reUseGrid.m_cellHeight = (int)(_reUseGrid.m_cellHeight * SMALL_ORIGINAL6_RATIO);
 		}
 		private static void GridItemsPatch_PCWarehouse_Start_post(Panel_PcWarehouse __instance) {
-			if (!Small_CharWarehouse.Value) return;
+			if (Small_CharWarehouse.Value) {
+				var _reUseGrid = (UIReuseGrid)__instance.GetType()
+					.GetField("_reUseGrid", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(__instance);
 
-			var _reUseGrid = (UIReuseGrid)__instance.GetType()
-				.GetField("_reUseGrid", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
+				var m_cellList = (UIReuseScrollViewCell[])_reUseGrid.GetType()
+					.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(_reUseGrid);
 
-			var m_cellList = (UIReuseScrollViewCell[])_reUseGrid.GetType()
-				.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(_reUseGrid);
+				foreach (var cell in m_cellList) {
+					cell.transform.localScale = new Vector3(SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO);
+				}
+			}
 
-			foreach (var cell in m_cellList) {
-				cell.transform.localScale = new Vector3(SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO);
+			if(EnterToSearch_CharWarehouse.Value) {
+				var _inputSearch = (UIInput)__instance.GetType()
+					.GetField("_inputSearch", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(__instance);
+				_inputSearch.onReturnKey = UIInput.OnReturnKey.Submit;
+				_inputSearch.onSubmit.Add(new(() => {
+					if (string.IsNullOrEmpty(_inputSearch.value)) {
+						var ev = _inputSearch.transform.Find("BtnReset")?.gameObject.GetComponent<UIButton>()?.onClick;
+						if (ev != null) EventDelegate.Execute(ev);
+					}
+					else {
+						var ev = _inputSearch.transform.Find("BtnSearch")?.gameObject.GetComponent<UIButton>()?.onClick;
+						if (ev != null) EventDelegate.Execute(ev);
+					}
+				}));
 			}
 		}
 		private static void GridItemsPatch_AndroidInventory_Start_pre(Panel_AndroidInventory __instance) {
@@ -127,20 +148,37 @@ namespace Symphony.Features {
 			}
 		}
 		private static void GridItemsPatch_AndroidInventory_Start_post(Panel_AndroidInventory __instance) {
-			if (!Small_CharSelection.Value) return;
+			if (Small_CharSelection.Value) {
+				var _reUseGrid = (UIReuseGrid[])__instance.GetType()
+					.GetField("_reUseGrid", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(__instance);
 
-			var _reUseGrid = (UIReuseGrid[])__instance.GetType()
-				.GetField("_reUseGrid", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
+				foreach (var grid in _reUseGrid) {
+					var m_cellList = (UIReuseScrollViewCell[])grid.GetType()
+					.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(grid);
 
-			foreach (var grid in _reUseGrid) {
-				var m_cellList = (UIReuseScrollViewCell[])grid.GetType()
-				.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(grid);
-
-				foreach (var cell in m_cellList) {
-					cell.transform.localScale = new Vector3(SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO);
+					foreach (var cell in m_cellList) {
+						cell.transform.localScale = new Vector3(SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO);
+					}
 				}
+			}
+
+			if (EnterToSearch_CharSelection.Value) {
+				var _inputSearch = (UIInput)__instance.GetType()
+					.GetField("_inputSearch", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(__instance);
+				_inputSearch.onReturnKey = UIInput.OnReturnKey.Submit;
+				_inputSearch.onSubmit.Add(new(() => {
+					if (string.IsNullOrEmpty(_inputSearch.value)) {
+						var ev = _inputSearch.transform.Find("BtnReset")?.gameObject.GetComponent<UIButton>()?.onClick;
+						if (ev != null) EventDelegate.Execute(ev);
+					}
+					else {
+						var ev = _inputSearch.transform.Find("BtnSearch")?.gameObject.GetComponent<UIButton>()?.onClick;
+						if (ev != null) EventDelegate.Execute(ev);
+					}
+				}));
 			}
 		}
 		private static void GridItemsPatch_CharacterBook_Start_pre(Panel_CharacterBook __instance) {
@@ -181,18 +219,35 @@ namespace Symphony.Features {
 			_gridItemList.m_cellHeight = (int)(_gridItemList.m_cellHeight * SMALL_ORIGINAL5_RATIO);
 		}
 		private static void GridItemsPatch_ItemInventory_Start_post(Panel_ItemInventory __instance) {
-			if (!Small_ItemWarehouse.Value) return;
+			if (Small_ItemWarehouse.Value) {
+				var _gridItemList = (UIReuseGrid)__instance.GetType()
+					.GetField("_gridItemList", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(__instance);
 
-			var _gridItemList = (UIReuseGrid)__instance.GetType()
-				.GetField("_gridItemList", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
+				var m_cellList = (UIReuseScrollViewCell[])_gridItemList.GetType()
+					.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(_gridItemList);
 
-			var m_cellList = (UIReuseScrollViewCell[])_gridItemList.GetType()
-				.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(_gridItemList);
+				foreach (var cell in m_cellList) {
+					cell.transform.localScale = new Vector3(SMALL_ORIGINAL5_RATIO, SMALL_ORIGINAL5_RATIO, SMALL_ORIGINAL5_RATIO);
+				}
+			}
 
-			foreach (var cell in m_cellList) {
-				cell.transform.localScale = new Vector3(SMALL_ORIGINAL5_RATIO, SMALL_ORIGINAL5_RATIO, SMALL_ORIGINAL5_RATIO);
+			if (EnterToSearch_ItemWarehouse.Value) {
+				var _inputSearch = (UIInput)__instance.GetType()
+					.GetField("_inputSearch", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(__instance);
+				_inputSearch.onReturnKey = UIInput.OnReturnKey.Submit;
+				_inputSearch.onSubmit.Add(new(() => {
+					if (string.IsNullOrEmpty(_inputSearch.value)) {
+						var ev = _inputSearch.transform.Find("BtnReset")?.gameObject.GetComponent<UIButton>()?.onClick;
+						if (ev != null) EventDelegate.Execute(ev);
+					}
+					else {
+						var ev = _inputSearch.transform.Find("BtnSearch")?.gameObject.GetComponent<UIButton>()?.onClick;
+						if (ev != null) EventDelegate.Execute(ev);
+					}
+				}));
 			}
 		}
 		private static void GridItemsPatch_ItemEquipInventory_Start_pre(Panel_ItemEquipInventory __instance) {
@@ -207,18 +262,35 @@ namespace Symphony.Features {
 			_gridItemList.m_cellHeight = (int)(_gridItemList.m_cellHeight * SMALL_ORIGINAL5_RATIO);
 		}
 		private static void GridItemsPatch_ItemEquipInventory_Start_post(Panel_ItemEquipInventory __instance) {
-			if (!Small_ItemSelection.Value) return;
+			if (Small_ItemSelection.Value) {
+				var _gridItemList = (UIReuseGrid)__instance.GetType()
+					.GetField("_gridItemList", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(__instance);
 
-			var _gridItemList = (UIReuseGrid)__instance.GetType()
-				.GetField("_gridItemList", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
+				var m_cellList = (UIReuseScrollViewCell[])_gridItemList.GetType()
+					.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(_gridItemList);
 
-			var m_cellList = (UIReuseScrollViewCell[])_gridItemList.GetType()
-				.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(_gridItemList);
+				foreach (var cell in m_cellList) {
+					cell.transform.localScale = new Vector3(SMALL_ORIGINAL5_RATIO, SMALL_ORIGINAL5_RATIO, SMALL_ORIGINAL5_RATIO);
+				}
+			}
 
-			foreach (var cell in m_cellList) {
-				cell.transform.localScale = new Vector3(SMALL_ORIGINAL5_RATIO, SMALL_ORIGINAL5_RATIO, SMALL_ORIGINAL5_RATIO);
+			if (EnterToSearch_ItemSelection.Value) {
+				var _inputSearch = (UIInput)__instance.GetType()
+					.GetField("_inputSearch", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(__instance);
+				_inputSearch.onReturnKey = UIInput.OnReturnKey.Submit;
+				_inputSearch.onSubmit.Add(new(() => {
+					if (string.IsNullOrEmpty(_inputSearch.value)) {
+						var ev = _inputSearch.transform.Find("BtnReset")?.gameObject.GetComponent<UIButton>()?.onClick;
+						if (ev != null) EventDelegate.Execute(ev);
+					}
+					else {
+						var ev = _inputSearch.transform.Find("BtnSearch")?.gameObject.GetComponent<UIButton>()?.onClick;
+						if (ev != null) EventDelegate.Execute(ev);
+					}
+				}));
 			}
 		}
 		private static void GridItemsPatch_TempInventory_Start_pre(Panel_TempInventory __instance) {

@@ -11,13 +11,17 @@ namespace Symphony {
 		private static object lockEnter = new object();
 		private static object lockExit = new object();
 
-		private Dictionary<string, List<Action<string>>> listenersChange = new();
-		private Dictionary<string, List<Action>> listenersEnter = new();
-		private Dictionary<string, List<Action>> listenersExit = new();
+		public delegate void SceneChanged(string previous, string @new);
+		public delegate void SceneEnter();
+		public delegate void SceneExit();
+
+		private List<SceneChanged> listenersChange = new();
+		private Dictionary<string, List<SceneEnter>> listenersEnter = new();
+		private Dictionary<string, List<SceneExit>> listenersExit = new();
 		private SceneListener() {
-			SceneManager.activeSceneChanged += (prev, _new) => {
+			SceneManager.activeSceneChanged += (prev, @new) => {
 				var namePrev = prev.name ?? "";
-				var nameNew = _new.name ?? "";
+				var nameNew = @new.name ?? "";
 				Plugin.Logger.LogDebug($"[Symphony::SceneListener] Scene change detected, was '{namePrev}', to '{nameNew}'");
 
 				lock (lockExit) {
@@ -35,26 +39,28 @@ namespace Symphony {
 							fn();
 					}
 				}
+
+				lock(lockChange) {
+					var listeners = this.listenersChange;
+					foreach (var fn in listeners)
+						fn(namePrev, nameNew);
+				}
 			};
 		}
 
-		public void On(string name, Action<string> action) {
+		public void On(SceneChanged action) {
 			lock (lockChange) {
-				if (!this.listenersChange.ContainsKey(name))
-					this.listenersChange.Add(name, new());
-
-				this.listenersChange[name].Add(action);
+				this.listenersChange.Add(action);
 			}
 		}
-		public void Off(string name, Action<string> action) {
+		public void Off(SceneChanged action) {
 			lock (lockChange) {
-				if (!this.listenersChange.ContainsKey(name)) return;
-				this.listenersChange[name].Remove(action);
+				this.listenersChange.Remove(action);
 			}
 		}
 
 
-		public void OnEnter(string name, Action action) {
+		public void OnEnter(string name, SceneEnter action) {
 			lock (lockEnter) {
 				if (!this.listenersEnter.ContainsKey(name))
 					this.listenersEnter.Add(name, new());
@@ -62,14 +68,14 @@ namespace Symphony {
 				this.listenersEnter[name].Add(action);
 			}
 		}
-		public void OffEnter(string name, Action action) {
+		public void OffEnter(string name, SceneEnter action) {
 			lock (lockEnter) {
 				if (!this.listenersEnter.ContainsKey(name)) return;
 				this.listenersEnter[name].Remove(action);
 			}
 		}
 
-		public void OnExit(string name, Action action) {
+		public void OnExit(string name, SceneExit action) {
 			lock (lockExit) {
 				if (!this.listenersExit.ContainsKey(name))
 					this.listenersExit.Add(name, new());
@@ -77,7 +83,7 @@ namespace Symphony {
 				this.listenersExit[name].Add(action);
 			}
 		}
-		public void OffExit(string name, Action action) {
+		public void OffExit(string name, SceneExit action) {
 			lock (lockExit) {
 				if (!this.listenersExit.ContainsKey(name)) return;
 				this.listenersExit[name].Remove(action);

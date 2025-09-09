@@ -44,9 +44,6 @@ namespace Symphony {
 				Logger.LogError("Failed to find ACTOR_CLASS, seems not installed on LastOrigin or binary changed!");
 				return;
 			}
-			finally {
-				StartCoroutine(this.CheckUpdate());
-			}
 
 			StartCoroutine(this.InitUI());
 
@@ -62,6 +59,8 @@ namespace Symphony {
 			this.uiManager = this.gameObject.AddComponent<UIManager>();
 			this.configPanel = this.uiManager.AddPanel(new ConfigPanel());
 			this.configPanel.enabled = false;
+
+			StartCoroutine(this.CheckUpdate());
 		}
 
 		public void Update() {
@@ -88,6 +87,7 @@ namespace Symphony {
 				Logger.LogError($"[Symphony] Cannot fetch update data: {e.ToString()}");
 				yield break;
 			}
+			Logger.LogWarning("CheckUpdate 7");
 
 			yield break;
 		}

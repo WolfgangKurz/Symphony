@@ -60,6 +60,7 @@ namespace Symphony.Features {
 		internal static readonly ConfigEntry<bool> Use_FullScreenKey = config.Bind("WindowedResize", "Use_FullScreenKey", true, "Use FullScreen mode key change");
 		internal static readonly ConfigEntry<string> Key_Mode = config.Bind("WindowedResize", "Key_Mode", "F11", "Window mode change button replacement");
 
+		internal static readonly ConfigEntry<bool> Use_Feature = config.Bind("WindowedResize", "Use_Feature", true, "Use WindowedResize feature that allow resize and remember position & size");
 		internal static readonly ConfigEntry<int> lastWindowSize_left = config.Bind("WindowedResize", "LastWindowSize_Left", 0, "Last left position of window on windowed mode");
 		internal static readonly ConfigEntry<int> lastWindowSize_top = config.Bind("WindowedResize", "LastWindowSize_Top", 0, "Last top position of window on windowed mode");
 		internal static readonly ConfigEntry<int> lastWindowSize_right = config.Bind("WindowedResize", "LastWindowSize_Right", 1280, "Last right position of window on windowed mode");
@@ -119,6 +120,7 @@ namespace Symphony.Features {
 		}
 
 		private void ApplyLastWindowSize() {
+			if (!Use_Feature.Value) return;
 			if (Screen.fullScreen) return;
 
 			var hWnd = Plugin.hWnd;
@@ -140,25 +142,25 @@ namespace Symphony.Features {
 		}
 
 		private void Patch_WindowedResize(bool init = false) {
+			var winType = WindowType.Window;
+			if (init)
+				winType = (WindowType)lastWindowedMode.Value;
+
+			if (!Use_Feature.Value) return;
+
 			var hWnd = Plugin.hWnd;
 			if (hWnd == IntPtr.Zero) {
 				Plugin.Logger.LogError("[Symphony::WindowedResize] Failed to get Game Window Handle");
 				return;
 			}
 
-			var winType = WindowType.Window;
-			if (init) {
-				winType = (WindowType)lastWindowedMode.Value;
-			}
-			else {
-				if (Screen.fullScreen)
-					winType = WindowType.FullScreen;
-				else if (Helper.IsWindowMaximized(hWnd))
-					winType = WindowType.Maximized;
+			if (Screen.fullScreen)
+				winType = WindowType.FullScreen;
+			else if (Helper.IsWindowMaximized(hWnd))
+				winType = WindowType.Maximized;
 
-				if ((int)winType == lastWindowedMode.Value) return;
-				lastWindowedMode.Value = (int)winType;
-			}
+			if ((int)winType == lastWindowedMode.Value) return;
+			lastWindowedMode.Value = (int)winType;
 
 			Plugin.Logger.LogDebug($"[Symphony::WindowedResize] Screen mode change detected, into {winType.ToString()}");
 
@@ -178,6 +180,7 @@ namespace Symphony.Features {
 
 		private FrameLimit MeasureWindowSizeLimit = new(0.2f); 
 		private void Measure_WindowSize() {
+			if (!Use_Feature.Value) return;
 			if (!MeasureWindowSizeLimit.Valid()) return;
 			if (lastWindowedMode.Value != (int)WindowType.Window) return;
 
