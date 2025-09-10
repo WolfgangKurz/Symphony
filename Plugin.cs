@@ -51,6 +51,8 @@ namespace Symphony {
 			this.gameObject.AddComponent<SimpleUI>();
 			this.gameObject.AddComponent<WindowedResize>();
 			this.gameObject.AddComponent<BattleHotkey>();
+
+			FancySkillDesc.Install();
 		}
 
 		private IEnumerator InitUI() {
