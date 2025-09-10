@@ -20,7 +20,7 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/WolfgangKurz/Symphony</RepositoryUrl>
 
-        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <SelfContained>true</SelfContained>
   </PropertyGroup>
 
@@ -49,7 +49,7 @@
     </None>
   </ItemGroup>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(OS)' == 'Windows_NT'">
     <Exec Command="COPY /Y &quot;$(TargetDir)Symphony.dll&quot; &quot;H:\VFUN\LastOrigin\BepInEx\plugins\Symphony.dll&quot;" />
   </Target>
 </Project>
