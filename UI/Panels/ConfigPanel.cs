@@ -185,6 +185,23 @@ namespace Symphony.UI.Panels {
 						offset += 20 + 4;
 
 						offset += 10; {
+							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleTweaks.UsePatchStorySkip.Value, "스토리 뷰어 스킵 키 변경");
+							if (value != SimpleTweaks.UsePatchStorySkip.Value) {
+								SimpleTweaks.UsePatchStorySkip.Value = value;
+								SimpleTweaks.config.Save();
+							}
+							offset += 20 + 4;
+						}
+						if (SimpleTweaks.UseLobbyHide.Value) {
+							GUIX.Label(new Rect(0, offset, HALF_FILL, 20), "스킵 키");
+							GUIX.KeyBinder("SimpleTweak:PatchStorySkipKey", new Rect(HALF_FILL, offset, HALF_FILL, 20), SimpleTweaks.PatchStorySkipKey.Value, KeyCode => {
+								SimpleTweaks.PatchStorySkipKey.Value = KeyCode.ToString();
+								SimpleTweaks.config.Save();
+							});
+							offset += 20 + 4;
+						}
+
+						offset += 10; {
 							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleTweaks.UseFormationFix.Value, "편성 화면 선택 버그 수정");
 							if (value != SimpleTweaks.UseFormationFix.Value) {
 								SimpleTweaks.UseFormationFix.Value = value;

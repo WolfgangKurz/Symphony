@@ -1,16 +1,90 @@
 ﻿using BepInEx;
 using BepInEx.Configuration;
 
+using HarmonyLib;
+
 using Symphony.UI;
 
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
+using System.Reflection.Emit;
 
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace Symphony.Features {
 	internal class SimpleTweaks : MonoBehaviour {
+		private class SimpleTweaks_Patch {
+			public static IEnumerable<CodeInstruction> Patch_Update(MethodBase original, IEnumerable<CodeInstruction> instructions) {
+				Plugin.Logger.LogInfo("[Symphony::SimpleTweaks] Start to patch Panel_Base.Update to patch auto-next");
+
+				var Input_GetKey_KeyCode = AccessTools.Method(typeof(Input), "GetKey", [typeof(KeyCode)]);
+				var Input_GetKeyUp_KeyCode = AccessTools.Method(typeof(Input), "GetKeyUp", [typeof(KeyCode)]);
+				var Panel_Base_IsHolding = AccessTools.Field(typeof(Panel_Base), "isHolding");
+
+				var new_inst = new CodeInstruction(
+					OpCodes.Call,
+					AccessTools.Method(typeof(SimpleTweaks), nameof(SimpleTweaks.StoryViewerPatchKey))
+				);
+
+				var ret = instructions;
+
+				#region Press patch
+				{
+					var matcher = new CodeMatcher(ret);
+					matcher.MatchForward(false,
+						/* if (this.isHolding && Input.GetKey(KeyCode.Space) &&  ... */
+
+						new CodeMatch(OpCodes.Ldarg_0), // this.
+						new CodeMatch(OpCodes.Ldfld, Panel_Base_IsHolding), // isHolding
+						new CodeMatch(OpCodes.Brfalse), // == false -> goto OPERAND
+
+						new CodeMatch(OpCodes.Ldc_I4_S, (sbyte)32), // 0x20, Space keycode
+						new CodeMatch(OpCodes.Call, Input_GetKey_KeyCode), // Input.GetKey(KeyCode)
+						new CodeMatch(OpCodes.Brfalse) // == false -> goto OPERAND
+					);
+
+					if (matcher.IsInvalid) {
+						Plugin.Logger.LogWarning("[Symphony::SimpleTweaks] Failed to patch Panel_Base.Update, target instructions not found");
+						return instructions;
+					}
+
+					matcher.Advance(3); // move to Space keycode
+					new_inst.labels = matcher.Instruction.labels;
+					matcher.RemoveInstruction(); // remove Space keycode
+					matcher.Insert(new_inst); // insert calling
+					ret = matcher.InstructionEnumeration();
+				}
+				#endregion
+
+				#region Up patch
+				{
+					var matcher = new CodeMatcher(ret);
+					matcher.MatchForward(false,
+						/* if (this.isHolding && Input.GetKey(KeyCode.Space) &&  ... */
+						new CodeMatch(OpCodes.Ldc_I4_S, (sbyte)32), // 0x20, Space keycode
+						new CodeMatch(OpCodes.Call, Input_GetKeyUp_KeyCode), // Input.GetKey(KeyCode)
+						new CodeMatch(OpCodes.Brfalse) // == false -> goto OPERAND
+					);
+
+					if (matcher.IsInvalid) {
+						Plugin.Logger.LogWarning("[Symphony::SimpleTweaks] Failed to patch Panel_Base.Update, target instructions not found");
+						return instructions;
+					}
+
+					new_inst.labels = matcher.Instruction.labels;
+					matcher.RemoveInstruction(); // remove Space keycode
+					matcher.Insert(new_inst); // insert calling
+					ret = matcher.InstructionEnumeration();
+				}
+				#endregion
+
+				return ret;
+			}
+		}
+
 		internal static ConfigFile config = new ConfigFile(Path.Combine(Paths.ConfigPath, "Symphony.SimpleTweaks.cfg"), true);
 
 		internal static ConfigEntry<bool> DisplayFPS = config.Bind("SimpleTweaks", "DisplayFPS", false, "Display FPS to screen");
@@ -22,8 +96,6 @@ namespace Symphony.Features {
 
 		internal static ConfigEntry<bool> UseLobbyHide = config.Bind("SimpleTweaks", "UseLobbyHide", true, $"Use hotkey to toggle lobby UI");
 		internal static ConfigEntry<string> LobbyUIHideKey = config.Bind("SimpleTweaks", "LobbyHideKey", "Tab", $"Key to toggle lobby UI");
-
-		internal static ConfigEntry<bool> UseFormationFix = config.Bind("SimpleTweaks", "UseFormationFix", true, $"Fix character selection bug on Formation scene");
 
 		internal static ConfigEntry<bool> MuteOnBackground = config.Bind("SimpleTweaks", "MuteOnBackground", false, $"Mute all sound when game go to background");
 
@@ -58,12 +130,25 @@ namespace Symphony.Features {
 			}
 		}
 
+		internal static ConfigEntry<bool> UsePatchStorySkip = config.Bind("SimpleTweaks", "UsePatchStorySkip", true, $"Prevent StoryViewer from proceeding automatically when the Space key is held down, and remap the key to PatchStorySkipKey");
+		internal static ConfigEntry<string> PatchStorySkipKey = config.Bind("SimpleTweaks", "PatchStorySpacebar", "LeftControl", $"Key to remap for StoryViewer");
+
+		internal static ConfigEntry<bool> UseFormationFix = config.Bind("SimpleTweaks", "UseFormationFix", true, $"Fix character selection bug on Formation scene");
+
+		//////////////////////////////////////////////////////////////////////////////////////
+
 		private FrameLimit DisplayFPSLimit = new(0.5f);
 
 		private GUIStyle FPSStyle;
 		private string lastFPS = "0";
 
 		public void Start() {
+			FPSStyle = new GUIStyle();
+			FPSStyle.alignment = TextAnchor.MiddleCenter;
+			FPSStyle.normal.textColor = Color.white;
+			FPSStyle.fontSize = 13;
+			FPSStyle.fontStyle = FontStyle.Bold;
+
 			#region Migration
 			{ // from MaximumFrame
 				var path = Path.Combine(Paths.ConfigPath, "Symphony.MaximumFrame.cfg");
@@ -100,11 +185,13 @@ namespace Symphony.Features {
 			}
 			#endregion
 
-			FPSStyle = new GUIStyle();
-			FPSStyle.alignment = TextAnchor.MiddleCenter;
-			FPSStyle.normal.textColor = Color.white;
-			FPSStyle.fontSize = 13;
-			FPSStyle.fontStyle = FontStyle.Bold;
+			#region Patch
+			var harmony = new Harmony("Symphony.SimpleTweaks");
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Base), "Update"),
+				transpiler: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_Update))
+			);
+			#endregion
 		}
 
 		public void Update() {
@@ -216,6 +303,14 @@ namespace Symphony.Features {
 				QualitySettings.vSyncCount = originalVSyncCount;
 				Plugin.Logger.LogInfo($"[Symphony::SimpleTweak] Set framerate limit to vanilla");
 			}
+		}
+
+		private static int StoryViewerPatchKey() {
+			if (UsePatchStorySkip.Value) {
+				if (PatchStorySkipKey.Value != "" && Helper.KeyCodeParse(PatchStorySkipKey.Value, out var kc)) // Key valid?
+					return (int)kc;
+			}
+			return (int)KeyCode.Space;
 		}
 	}
 }
