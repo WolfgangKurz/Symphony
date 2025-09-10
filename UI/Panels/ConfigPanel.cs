@@ -15,6 +15,8 @@ namespace Symphony.UI.Panels {
 		private readonly string[] PluginFeatures = ["SimpleTweaks", "SimpleUI", "WindowedResize", "BattleHotkey"];
 		private string SelectedFeature = "SimpleTweaks";
 
+		public ConfigPanel(MonoBehaviour instance) : base(instance) { }
+
 		public override void Update() { }
 		public override void OnGUI() {
 			rc = GUIX.ModalWindow(0, rc, this.PanelContent, "Symphony | LastOrigin QoL Plugin | F12", true);

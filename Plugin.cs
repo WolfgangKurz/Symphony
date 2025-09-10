@@ -28,10 +28,6 @@ namespace Symphony {
 		private UIManager uiManager;
 		private ConfigPanel configPanel;
 
-		private class GithubReleaseInfo {
-			public string tag_name { get; set; }
-		}
-
 		public void Awake() {
 			// Plugin startup logic
 			Logger = base.Logger;
@@ -57,7 +53,7 @@ namespace Symphony {
 			yield return new WaitForEndOfFrame();
 
 			this.uiManager = this.gameObject.AddComponent<UIManager>();
-			this.configPanel = this.uiManager.AddPanel(new ConfigPanel());
+			this.configPanel = this.uiManager.AddPanel(new ConfigPanel(this));
 			this.configPanel.enabled = false;
 
 			StartCoroutine(this.CheckUpdate());
@@ -79,9 +75,10 @@ namespace Symphony {
 
 			try {
 				var json = req.downloadHandler.text;
-				var tag = JsonMapper.ToObject<GithubReleaseInfo>(json).tag_name;
-				if (tag != Plugin.VersionTag) 
-					this.uiManager.AddPanel(new UpdateAvailablePanel(tag));
+				var release = JsonMapper.ToObject<GithubReleaseInfo>(json);
+				var tag = release.tag_name;
+				if (tag != Plugin.VersionTag && release.assets.Length > 0)
+					this.uiManager.AddPanel(new UpdateAvailablePanel(this, tag, release.assets));
 			}
 			catch (Exception e) {
 				Logger.LogError($"[Symphony] Cannot fetch update data: {e.ToString()}");

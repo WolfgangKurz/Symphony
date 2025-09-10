@@ -3,13 +3,11 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Drawing;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 
 using UnityEngine;
-using UnityEngine.XR;
 
 namespace Symphony {
 	internal static class Helper {
