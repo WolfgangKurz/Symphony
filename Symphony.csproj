@@ -5,7 +5,7 @@
     <AssemblyName>Symphony</AssemblyName>
     <Product>Symphony</Product>
     <Description>Symphony is LastOrigin PC client BepInEx plugin for QoL</Description>
-    <Version>0.8.1</Version>
+    <Version>0.8.2</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <RestoreAdditionalProjectSources>
@@ -20,8 +20,7 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/WolfgangKurz/Symphony</RepositoryUrl>
 
-    <PublishSingleFile>true</PublishSingleFile>
-    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+        <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <SelfContained>true</SelfContained>
   </PropertyGroup>
 

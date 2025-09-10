@@ -154,10 +154,12 @@ namespace Symphony.Features {
 				return;
 			}
 
-			if (Screen.fullScreen)
-				winType = WindowType.FullScreen;
-			else if (Helper.IsWindowMaximized(hWnd))
-				winType = WindowType.Maximized;
+			if (!init) {
+				if (Screen.fullScreen)
+					winType = WindowType.FullScreen;
+				else if (Helper.IsWindowMaximized(hWnd))
+					winType = WindowType.Maximized;
+			}
 
 			if ((int)winType == lastWindowedMode.Value) return;
 			lastWindowedMode.Value = (int)winType;

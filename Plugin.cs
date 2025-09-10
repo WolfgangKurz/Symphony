@@ -87,7 +87,6 @@ namespace Symphony {
 				Logger.LogError($"[Symphony] Cannot fetch update data: {e.ToString()}");
 				yield break;
 			}
-			Logger.LogWarning("CheckUpdate 7");
 
 			yield break;
 		}
