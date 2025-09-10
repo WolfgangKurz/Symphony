@@ -159,10 +159,10 @@ namespace Symphony.Features {
 					winType = WindowType.FullScreen;
 				else if (Helper.IsWindowMaximized(hWnd))
 					winType = WindowType.Maximized;
-			}
 
-			if ((int)winType == lastWindowedMode.Value) return;
-			lastWindowedMode.Value = (int)winType;
+				if ((int)winType == lastWindowedMode.Value) return;
+				lastWindowedMode.Value = (int)winType;
+			}
 
 			Plugin.Logger.LogDebug($"[Symphony::WindowedResize] Screen mode change detected, into {winType.ToString()}");
 
