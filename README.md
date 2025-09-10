@@ -16,7 +16,7 @@ The following is a description of each feature within the plugin.
 ### SimpleTweaks
 A collection of various simple quality-of-life improvements for the game.
 
-It provides features to display game FPS, limit FPS, limit FPS for Battle scene, a hotkey to hide the lobby UI, bug patches, mute audio when the game is in the background, and game volume control.
+It provides features to display game FPS, limit FPS, limit FPS for Battle scene, a hotkey to hide the lobby UI, bug patches, mute audio when the game is in the background, game volume control, and remap the skip key for StoryViewer.
 
 ### SimpleUI
 This modifies parts of the UI to make them easier to use.
