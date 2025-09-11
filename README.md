@@ -1,3 +1,5 @@
+[한국어](README.ko.md) | [English](README.md)
+
 # Symphony
 `Symphony` is a [BepInEx](https://github.com/BepInEx/BepInEx) plugin for the PC client of the game `LastOrigin` by `VALOFE`.
 Its goal is to provide various quality-of-life (QoL) features for users.

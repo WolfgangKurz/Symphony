@@ -1,3 +1,5 @@
+[한국어](README.ko.md) | [English](README.md)
+
 # Symphony
 `Symphony`는 `VALOFE` 의 게임 `LastOrigin` PC 클라이언트를 위한 [BepInEx](https://github.com/BepInEx/BepInEx) 플러그인입니다.
 각종 사용자 편의 기능(QoL)을 제공하는 것을 목표로 하고 있습니다.
