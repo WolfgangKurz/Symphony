@@ -250,6 +250,10 @@ namespace Symphony.Features {
                 transpiler: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_GameManager_Update))
             );
             #endregion
+
+            if (Helper.KeyCodeParse(FullScreenKey.Value, out var kc)) {
+                Plugin.Logger.LogInfo($"[Symphony::SimpleTweaks] > Key for Fullscreen toggle is '{FullScreenKey.Value}', KeyCode is {kc}. This message will be logged once at first time.");
+            }
         }
 
         public void Update() {
@@ -374,7 +378,6 @@ namespace Symphony.Features {
         private static bool IsFullScreenKeyDowned() {
             var key = KeyCode.None;
             if (Helper.KeyCodeParse(FullScreenKey.Value, out var kc)) {
-                Plugin.Logger.LogInfo($"[Symphony::SimpleTweaks] > Key for Fullscreen toggle is '{FullScreenKey.Value}', KeyCode is {kc}");
                 key = kc;
             }
 
