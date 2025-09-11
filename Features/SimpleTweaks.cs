@@ -207,7 +207,7 @@ namespace Symphony.Features {
                     var _old = new ConfigFile(path, false);
                     var keyCodeName = _old.Bind("LobbyHide", "Toggle", "Tab").Value;
 
-                    if (keyCodeName != "" && Helper.KeyCodeParse(keyCodeName, out var kc)) {
+                    if (keyCodeName != "" && Helper.KeyCodeParse(keyCodeName, out var _)) {
                         UseLobbyHide.Value = true;
                         LobbyUIHideKey.Value = keyCodeName;
                     }
@@ -229,7 +229,7 @@ namespace Symphony.Features {
                     Use_FullScreenKey.Value = useFullScreenKey;
 
                     var keyCodeName = _old.Bind("WindowedResize", "Key_Mode", "F11").Value;
-                    if (keyCodeName != "" && Helper.KeyCodeParse(keyCodeName, out var kc)) {
+                    if (keyCodeName != "" && Helper.KeyCodeParse(keyCodeName, out var _)) {
                         FullScreenKey.Value = keyCodeName;
                     }
 
