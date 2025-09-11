@@ -1,4 +1,5 @@
-﻿using BepInEx;
+﻿#pragma warning disable BepInEx002 // Classes with BepInPlugin attribute must inherit from BaseUnityPlugin
+using BepInEx;
 using BepInEx.Logging;
 using BepInEx.Unity.Mono;
 
