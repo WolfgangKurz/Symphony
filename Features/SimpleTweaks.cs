@@ -137,8 +137,6 @@ namespace Symphony.Features {
 		internal static readonly ConfigEntry<bool> Use_FullScreenKey = config.Bind("SimpleTweaks", "Use_FullScreenKey", true, "Use FullScreen mode key change");
 		internal static readonly ConfigEntry<string> FullScreenKey = config.Bind("SimpleTweaks", "FullScreenKey", "F11", "Window mode change button replacement");
 
-		internal static ConfigEntry<bool> MuteOnBackground = config.Bind("SimpleTweaks", "MuteOnBackground", false, $"Mute all sound when game go to background");
-
 		internal static float VolumeBGM {
 			get => GameOption.BgmVolume;
 			set {
@@ -278,13 +276,6 @@ namespace Symphony.Features {
 				GUIX.Fill(new Rect(5, 5, 50, 20), GUIX.Colors.WindowBG);
 				GUI.Label(new Rect(5, 5, 50, 20), lastFPS, FPSStyle);
 			}
-		}
-
-		public void OnApplicationFocus(bool hasFocus) {
-			if (hasFocus)
-				AudioListener.volume = 1.0f;
-			else if (MuteOnBackground.Value)
-				AudioListener.volume = 0.0f;
 		}
 
 		private void Check_LobbyUIToggle() {

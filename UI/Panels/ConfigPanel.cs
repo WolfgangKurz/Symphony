@@ -176,15 +176,6 @@ namespace Symphony.UI.Panels {
 							});
 							offset += 20 + 4;
 						}
-                        
-						offset += 10; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleTweaks.MuteOnBackground.Value, "백그라운드에서 음소거");
-							if (value != SimpleTweaks.MuteOnBackground.Value) {
-								SimpleTweaks.MuteOnBackground.Value = value;
-								SimpleTweaks.config.Save();
-							}
-							offset += 20 + 4;
-						}
 
 						GUIX.Label(new Rect(0, offset, 80, 20), "BGM");
 						SimpleTweaks.VolumeBGM = Mathf.Round(200f * GUIX.HorizontalSlider(
