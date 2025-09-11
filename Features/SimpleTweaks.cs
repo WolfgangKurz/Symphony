@@ -6,8 +6,10 @@ using HarmonyLib;
 using Symphony.UI;
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 
@@ -17,7 +19,7 @@ using UnityEngine.SceneManagement;
 namespace Symphony.Features {
 	internal class SimpleTweaks : MonoBehaviour {
 		private class SimpleTweaks_Patch {
-			public static IEnumerable<CodeInstruction> Patch_Update(MethodBase original, IEnumerable<CodeInstruction> instructions) {
+			public static IEnumerable<CodeInstruction> Patch_PanelBase_Update(MethodBase original, IEnumerable<CodeInstruction> instructions) {
 				Plugin.Logger.LogInfo("[Symphony::SimpleTweaks] Start to patch Panel_Base.Update to patch auto-next");
 
 				var Input_GetKey_KeyCode = AccessTools.Method(typeof(Input), "GetKey", [typeof(KeyCode)]);
@@ -83,6 +85,39 @@ namespace Symphony.Features {
 
 				return ret;
 			}
+
+			public static IEnumerable<CodeInstruction> Patch_GameManager_Update(MethodBase original, IEnumerable<CodeInstruction> instructions) {
+				Plugin.Logger.LogInfo("[Symphony::WindowedResize] Start to patch GameManager.Update");
+
+				var Input_GetKeyDown_KeyCode = AccessTools.Method(typeof(Input), "GetKeyDown", [typeof(KeyCode)]);
+
+				var matcher = new CodeMatcher(instructions);
+				matcher.MatchForward(false,
+					/* if (!Input.GetKeyDown(KeyCode.Return) && !Input.GetKeyDown(KeyCode.KeypadEnter)) return; */
+					new CodeMatch(OpCodes.Ldc_I4_S, (sbyte)13), // Return KeyCode
+					new CodeMatch(OpCodes.Call, Input_GetKeyDown_KeyCode), // Input.GetKeyDown(KeyCode)
+					new CodeMatch(OpCodes.Brtrue), // == true -> goto OPERAND
+
+					new CodeMatch(OpCodes.Ldc_I4, 271), // KeypadEnter KeyCode
+					new CodeMatch(OpCodes.Call, Input_GetKeyDown_KeyCode), // Input.GetKeyDown(KeyCode)
+					new CodeMatch(OpCodes.Brfalse) // == false -> goto OPERAND
+				);
+
+				if (matcher.IsInvalid) {
+					Plugin.Logger.LogWarning("[Symphony::WindowedResize] Failed to patch GameManager.Update, target instructions not found");
+					return instructions;
+				}
+
+				var new_inst = new CodeInstruction(
+					OpCodes.Call,
+					AccessTools.Method(typeof(SimpleTweaks), nameof(SimpleTweaks.IsFullScreenKeyDowned))
+				);
+				new_inst.labels = matcher.Instruction.labels;
+
+				matcher.RemoveInstructions(5); // remove except 'return;'
+				matcher.Insert(new_inst);
+				return matcher.InstructionEnumeration();
+			}
 		}
 
 		internal static ConfigFile config = new ConfigFile(Path.Combine(Paths.ConfigPath, "Symphony.SimpleTweaks.cfg"), true);
@@ -97,7 +132,10 @@ namespace Symphony.Features {
 		internal static ConfigEntry<bool> UseLobbyHide = config.Bind("SimpleTweaks", "UseLobbyHide", true, $"Use hotkey to toggle lobby UI");
 		internal static ConfigEntry<string> LobbyUIHideKey = config.Bind("SimpleTweaks", "LobbyHideKey", "Tab", $"Key to toggle lobby UI");
 
-		internal static ConfigEntry<bool> MuteOnBackground = config.Bind("SimpleTweaks", "MuteOnBackground", false, $"Mute all sound when game go to background");
+		internal static readonly ConfigEntry<bool> Use_IgnoreWindowReset = config.Bind("SimpleTweaks", "Ignore_WindowReset", true, "Ignore window size aspect-ratio and position reset after resize");
+
+		internal static readonly ConfigEntry<bool> Use_FullScreenKey = config.Bind("SimpleTweaks", "Use_FullScreenKey", true, "Use FullScreen mode key change");
+		internal static readonly ConfigEntry<string> FullScreenKey = config.Bind("SimpleTweaks", "FullScreenKey", "F11", "Window mode change button replacement");
 
 		internal static float VolumeBGM {
 			get => GameOption.BgmVolume;
@@ -171,12 +209,30 @@ namespace Symphony.Features {
 					var _old = new ConfigFile(path, false);
 					var keyCodeName = _old.Bind("LobbyHide", "Toggle", "Tab").Value;
 
-					if (keyCodeName != "" && Helper.KeyCodeParse(keyCodeName, out var kc)) {
+					if (keyCodeName != "" && Helper.KeyCodeParse(keyCodeName, out var _)) {
 						UseLobbyHide.Value = true;
 						LobbyUIHideKey.Value = keyCodeName;
 					}
 					else {
 						UseLobbyHide.Value = false;
+					}
+
+					File.Delete(path);
+					config.Save();
+				}
+			}
+			{ // from WindowedResize
+				var path = Path.Combine(Paths.ConfigPath, "Symphony.WindowedResize.cfg");
+				if (File.Exists(path)) {
+					Plugin.Logger.LogMessage("[Symphony::SimpleTweaks] WindowedResize configuration detected, migration it.");
+					var _old = new ConfigFile(path, false);
+
+					var useFullScreenKey = _old.Bind("WindowedResize", "Use_FullScreenKey", true).Value;
+					Use_FullScreenKey.Value = useFullScreenKey;
+
+					var keyCodeName = _old.Bind("WindowedResize", "Key_Mode", "F11").Value;
+					if (keyCodeName != "" && Helper.KeyCodeParse(keyCodeName, out var _)) {
+						FullScreenKey.Value = keyCodeName;
 					}
 
 					File.Delete(path);
@@ -189,9 +245,21 @@ namespace Symphony.Features {
 			var harmony = new Harmony("Symphony.SimpleTweaks");
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_Base), "Update"),
-				transpiler: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_Update))
+				transpiler: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_PanelBase_Update))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(GameManager), "Update"),
+				transpiler: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_GameManager_Update))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(WindowsGameManager), "ApplyAspectRatioNextFrame"),
+				prefix: new HarmonyMethod(typeof(SimpleTweaks), nameof(SimpleTweaks.IsIgnoreWindowRest))
 			);
 			#endregion
+
+			if (Helper.KeyCodeParse(FullScreenKey.Value, out var kc)) {
+				Plugin.Logger.LogInfo($"[Symphony::SimpleTweaks] > Key for Fullscreen toggle is '{FullScreenKey.Value}', KeyCode is {kc}. This message will be logged once at first time.");
+			}
 		}
 
 		public void Update() {
@@ -208,13 +276,6 @@ namespace Symphony.Features {
 				GUIX.Fill(new Rect(5, 5, 50, 20), GUIX.Colors.WindowBG);
 				GUI.Label(new Rect(5, 5, 50, 20), lastFPS, FPSStyle);
 			}
-		}
-
-		public void OnApplicationFocus(bool hasFocus) {
-			if (hasFocus)
-				AudioListener.volume = 1.0f;
-			else if (MuteOnBackground.Value)
-				AudioListener.volume = 0.0f;
 		}
 
 		private void Check_LobbyUIToggle() {
@@ -311,6 +372,24 @@ namespace Symphony.Features {
 					return (int)kc;
 			}
 			return (int)KeyCode.Space;
+		}
+
+		private static bool IsFullScreenKeyDowned() {
+			var key = KeyCode.None;
+			if (Helper.KeyCodeParse(FullScreenKey.Value, out var kc)) {
+				key = kc;
+			}
+
+			if (Use_FullScreenKey.Value && key != KeyCode.None)
+				return Input.GetKeyDown(key);
+			return Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter); // Game default value
+		}
+		private static bool IsIgnoreWindowRest(ref IEnumerator __result) {
+			if (Use_IgnoreWindowReset.Value) {
+				__result = Enumerable.Empty<YieldInstruction>().GetEnumerator();
+				return false;
+			}
+			return true;
 		}
 	}
 }
