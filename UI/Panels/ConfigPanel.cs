@@ -151,7 +151,16 @@ namespace Symphony.UI.Panels {
 							offset += 20 + 4;
 						}
 
-						; {
+						offset += 10; {
+							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleTweaks.Use_IgnoreWindowReset.Value, "창 비율 및 위치 초기화 무시");
+							if (value != SimpleTweaks.Use_IgnoreWindowReset.Value) {
+								SimpleTweaks.Use_IgnoreWindowReset.Value = value;
+								SimpleTweaks.config.Save();
+							}
+							offset += 20 + 4;
+						}
+
+						offset += 10; {
 							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleTweaks.Use_FullScreenKey.Value, "전체화면 키 변경 사용");
 							if (value != SimpleTweaks.Use_FullScreenKey.Value) {
 								SimpleTweaks.Use_FullScreenKey.Value = value;

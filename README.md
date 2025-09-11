@@ -18,7 +18,7 @@ The following is a description of each feature within the plugin.
 ### SimpleTweaks
 A collection of various simple quality-of-life improvements for the game.
 
-It provides features to display game FPS, limit FPS, limit FPS for Battle scene, a hotkey to hide the lobby UI, remap the switching full-screen mode key, mute audio when the game is in the background, game volume control, remap the skip key for StoryViewer, and fix some bugs.
+It provides features to display game FPS, limit FPS, limit FPS for Battle scene, a hotkey to hide the lobby UI, remap the switching full-screen mode key, mute audio when the game is in the background, game volume control, remap the skip key for StoryViewer, prevents a forced aspect ratio on the game window and keeps the window position from resetting after resizing, and fix some bugs.
 
 The default key for toggling fullscreen/windowed mode is `F11`.
 
