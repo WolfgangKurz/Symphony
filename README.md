@@ -16,7 +16,9 @@ The following is a description of each feature within the plugin.
 ### SimpleTweaks
 A collection of various simple quality-of-life improvements for the game.
 
-It provides features to display game FPS, limit FPS, limit FPS for Battle scene, a hotkey to hide the lobby UI, bug patches, mute audio when the game is in the background, game volume control, and remap the skip key for StoryViewer.
+It provides features to display game FPS, limit FPS, limit FPS for Battle scene, a hotkey to hide the lobby UI, remap the switching full-screen mode key, mute audio when the game is in the background, game volume control, remap the skip key for StoryViewer, and fix some bugs.
+
+The default key for toggling fullscreen/windowed mode is `F11`.
 
 ### SimpleUI
 This modifies parts of the UI to make them easier to use.
@@ -24,13 +26,6 @@ This modifies parts of the UI to make them easier to use.
 You can reduce the display size of the various combatant, equipment, and consumable lists. (This allows you to see more items on one screen.)
 You can also sort the consumable list.
 You can now press Enter to search in some search boxes.
-
-### WindowedResize
-This feature allows you to switch to windowed mode with a set key, after which the window can be resized and maximized. It also remembers the window's last position and size.
-
-The default key for toggling fullscreen/windowed mode is `F11`.
-
-If you need to reset the settings due to issues such as <ins>the window going off-screen</ins>, you can resolve it by deleting the `Last...` values in the configuration file and restarting the game.
 
 ### BattleHotkey
 Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Standby`, `Select Enemy`, `Select Enemy Tile`, `Confirm (after selecting an enemy or tile)`, and `Start Action` buttons in battle.
