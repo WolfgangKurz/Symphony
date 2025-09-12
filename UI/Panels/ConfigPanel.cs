@@ -12,7 +12,7 @@ namespace Symphony.UI.Panels {
 		private Rect panelViewport = new Rect(0, 0, 248, 0);
 		private Vector2 panelScroll = Vector2.zero;
 
-		private readonly string[] PluginFeatures = ["GracefulFPS", "SimpleTweaks", "SimpleUI", "BattleHotkey"];
+		private readonly string[] PluginFeatures = ["GracefulFPS", "SimpleTweaks", "SimpleUI", "BattleHotkey", "HelpfulBase"];
 		private string SelectedFeature = "GracefulFPS";
 
 		public ConfigPanel(MonoBehaviour instance) : base(instance) { }
@@ -83,7 +83,7 @@ namespace Symphony.UI.Panels {
 			var offset = 0f;
 			var panelRect = new Rect(120, goffset, rc.width - 120, rc.height - goffset - 18 - 2);
 			this.panelScroll = GUIX.ScrollView(panelRect, this.panelScroll, this.panelViewport, false, false, () => {
-				GUIX.Group(new Rect(4, 4, WIDTH_FILL, rc.height - goffset - 8), () => {
+				GUIX.Group(new Rect(4, 4, WIDTH_FILL, this.panelViewport.height - 4), () => {
 					switch (this.SelectedFeature) {
 						case "GracefulFPS":
 							#region GracefulFPS Section
@@ -98,6 +98,7 @@ namespace Symphony.UI.Panels {
 								}
 								offset += 20 + 4;
 							}
+							offset += 10;
 							; {
 								GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "FPS 제한하기");
 								offset += 20 + 4;
@@ -145,6 +146,7 @@ namespace Symphony.UI.Panels {
 									}
 								}
 							}
+							offset += 10;
 							; {
 								GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "전투 FPS 제한하기");
 								offset += 20 + 4;
@@ -682,6 +684,35 @@ namespace Symphony.UI.Panels {
 							}
 							#endregion
 							break;
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
+
+						case "HelpfulBase":
+							#region HelpfulBase Section
+							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "HelpfulBase");
+							offset += 20 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.HelpfulBase.Use_GetAll.Value,
+									"일괄 수령 사용하기"
+								);
+								if (value != Conf.HelpfulBase.Use_GetAll.Value) {
+									Conf.HelpfulBase.Use_GetAll.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+							GUIX.Label(
+								new Rect(0, offset, WIDTH_FILL, 20),
+								"주의: 매크로 기능입니다. 신중하게 사용해 주세요.",
+								Color.yellow
+							);
+							offset += 20 + 4;
+							#endregion
+							break;
+
 					}
 				});
 			});

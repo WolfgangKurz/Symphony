@@ -94,6 +94,9 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_PlayButton = config.Bind("BattleHotkey", "Use_PlayButton", true, "Use play button hotkeys");
 			public static readonly ConfigEntry<string> Key_Play = config.Bind("BattleHotkey", "Play", "KeypadPlus", "Play button hotkey");
 		}
+		internal class HelpfulBase {
+			public static readonly ConfigEntry<bool> Use_GetAll = config.Bind("HelpfulBase", "Use_GetAll", false, "Use Get All button for Base");
+		}
 
 		public static void Migrate() {
 			#region Migration Old Configs
