@@ -45,24 +45,7 @@ namespace Symphony {
 			public int Y;
 		}
 
-		private static Dictionary<string, string> KeyCodeAlias = new() {
-			{ "1", "Alpha1" },
-			{ "2", "Alpha2" },
-			{ "3", "Alpha3" },
-			{ "4", "Alpha4" },
-			{ "5", "Alpha5" },
-			{ "6", "Alpha6" },
-			{ "7", "Alpha7" },
-			{ "8", "Alpha8" },
-			{ "9", "Alpha9" },
-			{ "0", "Alpha0" },
-		};
-		public static bool KeyCodeParse(string name, out KeyCode keyCode) {
-			if(KeyCodeAlias.ContainsKey(name)) 
-				name = KeyCodeAlias[name];
-
-			return Enum.TryParse<KeyCode>(name, out keyCode);
-		}
+		public static bool KeyCodeParse(string name, out KeyCode keyCode) => Enum.TryParse<KeyCode>(name, out keyCode);
 		public static bool IsReservedKey(KeyCode k) => new KeyCode[] {
 			KeyCode.Escape, KeyCode.F12
 		}.Contains(k);
@@ -197,6 +180,10 @@ namespace Symphony {
 		public static void ResizeWindow(IntPtr hWnd, RECT rc) => WindowDisplayHelper.ResizeWindow(hWnd, rc);
 		public static void ResizableWindow(IntPtr hWnd, bool resizable) => WindowDisplayHelper.ResizableWindow(hWnd, resizable);
 		public static bool GetWindowRect(IntPtr hWnd, out RECT rc) => WindowDisplayHelper.GetWindowRect(hWnd, out rc);
+
+		[DllImport("user32.dll", EntryPoint = "SetWindowTextW", CharSet = CharSet.Unicode)]
+		private static extern bool SetWindowText(IntPtr hWnd, string lpString);
+		public static void SetWindowTitle(IntPtr hWnd, string title) => SetWindowText(hWnd, title);
 
 		public enum CursorType : ushort {
 			Arrow = 32512,

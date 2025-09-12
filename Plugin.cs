@@ -42,8 +42,11 @@ namespace Symphony {
 				return;
 			}
 
+			Conf.Migrate();
+
 			StartCoroutine(this.InitUI());
 
+			this.gameObject.AddComponent<GracefulFPS>();
 			this.gameObject.AddComponent<SimpleTweaks>();
 			this.gameObject.AddComponent<SimpleUI>();
 			this.gameObject.AddComponent<BattleHotkey>();
