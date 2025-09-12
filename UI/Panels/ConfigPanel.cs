@@ -524,6 +524,23 @@ namespace Symphony.UI.Panels {
 								}
 								offset += 20 + 4;
 							}
+							;
+
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleUI.Use_SortByName.Value,
+									"전투원 이름 정렬 추가"
+								);
+								if (value != Conf.SimpleUI.Use_SortByName.Value) {
+									Conf.SimpleUI.Use_SortByName.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
 							#endregion
 							break;
 
