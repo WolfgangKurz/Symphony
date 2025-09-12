@@ -453,13 +453,13 @@ namespace Symphony.Features {
 			uiButton.onClick.Add(new EventDelegate(() => {
 				try {
 					var lbl = btnOff.GetComponentInChildren<UILabel>(true);
-					OnSortName(__instance, lbl?.gameObject);
+					OnSortName(__instance, lbl);
 				} catch(Exception e) {
 					Plugin.Logger.LogError(e);
 				}
 			}));
 		}
-		private static void OnSortName(Panel_Base instance, GameObject lbl) {
+		private static void OnSortName(Panel_Base instance, UILabel lbl) {
 			if (instance == null) {
 				Plugin.Logger.LogWarning("[Symphony::SimpleUI] instance is null");
 				return;
@@ -478,7 +478,7 @@ namespace Symphony.Features {
 				.GetField("_lblSort", BindingFlags.Instance | BindingFlags.NonPublic)
 				.GetValue(instance);
 			if (label != null)
-				label.text = "이름";
+				label.text = lbl?.text ?? "이름";
 		}
 		private static int SortName_Comparer(IReuseCellData a, IReuseCellData b) {
 			if (a.IsFirst() && !b.IsFirst()) return -1;
