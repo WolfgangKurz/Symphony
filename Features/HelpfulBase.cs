@@ -1,6 +1,4 @@
-﻿using GlobalDefines;
-
-using HarmonyLib;
+﻿using HarmonyLib;
 
 using LO_ClientNetwork;
 
@@ -8,9 +6,7 @@ using Symphony.UI;
 
 using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Net.Sockets;
-using System.Text;
+using System.Linq;
 
 using UnityEngine;
 
@@ -20,14 +16,14 @@ namespace Symphony.Features {
 
 		private WebGiveRewardInfo rewardTotal = null;
 		private WebGiveRewardInfo costTotal = null;
-		private long LastPacketFor = 0;
 		private bool DisplayGetAllResult = false;
+		private long LastPacketFor = 0;
 
 		public void Start() {
 			var harmony = new Harmony("Symphony.HelpfulBase");
 			harmony.Patch(
-				AccessTools.Method(typeof(Scene_LivingStation), "HandlePakcetFacilityReward"),
-				prefix: new HarmonyMethod(typeof(HelpfulBase), nameof(HelpfulBase.HandlePakcetFacilityReward))
+				AccessTools.Method(typeof(Panel_FacilityRewardResult), "Awake"),
+				postfix: new HarmonyMethod(typeof(HelpfulBase), nameof(HelpfulBase.FacilityRewardResult_Awake))
 			);
 
 			EventManager.StartListening(this, 133U, new Action<WebResponseState>(this.OnFacilityWorkPakcet));
@@ -90,29 +86,17 @@ namespace Symphony.Features {
 				this.costTotal = new WebGiveRewardInfo();
 				GettingAll = true;
 				this.DisplayGetAllResult = false;
-				InstantPanel.Wait(show: true);
 
 				var facilities = GameObject.FindObjectsOfType<InstallationFacility>();
-				Plugin.Logger.LogInfo("[Symphony.HelpfulBase] Facility to get : " + facilities.Length.ToString());
+				Plugin.Logger.LogInfo("[Symphony.HelpfulBase] Facilities : " + facilities.Length.ToString());
+				Plugin.Logger.LogInfo("[Symphony.HelpfulBase] Facilities to get : " + facilities.Where(x => x.GetState() == InstallationFacility.State.WorkComplete).Count().ToString());
 				foreach (var fac in facilities) {
-					if (fac.GetState() != InstallationFacility.State.WorkComplete) break;
+					if (fac.GetState() != InstallationFacility.State.WorkComplete) continue;
 
-					if (fac.Table.ProduceType == (int)PRODUCE_TYPE.FACILITY_TYPE_BIOROID && InstantPanel.LackPcInven()) {
-						Plugin.Logger.LogWarning("[Symphony.HelpfulBase] Facility is for bioriod creation but Inventory lack detected");
-						continue;
-					}
-					if (fac.Table.ProduceType == (int)PRODUCE_TYPE.ITEM_CONSUMABLE && InstantPanel.LackConsumeItemInven()) {
-						Plugin.Logger.LogWarning("[Symphony.HelpfulBase] Facility is for consumable creation but Inventory lack detected");
-						continue;
-					}
+					Plugin.Logger.LogInfo("[Symphony.HelpfulBase] Click facility");
+					fac.OnSelected();
 
 					this.LastPacketFor = 0;
-					Plugin.Logger.LogInfo("[Symphony.HelpfulBase] Send packet to get reward");
-					C2WPacket.Send_C2W_FACILITY_REWARD(
-						SingleTon<DataManager>.Instance.AccessToken,
-						SingleTon<DataManager>.Instance.WID,
-						fac.Packet.Facility_uid
-					);
 					yield return new WaitUntil(() => LastPacketFor == fac.Packet.Facility_uid);
 
 					if (fac.Table.MetalCost > SingleTon<DataManager>.Instance.Metal &&
@@ -128,29 +112,22 @@ namespace Symphony.Features {
 					this.costTotal.AddPower += (uint)fac.Table.PowerCost;
 
 					this.LastPacketFor = 0;
-					C2WPacket.Send_C2W_FACILITY_WORK(
-						SingleTon<DataManager>.Instance.AccessToken,
-						SingleTon<DataManager>.Instance.WID,
-						fac.Packet.Facility_uid
-					);
 					yield return new WaitUntil(() => LastPacketFor == fac.Packet.Facility_uid);
-				}
-			}
-			finally {
-				GettingAll = false;
-				this.DisplayGetAllResult = true;
+					//yield return new WaitForSecondsRealtime(0.155f);
 
-				if (this.rewardTotal.AddMetal == 0 && this.rewardTotal.AddNutrient == 0 && this.rewardTotal.AddPower == 0 &&
-					this.rewardTotal.AddCash == 0 && this.rewardTotal.PCRewardList.Count == 0) {
-					this.DisplayGetAllResult = false;
+					break;
 				}
-				 InstantPanel.Wait(show: false);
+			} finally {
+				GettingAll = false;
+
+				if (this.rewardTotal.AddMetal > 0 || this.rewardTotal.AddNutrient > 0 || this.rewardTotal.AddPower > 0 ||
+					this.rewardTotal.AddCash > 0 || this.rewardTotal.PCRewardList.Count > 0 ||
+					this.costTotal.AddMetal > 0 || this.costTotal.AddNutrient > 0 || this.costTotal.AddPower > 0
+				) {
+					this.DisplayGetAllResult = true;
+					InstantPanel.Wait(show: true);
+				}
 			}
-		}
-		private static bool HandlePakcetFacilityReward() {
-			if (GettingAll) // ignore when getting all
-				return false;
-			return true;
 		}
 
 		private void OnFacilityRewardPacket(WebResponseState obj) {
@@ -162,12 +139,12 @@ namespace Symphony.Features {
 			// stack results
 			var result = w2CFacilityReward.result;
 			var res = result.RewardInfo;
-			this.rewardTotal.PCRewardList.AddRange(res.PCRewardList);
+			this.rewardTotal.PCRewardList.AddRange(res.PCRewardList ?? []);
 			this.rewardTotal.AddMetal += res.AddMetal;
 			this.rewardTotal.AddNutrient += res.AddNutrient;
 			this.rewardTotal.AddPower += res.AddPower;
 			this.rewardTotal.AddCash += res.AddCash;
-			this.rewardTotal.ItemRewardList.AddRange(res.ItemRewardList);
+			this.rewardTotal.ItemRewardList.AddRange(res.ItemRewardList ?? []);
 
 			this.LastPacketFor = result.Facility_uid;
 		}
@@ -268,6 +245,19 @@ namespace Symphony.Features {
 				this.DisplayGetAllResult = false;
 				InstantPanel.Wait(show: false);
 			}
+		}
+		private static void FacilityRewardResult_Awake(Panel_FacilityRewardResult __instance) {
+			if (!GettingAll) return;
+
+			__instance.StartCoroutine(FacilityRewardResult_Awake_Coroutine(__instance));
+		}
+		private static IEnumerator FacilityRewardResult_Awake_Coroutine(Panel_FacilityRewardResult __instance) {
+			var button = __instance.GetComponentsInChildren<UIButton>().FirstOrDefault(x => x.name == "RestartButton");
+			if (button == null) yield break;
+
+			yield return null; // safety wait
+
+			EventDelegate.Execute(button.onClick);
 		}
 	}
 }
