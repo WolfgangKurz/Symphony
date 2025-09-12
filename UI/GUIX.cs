@@ -117,7 +117,9 @@ namespace Symphony.UI {
 			#endregion
 			#region Circle
 			{
-				tex_Circle = new RenderTexture(30, 30, 0);
+				var size = 30;
+				var half = (float)size / 2f;
+				tex_Circle = new RenderTexture(size, size, 0);
 				tex_Circle.antiAliasing = 4;
 
 				Graphics.SetRenderTarget(tex_Circle);
@@ -128,19 +130,19 @@ namespace Symphony.UI {
 				mat.SetPass(0);
 
 				var vert = new List<Vector3> {
-					new Vector3(15f, 15f)
+					new Vector3(half, half)
 				};
 				for (float i = 0; i < 360f; i += 10f) {
 					vert.Add(new Vector3(
-						15f + Mathf.Cos(Mathf.Deg2Rad * i) * 15f,
-						15f + Mathf.Sin(Mathf.Deg2Rad * i) * 15f
+						half + Mathf.Cos(Mathf.Deg2Rad * i) * half,
+						half + Mathf.Sin(Mathf.Deg2Rad * i) * half
 					));
 				}
 
 				GL.Clear(true, true, Color.white.AlphaMultiplied(0f));
 
 				GL.PushMatrix();
-				GL.LoadPixelMatrix(0, 30, 30, 0);
+				GL.LoadPixelMatrix(0, size, size, 0);
 
 				GL.Begin(GL.TRIANGLES);
 				GL.Color(Color.white);
