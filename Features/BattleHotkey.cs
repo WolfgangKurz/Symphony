@@ -1,12 +1,8 @@
-﻿using BepInEx;
-using BepInEx.Configuration;
-
-using LOEventSystem;
+﻿using LOEventSystem;
 using LOEventSystem.Msg;
 
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 
@@ -14,43 +10,6 @@ using UnityEngine;
 
 namespace Symphony.Features {
 	internal class BattleHotkey : MonoBehaviour, Listener {
-		internal static readonly ConfigFile config = new ConfigFile(Path.Combine(Paths.ConfigPath, "Symphony.BattleHotkey.cfg"), true);
-
-		internal static readonly ConfigEntry<bool> Use_SkillPanel = config.Bind("BattleHotkey", "Use_SkillPanel", true, "Use skill panel hotkeys");
-		internal static readonly ConfigEntry<string>[] Key_SkillPanel = [
-			config.Bind("BattleHotkey", "Skill1", "Alpha1", "Skill1 button hotkey"),
-			config.Bind("BattleHotkey", "Skill2", "Alpha2", "Skill2 button hotkey"),
-			config.Bind("BattleHotkey", "Move", "Alpha3", "Move button hotkey"),
-			config.Bind("BattleHotkey", "Wait", "Alpha4", "Wait button hotkey"),
-		];
-
-		internal static readonly ConfigEntry<bool> Use_TeamGrid = config.Bind("BattleHotkey", "Use_TeamGrid", true, "Use team grid hotkeys");
-		internal static readonly ConfigEntry<string>[] Key_TeamGrid = [
-			config.Bind("BattleHotkey", "Team1", "Z", "Team grid 1 button hotkey"),
-			config.Bind("BattleHotkey", "Team2", "X", "Team grid 2 button hotkey"),
-			config.Bind("BattleHotkey", "Team3", "C", "Team grid 3 button hotkey"),
-			config.Bind("BattleHotkey", "Team4", "A", "Team grid 4 button hotkey"),
-			config.Bind("BattleHotkey", "Team5", "S", "Team grid 5 button hotkey"),
-			config.Bind("BattleHotkey", "Team6", "D", "Team grid 6 button hotkey"),
-			config.Bind("BattleHotkey", "Team7", "Q", "Team grid 7 button hotkey"),
-			config.Bind("BattleHotkey", "Team8", "W", "Team grid 8 button hotkey"),
-			config.Bind("BattleHotkey", "Team9", "E", "Team grid 9 button hotkey"),
-		];
-		internal static readonly ConfigEntry<bool> Use_EnemyGrid = config.Bind("BattleHotkey", "Use_EnemyGrid", true, "Use enemy grid hotkeys");
-		internal static readonly ConfigEntry<string>[] Key_EnemyGrid = [
-			config.Bind("BattleHotkey", "Enemy1", "Keypad1", "Enemy grid 1 button hotkey"),
-			config.Bind("BattleHotkey", "Enemy2", "Keypad2", "Enemy grid 2 button hotkey"),
-			config.Bind("BattleHotkey", "Enemy3", "Keypad3", "Enemy grid 3 button hotkey"),
-			config.Bind("BattleHotkey", "Enemy4", "Keypad4", "Enemy grid 4 button hotkey"),
-			config.Bind("BattleHotkey", "Enemy5", "Keypad5", "Enemy grid 5 button hotkey"),
-			config.Bind("BattleHotkey", "Enemy6", "Keypad6", "Enemy grid 6 button hotkey"),
-			config.Bind("BattleHotkey", "Enemy7", "Keypad7", "Enemy grid 7 button hotkey"),
-			config.Bind("BattleHotkey", "Enemy8", "Keypad8", "Enemy grid 8 button hotkey"),
-			config.Bind("BattleHotkey", "Enemy9", "Keypad9", "Enemy grid 9 button hotkey"),
-		];
-		internal static readonly ConfigEntry<bool> Use_PlayButton = config.Bind("BattleHotkey", "Use_PlayButton", true, "Use play button hotkeys");
-		internal static readonly ConfigEntry<string> Key_Play = config.Bind("BattleHotkey", "Play", "KeypadPlus", "Play button hotkey");
-
 		private bool inBattleScene = false;
 
 		public void Awake() {
@@ -99,10 +58,10 @@ namespace Symphony.Features {
 		}
 
 		private void CheckSkillPanel() {
-			if (!Use_SkillPanel.Value) return;
+			if (!Conf.BattleHotkey.Use_SkillPanel.Value) return;
 
-			for (var i = 0; i < Key_SkillPanel.Length; i++) {
-				var keyName = Key_SkillPanel[i];
+			for (var i = 0; i < Conf.BattleHotkey.Key_SkillPanel.Length; i++) {
+				var keyName = Conf.BattleHotkey.Key_SkillPanel[i];
 				if (keyName.Value != "" && Helper.KeyCodeParse(keyName.Value, out var kc) && Input.GetKeyDown(kc)) { // Key downed?
 					var panel = FindObjectOfType<Panel_StageBattle>();
 					if (panel == null) {
@@ -118,11 +77,11 @@ namespace Symphony.Features {
 		}
 
 		private void CheckTeamGridPanel() {
-			if (!Use_TeamGrid.Value) return;
+			if (!Conf.BattleHotkey.Use_TeamGrid.Value) return;
 
 			for (int i = 0; i < 9; i++) {
 				var idx = i % 3 + (2 - i / 3) * 3;
-				var keyName = Key_TeamGrid[i];
+				var keyName = Conf.BattleHotkey.Key_TeamGrid[i];
 				if (keyName.Value != "" && Helper.KeyCodeParse(keyName.Value, out var kc) && Input.GetKeyDown(kc)) { // Key downed?
 					var panel_battle = FindObjectOfType<Panel_StageBattle>();
 					if (panel_battle == null) {
@@ -175,11 +134,11 @@ namespace Symphony.Features {
 		}
 
 		private void CheckEnemyGridPanel() {
-			if (!Use_EnemyGrid.Value) return;
+			if (!Conf.BattleHotkey.Use_EnemyGrid.Value) return;
 
 			for (int i = 0; i < 9; i++) {
 				var idx = i % 3 + (2 - i / 3) * 3;
-				var keyName = Key_EnemyGrid[i];
+				var keyName = Conf.BattleHotkey.Key_EnemyGrid[i];
 				if (keyName.Value != "" && Helper.KeyCodeParse(keyName.Value, out var kc) && Input.GetKeyDown(kc)) { // Key downed?
 					var panel_battle = FindObjectOfType<Panel_StageBattle>();
 					if (panel_battle == null) {
@@ -232,9 +191,12 @@ namespace Symphony.Features {
 		}
 
 		private void CheckPlayPanel() {
-			if (!Use_PlayButton.Value) return;
+			if (!Conf.BattleHotkey.Use_PlayButton.Value) return;
 
-			if (Key_Play.Value != "" && Helper.KeyCodeParse(Key_Play.Value, out var kc) && Input.GetKeyDown(kc)) { // Key downed?
+			if (Conf.BattleHotkey.Key_Play.Value != "" && 
+				Helper.KeyCodeParse(Conf.BattleHotkey.Key_Play.Value, out var kc) && 
+				Input.GetKeyDown(kc)
+			) { // Key downed?
 				var panel_battle = FindObjectOfType<Panel_StageBattle>();
 				if (panel_battle == null) {
 					Plugin.Logger.LogWarning("[Symphony::BattleHotkey] In Battle scene, but Panel_StageBattle not found");

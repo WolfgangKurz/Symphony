@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 using UnityEngine;
 
@@ -22,20 +23,41 @@ namespace Symphony.UI {
 
 			public static readonly Color SliderThumb = new(0.24f, 0.52f, 0.88f);
 			public static readonly Color SliderThumbActive = new(0.26f, 0.59f, 0.98f);
+
+			public static readonly Color ScrollBG = new(0.02f, 0.02f, 0.02f, 0.53f);
+			public static readonly Color ScrollThumb = new(0.31f, 0.31f, 0.31f);
+			public static readonly Color ScrollThumbHover = new(0.41f, 0.41f, 0.41f);
+			public static readonly Color ScrollThumbActive = new(0.51f, 0.51f, 0.51f);
 		}
 
-		public enum SliderAxis {
-			Horizontal,
-			Vertical,
+		private static class SliderState {
+			public static int hotControlID = 0;
+			public static float dragStartValue;
+			public static float dragStartMousePosition;
 		}
-		private const float SLIDER_THUMB_SIZE = 12f;
+		private const float SLIDER_THUMB_SIZE = 14f;
 		private const float SLIDER_THUMB_PADDING = 2f;
 
+		private static class ScrollbarState {
+			public static int hotControlID = 0;
+			public static float dragStartScrollPosition;
+			public static float dragStartMousePosition;
+		}
+
+		private static Texture2D tex_Transparent = new Texture2D(1, 1);
+		private static GUIStyle style_Empty = new GUIStyle();
+
 		private static RenderTexture tex_CheckMark;
+		private static RenderTexture tex_Circle;
+
 		static GUIX() {
+			tex_Transparent.SetPixel(0, 0, Color.clear);
+			tex_Transparent.Apply();
+
 			#region CheckMark
 			{
 				tex_CheckMark = new RenderTexture(30, 30, 0);
+				tex_CheckMark.antiAliasing = 1;
 
 				var pad = 30f / 6.0f;
 				var sz = 30f - pad * 2f;
@@ -93,6 +115,51 @@ namespace Symphony.UI {
 				Graphics.SetRenderTarget(null);
 			}
 			#endregion
+			#region Circle
+			{
+				tex_Circle = new RenderTexture(30, 30, 0);
+				tex_Circle.antiAliasing = 4;
+
+				Graphics.SetRenderTarget(tex_Circle);
+
+				var shader = Shader.Find("Hidden/Internal-Colored");
+				var mat = new Material(shader);
+				mat.hideFlags = HideFlags.HideAndDontSave;
+				mat.SetPass(0);
+
+				var vert = new List<Vector3> {
+					new Vector3(15f, 15f)
+				};
+				for (float i = 0; i < 360f; i += 10f) {
+					vert.Add(new Vector3(
+						15f + Mathf.Cos(Mathf.Deg2Rad * i) * 15f,
+						15f + Mathf.Sin(Mathf.Deg2Rad * i) * 15f
+					));
+				}
+
+				GL.Clear(true, true, Color.white.AlphaMultiplied(0f));
+
+				GL.PushMatrix();
+				GL.LoadPixelMatrix(0, 30, 30, 0);
+
+				GL.Begin(GL.TRIANGLES);
+				GL.Color(Color.white);
+
+				for (int i = 1; i < vert.Count; i++) {
+					GL.Vertex(vert[0]);
+					GL.Vertex(vert[i]);
+					GL.Vertex(vert[i + 1 >= vert.Count ? 1 : i + 1]);
+				}
+
+				GL.End();
+
+				GL.PopMatrix();
+
+				GameObject.Destroy(mat);
+
+				Graphics.SetRenderTarget(null);
+			}
+			#endregion
 		}
 
 		public static void DrawCheckmark(Rect rc) {
@@ -129,6 +196,15 @@ namespace Symphony.UI {
 
 			GUI.color = color;
 			GUI.DrawTexture(rc, Texture2D.whiteTexture);
+
+			GUI.color = c;
+		}
+		public static void Circle(Rect rc, Color color) {
+			var c = GUI.color;
+			var rc_circle = rc.Width(rc.height);
+
+			GUI.color = color;
+			GUI.DrawTexture(rc_circle, tex_Circle);
 
 			GUI.color = c;
 		}
@@ -191,6 +267,246 @@ namespace Symphony.UI {
 			GUI.Label(rc.Shrink(4, 2), text, style);
 		}
 
+		public static Vector2 ScrollView(
+			Rect position, Vector2 scrollPosition, Rect viewRect,
+			bool alwaysShowHorizontal, bool alwaysShowVertical,
+			Action action
+		) {
+			var drawHorz = alwaysShowHorizontal || viewRect.width > position.width;
+			var drawVert = alwaysShowVertical || viewRect.height > position.height;
+
+			var rc = position.Shrink(0, 0, drawVert ? 14 : 0, drawHorz ? 14 : 0);
+			GUI.BeginScrollView(
+				rc, scrollPosition, viewRect,
+				alwaysShowHorizontal, alwaysShowVertical,
+				GUIStyle.none, GUIStyle.none
+			);
+
+			action?.Invoke();
+
+			// wheel scrolling
+			var e = Event.current;
+			if (e.type == EventType.ScrollWheel) {
+				var ret = new Vector2(
+					Mathf.Clamp(scrollPosition.x + e.delta.x * 3f, 0f, viewRect.width - position.width),
+					Mathf.Clamp(scrollPosition.y + e.delta.y * 3f, 0f, viewRect.height - position.height)
+				);
+				e.Use();
+				return ret;
+			}
+
+			GUI.EndScrollView();
+
+			// draw scrollbars if needed
+			if (drawHorz) {
+				return new(
+					GUIX.ScrollbarHorizontal(
+						Rect.MinMaxRect(
+							position.xMin,
+							position.yMax - 15, // include border
+							position.xMax - (drawVert ? 15 : 0),
+							position.yMax - 1
+						),
+						scrollPosition.x,
+						position.width,
+						viewRect.width
+					),
+					scrollPosition.y
+				);
+			}
+			if (drawVert) {
+				return new(
+					scrollPosition.x,
+					GUIX.ScrollbarVertical(
+						Rect.MinMaxRect(
+							position.xMax - 15, // include border
+							position.yMin,
+							position.xMax - 1,
+							position.yMax - (drawHorz ? 15 : 0)
+						),
+						scrollPosition.y,
+						position.height,
+						viewRect.height
+					)
+				);
+			}
+
+			return scrollPosition;
+		}
+
+		public static float ScrollbarHorizontal(
+			Rect rc,
+			float scrollPosition, float width, float contentWidth,
+			Color? normal = null, Color? hover = null, Color? active = null
+		) {
+			var controlID = GUIUtility.GetControlID(FocusType.Passive);
+			var e = Event.current;
+
+			var rcThumb = Rect.MinMaxRect(
+				rc.xMin + scrollPosition / contentWidth * rc.width,
+				rc.yMin,
+				rc.xMin + (scrollPosition + width) / contentWidth * rc.width,
+				rc.yMax
+			).Shrink(2);
+
+			switch (e.GetTypeForControl(controlID)) {
+				case EventType.MouseDown:
+					if (e.button == 0 && rcThumb.Contains(e.mousePosition)) {
+						GUIUtility.hotControl = controlID;
+						ScrollbarState.hotControlID = controlID;
+						ScrollbarState.dragStartMousePosition = e.mousePosition.x;
+						ScrollbarState.dragStartScrollPosition = scrollPosition;
+						e.Use();
+					}
+					break;
+				case EventType.MouseDrag:
+					if (GUIUtility.hotControl == controlID) {
+						var mouseDelta = e.mousePosition.x - ScrollbarState.dragStartMousePosition;
+						var scrollDelta = (mouseDelta / rc.width) * contentWidth;
+
+						scrollPosition = Mathf.Clamp(
+							ScrollbarState.dragStartScrollPosition + scrollDelta,
+							0,
+							contentWidth - width
+						);
+						e.Use();
+					}
+					break;
+				case EventType.MouseUp:
+					if (GUIUtility.hotControl == controlID) {
+						GUIUtility.hotControl = 0;
+						e.Use();
+					}
+					break;
+
+				case EventType.Repaint:
+					GUIX.Fill(rc, Colors.ScrollBG);
+
+					if (rcThumb.width <= 0 || rcThumb.height <= 0) break;
+
+					var f_hover = false;
+					var f_active = false;
+					if (GUIUtility.hotControl == controlID)
+						f_active = true;
+					else if (rc.Contains(e.mousePosition))
+						f_hover = true;
+
+					var color = !f_hover && !f_active
+						? normal ?? Colors.ScrollThumb
+						: f_active
+							? active ?? Colors.ScrollThumbActive
+							: hover ?? Colors.ScrollThumbHover;
+
+					if (rcThumb.width < rcThumb.height) { // smaller then circle
+						var c = GUI.color; // just draw ellipse
+						GUI.color = color;
+						GUI.DrawTexture(rcThumb, tex_Circle);
+						GUI.color = c;
+					}
+					else {
+						GUI.BeginClip(rcThumb.Width(rcThumb.height / 2)); // Left side of thumb
+						GUIX.Circle(new Rect(0, 0, rcThumb.height, rcThumb.height), color);
+						GUI.EndClip();
+
+						GUIX.Fill(rcThumb.Shrink(rcThumb.height / 2f, 0f), color); // Draw center
+
+						// Right side of thumb
+						GUI.BeginClip(Rect.MinMaxRect(rcThumb.xMax - rcThumb.height / 2, rcThumb.yMin, rc.xMax, rcThumb.yMax));
+						GUIX.Circle(new Rect(-rcThumb.height / 2, 0, rcThumb.height, rcThumb.height), color);
+						GUI.EndClip();
+					}
+					break;
+			}
+
+			return scrollPosition;
+		}
+		public static float ScrollbarVertical(
+			Rect rc,
+			float scrollPosition, float height, float contentHeight,
+			Color? normal = null, Color? hover = null, Color? active = null
+		) {
+			var controlID = GUIUtility.GetControlID(FocusType.Passive);
+			var e = Event.current;
+
+			var rcThumb = Rect.MinMaxRect(
+				rc.xMin,
+				rc.yMin + scrollPosition / contentHeight * rc.height,
+				rc.xMax,
+				rc.yMin + (scrollPosition + height) / contentHeight * rc.height
+			).Shrink(2);
+
+			switch (e.GetTypeForControl(controlID)) {
+				case EventType.MouseDown:
+					if (e.button == 0 && rcThumb.Contains(e.mousePosition)) {
+						GUIUtility.hotControl = controlID;
+						ScrollbarState.hotControlID = controlID;
+						ScrollbarState.dragStartMousePosition = e.mousePosition.y;
+						ScrollbarState.dragStartScrollPosition = scrollPosition;
+						e.Use();
+					}
+					break;
+				case EventType.MouseDrag:
+					if (GUIUtility.hotControl == controlID) {
+						var mouseDelta = e.mousePosition.y - ScrollbarState.dragStartMousePosition;
+						var scrollDelta = (mouseDelta / rc.height) * contentHeight;
+
+						scrollPosition = Mathf.Clamp(
+							ScrollbarState.dragStartScrollPosition + scrollDelta,
+							0,
+							contentHeight - height
+						);
+						e.Use();
+					}
+					break;
+				case EventType.MouseUp:
+					if (GUIUtility.hotControl == controlID) {
+						GUIUtility.hotControl = 0;
+						e.Use();
+					}
+					break;
+
+				case EventType.Repaint:
+					GUIX.Fill(rc, Colors.ScrollBG);
+
+					if (rcThumb.width <= 0 || rcThumb.height <= 0) break;
+
+					var f_hover = false;
+					var f_active = false;
+					if (GUIUtility.hotControl == controlID)
+						f_active = true;
+					else if (rc.Contains(e.mousePosition))
+						f_hover = true;
+
+					var color = !f_hover && !f_active
+						? normal ?? Colors.ScrollThumb
+						: f_active
+							? active ?? Colors.ScrollThumbActive
+							: hover ?? Colors.ScrollThumbHover;
+
+					if (rcThumb.height < rcThumb.width) { // smaller then circle
+						var c = GUI.color; // just draw ellipse
+						GUI.color = color;
+						GUI.DrawTexture(rcThumb, tex_Circle);
+						GUI.color = c;
+					}
+					else {
+						GUI.BeginClip(rcThumb.Height(rcThumb.width / 2)); // Top side of thumb
+						GUIX.Circle(new Rect(0, 0, rcThumb.width, rcThumb.width), color);
+						GUI.EndClip();
+
+						GUIX.Fill(rcThumb.Shrink(0, rcThumb.width / 2f), color); // Draw center
+
+						// Bottom side of thumb
+						GUI.BeginClip(Rect.MinMaxRect(rcThumb.xMin, rcThumb.yMax - rcThumb.width / 2, rc.xMax, rcThumb.yMax));
+						GUIX.Circle(new Rect(0, -rcThumb.width / 2, rcThumb.width, rcThumb.width), color);
+						GUI.EndClip();
+					}
+					break;
+			}
+
+			return scrollPosition;
+		}
+
 		public static bool Button(Rect rc, string text, Color? normal = null, Color? hover = null, Color? active = null) {
 			var ret = GUI.Button(rc, "", GUIStyle.none);
 
@@ -251,6 +567,38 @@ namespace Symphony.UI {
 
 			return ret;
 		}
+		public static bool Radio(Rect rc, bool isChecked, string text) {
+			var ret = GUI.Button(rc, "", GUIStyle.none);
+
+			var hover = false;
+			var active = false;
+			if (rc.Contains(Event.current.mousePosition))
+				hover = true;
+			if (hover && Input.GetMouseButton(0))
+				active = true;
+
+			var color = !hover && !active
+				? Colors.FrameBG
+				: hover && !active
+					? Colors.FrameBGHover
+					: Colors.FrameBGActive;
+			GUIX.Circle(rc.Width(rc.height).Shrink(2), color);
+
+			if (isChecked) {
+				GUIX.Circle(rc.Shrink(5), Colors.Checkmark);
+			}
+
+			if (!string.IsNullOrWhiteSpace(text)) {
+				var style = new GUIStyle {
+					alignment = TextAnchor.MiddleLeft,
+					fontSize = 13,
+				};
+				style.normal.textColor = Color.white;
+				GUI.Label(rc.Shrink(rc.height + 5, 0, 0, 0), text, style);
+			}
+
+			return ret;
+		}
 
 		public static string TextField(Rect rc, string text, TextAnchor alignment = TextAnchor.MiddleLeft) {
 			var style = new GUIStyle(GUIStyle.none) { alignment = alignment };
@@ -267,112 +615,159 @@ namespace Symphony.UI {
 			return GUI.TextField(rc, text, style);
 		}
 
-		public static int HorizontalSlider(
-			Rect rc, int value, int leftValue, int rightValue,
-			Func<int, string> template = null,
-			Color? normal = null, Color? hover = null, Color? active = null,
-			Color? thumb_normal = null, Color? thumb_active = null
-		) => (int)Mathf.Round(GUIX.Slider(
-			rc, value, leftValue, rightValue, SliderAxis.Horizontal,
-			template != null ? (v => template((int)Mathf.Round(v))) : (v => v.ToString()),
-			normal, hover, active,
-			thumb_normal, thumb_active
-		));
-		public static int VerticalSlider(
-			Rect rc, int value, int leftValue, int rightValue,
-			Func<int, string> template = null,
-			Color? normal = null, Color? hover = null, Color? active = null,
-			Color? thumb_normal = null, Color? thumb_active = null
-		) => (int)Mathf.Round(GUIX.Slider(
-			rc, value, leftValue, rightValue, SliderAxis.Vertical,
-			template != null ? (v => template((int)Mathf.Round(v))) : (v => v.ToString()),
-			normal, hover, active,
-			thumb_normal, thumb_active
-		));
-
 		public static float HorizontalSlider(
 			Rect rc, float value, float leftValue, float rightValue,
 			Func<float, string> template = null,
 			Color? normal = null, Color? hover = null, Color? active = null,
 			Color? thumb_normal = null, Color? thumb_active = null
-		) => GUIX.Slider(
-			rc, value, leftValue, rightValue, SliderAxis.Horizontal,
-			template,
-			normal, hover, active,
-			thumb_normal, thumb_active
-		);
+		) {
+			var controlID = GUIUtility.GetControlID(FocusType.Passive);
+			var e = Event.current;
+
+			var trackWidth = rc.width - SLIDER_THUMB_SIZE - SLIDER_THUMB_PADDING * 2;
+			var valueRatio = rightValue == leftValue ? 0
+				: rightValue - leftValue > 0
+					? (value - leftValue) / (rightValue - leftValue)
+					: (value - rightValue) / (leftValue - rightValue);
+			var thumbX = rc.xMin + valueRatio * trackWidth;
+			var rcThumb = Rect.MinMaxRect(thumbX, rc.yMin, thumbX + SLIDER_THUMB_SIZE + SLIDER_THUMB_PADDING * 2, rc.yMax);
+			// SLIDER_THUMB_PADDING will be removed when draw
+
+			switch (e.GetTypeForControl(controlID)) {
+				case EventType.MouseDown:
+					if (e.button == 0 && rc.Contains(e.mousePosition)) {
+						GUIUtility.hotControl = controlID;
+
+						var clickPosInTrack = e.mousePosition.x - rc.x - (SLIDER_THUMB_SIZE / 2f + SLIDER_THUMB_PADDING);
+						var clickRatio = trackWidth > 0 ? clickPosInTrack / trackWidth : 0;
+						var val = leftValue + clickRatio * (rightValue - leftValue);
+						value = Mathf.Clamp(val, Mathf.Min(leftValue, rightValue), Mathf.Max(leftValue, rightValue));
+
+						SliderState.hotControlID = controlID;
+						SliderState.dragStartMousePosition = e.mousePosition.x;
+						SliderState.dragStartValue = value;
+						e.Use();
+					}
+					break;
+				case EventType.MouseDrag:
+					if (GUIUtility.hotControl == controlID) {
+						var mouseDelta = e.mousePosition.x - SliderState.dragStartMousePosition;
+						var valueDelta = trackWidth > 0 ? (mouseDelta / trackWidth) * (rightValue - leftValue) : 0;
+						var val = SliderState.dragStartValue + valueDelta;
+						value = Mathf.Clamp(val, Mathf.Min(leftValue, rightValue), Mathf.Max(leftValue, rightValue));
+						e.Use();
+					}
+					break;
+				case EventType.MouseUp:
+					if (GUIUtility.hotControl == controlID) {
+						GUIUtility.hotControl = 0;
+						e.Use();
+					}
+					break;
+
+				case EventType.Repaint:
+					var f_hover = false;
+					var f_active = false;
+					if (GUIUtility.hotControl == controlID)
+						f_active = true;
+					else if (rc.Contains(e.mousePosition))
+						f_hover = true;
+
+					var color = !f_hover && !f_active
+						? normal ?? Colors.FrameBG
+						: f_hover && !f_active
+							? hover ?? Colors.FrameBGHover
+							: active ?? Colors.FrameBGActive;
+					GUIX.Fill(rc, color);
+
+					var th_color = !f_active
+						? normal ?? Colors.SliderThumb
+						: active ?? Colors.SliderThumbActive;
+					GUIX.Fill(rcThumb.Shrink(SLIDER_THUMB_PADDING), th_color);
+
+					var label = (template ?? (v => v.ToString()))?.Invoke(value) ?? "";
+					GUIX.Label(rc, label, Color.white, TextAnchor.MiddleCenter);
+					break;
+			}
+
+			return value;
+		}
 		public static float VerticalSlider(
-			Rect rc, float value, float leftValue, float rightValue,
-			Func<float, string> template = null,
-			Color? normal = null, Color? hover = null, Color? active = null,
-			Color? thumb_normal = null, Color? thumb_active = null
-		) => GUIX.Slider(
-			rc, value, leftValue, rightValue, SliderAxis.Vertical,
-			template,
-			normal, hover, active,
-			thumb_normal, thumb_active
-		);
-		public static float Slider(
-			Rect rc, float value, float leftValue, float rightValue, SliderAxis axis,
+			Rect rc, float value, float topValue, float bottomValue,
 			Func<float, string> template = null,
 			Color? normal = null, Color? hover = null, Color? active = null,
 			Color? thumb_normal = null, Color? thumb_active = null
 		) {
-			var ret = axis == SliderAxis.Horizontal
-				? GUI.HorizontalSlider(rc.Shrink(5, 0, 5, 0), value, leftValue, rightValue, GUIStyle.none, GUIStyle.none)
-				: GUI.VerticalSlider(rc.Shrink(0, 5, 0, 5), value, leftValue, rightValue, GUIStyle.none, GUIStyle.none);
+			var controlID = GUIUtility.GetControlID(FocusType.Passive);
+			var e = Event.current;
 
-			var f_hover = false;
-			var f_active = false;
-			if (rc.Contains(Event.current.mousePosition))
-				f_hover = true;
-			if (f_hover && Input.GetMouseButton(0))
-				f_active = true;
+			var trackHeight = rc.height - SLIDER_THUMB_SIZE - SLIDER_THUMB_PADDING * 2;
+			var valueRatio = topValue == bottomValue ? 0 
+				: bottomValue - topValue > 0
+					? (value - topValue) / (bottomValue - topValue)
+					: (value - bottomValue) / (topValue - bottomValue);
+			var thumbY = rc.yMin + valueRatio * trackHeight;
+			var rcThumb = Rect.MinMaxRect(rc.xMin, thumbY, rc.xMax, thumbY + SLIDER_THUMB_SIZE + SLIDER_THUMB_PADDING * 2);
+			// SLIDER_THUMB_PADDING will be removed when draw
 
-			var color = !f_hover && !f_active
-				? normal ?? Colors.FrameBG
-				: f_hover && !f_active
-					? hover ?? Colors.FrameBGHover
-					: active ?? Colors.FrameBGActive;
-			GUIX.Fill(rc, color);
+			switch (e.GetTypeForControl(controlID)) {
+				case EventType.MouseDown:
+					if (e.button == 0 && rc.Contains(e.mousePosition)) {
+						GUIUtility.hotControl = controlID;
 
-			Rect rcThumb;
-			if (rightValue != leftValue) { // cannot be same
-				var norm = (value - leftValue) / (rightValue - leftValue);
+						var clickPosInTrack = e.mousePosition.y - rc.y - (SLIDER_THUMB_SIZE / 2f + SLIDER_THUMB_PADDING);
+						var clickRatio = trackHeight > 0 ? clickPosInTrack / trackHeight : 0;
+						var val = topValue + clickRatio * (bottomValue - topValue);
+						value = Mathf.Clamp(val, Mathf.Min(topValue, bottomValue), Mathf.Max(topValue, bottomValue));
 
-				if (axis == SliderAxis.Horizontal) {
-					var sz = rc.width - GUIX.SLIDER_THUMB_SIZE - GUIX.SLIDER_THUMB_PADDING * 2f;
-					rcThumb = Rect.MinMaxRect(
-						GUIX.SLIDER_THUMB_PADDING + Mathf.Lerp(rc.xMin, rc.xMin + sz, norm),
-						rc.yMin + GUIX.SLIDER_THUMB_PADDING,
-						GUIX.SLIDER_THUMB_PADDING + Mathf.Lerp(rc.xMin, rc.xMin + sz, norm) + GUIX.SLIDER_THUMB_SIZE,
-						rc.yMax - GUIX.SLIDER_THUMB_PADDING
-					);
-				}
-				else {
-					var sz = rc.height - GUIX.SLIDER_THUMB_SIZE - GUIX.SLIDER_THUMB_PADDING * 2f;
-					rcThumb = Rect.MinMaxRect(
-						rc.xMin + GUIX.SLIDER_THUMB_PADDING,
-						Mathf.Lerp(rc.yMin, rc.yMin + sz, norm),
-						rc.xMax - GUIX.SLIDER_THUMB_PADDING,
-						Mathf.Lerp(rc.yMin, rc.yMin + sz, norm) + GUIX.SLIDER_THUMB_SIZE
-					);
-				}
+						SliderState.hotControlID = controlID;
+						SliderState.dragStartMousePosition = e.mousePosition.x;
+						SliderState.dragStartValue = value;
+						e.Use();
+					}
+					break;
+				case EventType.MouseDrag:
+					if (GUIUtility.hotControl == controlID) {
+						var mouseDelta = e.mousePosition.y - SliderState.dragStartMousePosition;
+						var valueDelta = trackHeight > 0 ? (mouseDelta / trackHeight) * (bottomValue - topValue) : 0;
+						var val = SliderState.dragStartValue + valueDelta;
+						value = Mathf.Clamp(val, Mathf.Min(topValue, bottomValue), Mathf.Max(topValue, bottomValue));
+						e.Use();
+					}
+					break;
+				case EventType.MouseUp:
+					if (GUIUtility.hotControl == controlID) {
+						GUIUtility.hotControl = 0;
+						e.Use();
+					}
+					break;
 
-				var th_active = false;
-				if (rcThumb.Contains(Event.current.mousePosition) && Input.GetMouseButton(0))
-					th_active = true;
+				case EventType.Repaint:
+					var f_hover = false;
+					var f_active = false;
+					if (GUIUtility.hotControl == controlID)
+						f_active = true;
+					else if (rc.Contains(e.mousePosition))
+						f_hover = true;
 
-				var th_color = !th_active
-					? normal ?? Colors.SliderThumb
-					: active ?? Colors.SliderThumbActive;
-				GUIX.Fill(rcThumb, th_color);
+					var color = !f_hover && !f_active
+						? normal ?? Colors.FrameBG
+						: f_hover && !f_active
+							? hover ?? Colors.FrameBGHover
+							: active ?? Colors.FrameBGActive;
+					GUIX.Fill(rc, color);
+
+					var th_color = !f_active
+						? normal ?? Colors.SliderThumb
+						: active ?? Colors.SliderThumbActive;
+					GUIX.Fill(rcThumb.Shrink(SLIDER_THUMB_PADDING), th_color);
+
+					var label = (template ?? (v => v.ToString()))?.Invoke(value) ?? "";
+					GUIX.Label(rc, label, Color.white, TextAnchor.MiddleCenter);
+					break;
 			}
 
-			if (template == null)
-				template = v => v.ToString();
-			GUIX.Label(rc, template(value), Color.white, TextAnchor.MiddleCenter);
-			return ret;
+			return value;
 		}
 
 		public static void KeyBinder(string id, Rect rc, string key, Action<KeyCode> onChange) {

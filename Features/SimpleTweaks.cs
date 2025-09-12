@@ -1,14 +1,7 @@
-﻿using BepInEx;
-using BepInEx.Configuration;
+﻿using HarmonyLib;
 
-using HarmonyLib;
-
-using Symphony.UI;
-
-using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -120,23 +113,6 @@ namespace Symphony.Features {
 			}
 		}
 
-		internal static ConfigFile config = new ConfigFile(Path.Combine(Paths.ConfigPath, "Symphony.SimpleTweaks.cfg"), true);
-
-		internal static ConfigEntry<bool> DisplayFPS = config.Bind("SimpleTweaks", "DisplayFPS", false, "Display FPS to screen");
-
-		internal static ConfigEntry<bool> LimitFPS = config.Bind("SimpleTweaks", "LimitFPS", false, "Limits game framerate. Uses MaxFPS value");
-		internal static ConfigEntry<bool> LimitBattleFPS = config.Bind("SimpleTweaks", "LimitBattleFPS", true, "Limits battle framerate. Uses MaxBattleFPS value");
-		internal static ConfigEntry<int> MaxFPS = config.Bind("SimpleTweaks", "MaxFPS", 60, "Framerate");
-		internal static ConfigEntry<int> MaxBattleFPS = config.Bind("SimpleTweaks", "MaxBattleFPS", 60, "Framerate");
-
-		internal static ConfigEntry<bool> UseLobbyHide = config.Bind("SimpleTweaks", "UseLobbyHide", true, $"Use hotkey to toggle lobby UI");
-		internal static ConfigEntry<string> LobbyUIHideKey = config.Bind("SimpleTweaks", "LobbyHideKey", "Tab", $"Key to toggle lobby UI");
-
-		internal static readonly ConfigEntry<bool> Use_IgnoreWindowReset = config.Bind("SimpleTweaks", "Ignore_WindowReset", true, "Ignore window size aspect-ratio and position reset after resize");
-
-		internal static readonly ConfigEntry<bool> Use_FullScreenKey = config.Bind("SimpleTweaks", "Use_FullScreenKey", true, "Use FullScreen mode key change");
-		internal static readonly ConfigEntry<string> FullScreenKey = config.Bind("SimpleTweaks", "FullScreenKey", "F11", "Window mode change button replacement");
-
 		internal static float VolumeBGM {
 			get => GameOption.BgmVolume;
 			set {
@@ -168,121 +144,59 @@ namespace Symphony.Features {
 			}
 		}
 
-		internal static ConfigEntry<bool> UsePatchStorySkip = config.Bind("SimpleTweaks", "UsePatchStorySkip", true, $"Prevent StoryViewer from proceeding automatically when the Space key is held down, and remap the key to PatchStorySkipKey");
-		internal static ConfigEntry<string> PatchStorySkipKey = config.Bind("SimpleTweaks", "PatchStorySpacebar", "LeftControl", $"Key to remap for StoryViewer");
-
-		internal static ConfigEntry<bool> UseFormationFix = config.Bind("SimpleTweaks", "UseFormationFix", true, $"Fix character selection bug on Formation scene");
-
 		//////////////////////////////////////////////////////////////////////////////////////
 
-		private FrameLimit DisplayFPSLimit = new(0.5f);
-
-		private GUIStyle FPSStyle;
-		private string lastFPS = "0";
-
 		public void Start() {
-			FPSStyle = new GUIStyle();
-			FPSStyle.alignment = TextAnchor.MiddleCenter;
-			FPSStyle.normal.textColor = Color.white;
-			FPSStyle.fontSize = 13;
-			FPSStyle.fontStyle = FontStyle.Bold;
-
-			#region Migration
-			{ // from MaximumFrame
-				var path = Path.Combine(Paths.ConfigPath, "Symphony.MaximumFrame.cfg");
-				if (File.Exists(path)) {
-					Plugin.Logger.LogMessage("[Symphony::SimpleTweaks] MaximumFrame configuration detected, migration it.");
-					var _old = new ConfigFile(path, false);
-					var frame = _old.Bind("MaximumFrame", "maximumFrame", -1).Value;
-
-					LimitFPS.Value = frame > 0;
-					MaxFPS.Value = Math.Max(frame, 1);
-
-					File.Delete(path);
-					config.Save();
-				}
-			}
-			{ // from LobbyHide
-				var path = Path.Combine(Paths.ConfigPath, "Symphony.LobbyHide.cfg");
-				if (File.Exists(path)) {
-					Plugin.Logger.LogMessage("[Symphony::SimpleTweaks] LobbyHide configuration detected, migration it.");
-					var _old = new ConfigFile(path, false);
-					var keyCodeName = _old.Bind("LobbyHide", "Toggle", "Tab").Value;
-
-					if (keyCodeName != "" && Helper.KeyCodeParse(keyCodeName, out var _)) {
-						UseLobbyHide.Value = true;
-						LobbyUIHideKey.Value = keyCodeName;
-					}
-					else {
-						UseLobbyHide.Value = false;
-					}
-
-					File.Delete(path);
-					config.Save();
-				}
-			}
-			{ // from WindowedResize
-				var path = Path.Combine(Paths.ConfigPath, "Symphony.WindowedResize.cfg");
-				if (File.Exists(path)) {
-					Plugin.Logger.LogMessage("[Symphony::SimpleTweaks] WindowedResize configuration detected, migration it.");
-					var _old = new ConfigFile(path, false);
-
-					var useFullScreenKey = _old.Bind("WindowedResize", "Use_FullScreenKey", true).Value;
-					Use_FullScreenKey.Value = useFullScreenKey;
-
-					var keyCodeName = _old.Bind("WindowedResize", "Key_Mode", "F11").Value;
-					if (keyCodeName != "" && Helper.KeyCodeParse(keyCodeName, out var _)) {
-						FullScreenKey.Value = keyCodeName;
-					}
-
-					File.Delete(path);
-					config.Save();
-				}
-			}
-			#endregion
-
 			#region Patch
 			var harmony = new Harmony("Symphony.SimpleTweaks");
-			harmony.Patch(
-				AccessTools.Method(typeof(Panel_Base), "Update"),
-				transpiler: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_PanelBase_Update))
-			);
+
+			// FullScreen key remap
 			harmony.Patch(
 				AccessTools.Method(typeof(GameManager), "Update"),
 				transpiler: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_GameManager_Update))
 			);
+
+			// Window resize fix
 			harmony.Patch(
 				AccessTools.Method(typeof(WindowsGameManager), "ApplyAspectRatioNextFrame"),
 				prefix: new HarmonyMethod(typeof(SimpleTweaks), nameof(SimpleTweaks.IsIgnoreWindowRest))
 			);
+
+			// Story skip button patch
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Base), "Update"),
+				transpiler: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_PanelBase_Update))
+			);
+
+			// MuteOnBackgroundFix
+			harmony.Patch(
+				AccessTools.Method(typeof(WindowsGameManager), "OnApplicationPause"),
+				prefix: new HarmonyMethod(typeof(SimpleTweaks), nameof(SimpleTweaks.OnApplicationPausePatch))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(WindowsGameManager), "OnApplicationFocus"),
+				prefix: new HarmonyMethod(typeof(SimpleTweaks), nameof(SimpleTweaks.OnApplicationFocusPatch))
+			);
 			#endregion
 
-			if (Helper.KeyCodeParse(FullScreenKey.Value, out var kc)) {
-				Plugin.Logger.LogInfo($"[Symphony::SimpleTweaks] > Key for Fullscreen toggle is '{FullScreenKey.Value}', KeyCode is {kc}. This message will be logged once at first time.");
+			if (Helper.KeyCodeParse(Conf.SimpleTweaks.FullScreenKey.Value, out var kc)) {
+				Plugin.Logger.LogInfo($"[Symphony::SimpleTweaks] > Key for Fullscreen toggle is '{Conf.SimpleTweaks.FullScreenKey.Value}', KeyCode is {kc}. This message will be logged once at first time.");
 			}
 		}
 
 		public void Update() {
-			if (DisplayFPS.Value && DisplayFPSLimit.Valid())
-				lastFPS = (1.0f / Time.deltaTime).ToString("0.0");
-
 			Check_LobbyUIToggle();
 			Check_FormationFix();
-			Check_FramerateLimit();
-		}
-
-		public void OnGUI() {
-			if (DisplayFPS.Value) {
-				GUIX.Fill(new Rect(5, 5, 50, 20), GUIX.Colors.WindowBG);
-				GUI.Label(new Rect(5, 5, 50, 20), lastFPS, FPSStyle);
-			}
 		}
 
 		private void Check_LobbyUIToggle() {
-			if (!UseLobbyHide.Value) return;
+			if (!Conf.SimpleTweaks.UseLobbyHide.Value) return;
 			if (SceneManager.GetActiveScene().name != "Scene_Lobby") return;
 
-			if (LobbyUIHideKey.Value != "" && Helper.KeyCodeParse(LobbyUIHideKey.Value, out var kc) && Input.GetKeyDown(kc)) { // Key downed?
+			if (Conf.SimpleTweaks.LobbyUIHideKey.Value != "" &&
+				Helper.KeyCodeParse(Conf.SimpleTweaks.LobbyUIHideKey.Value, out var kc) &&
+				Input.GetKeyDown(kc)
+			) { // Key downed?
 				var panel_lobby = GameObject.FindObjectOfType<Panel_Lobby>();
 				if (panel_lobby == null) {
 					Plugin.Logger.LogWarning("[Symphony::SimpleTweak] In Lobby scene, but Panel_Lobby not found");
@@ -294,7 +208,7 @@ namespace Symphony.Features {
 		}
 
 		private void Check_FormationFix() {
-			if (!UseFormationFix.Value) return;
+			if (!Conf.SimpleTweaks.UseFormationFix.Value) return;
 			if (SceneManager.GetActiveScene().name != "Scene_Formation2") return;
 
 			var objects = GameObject.FindObjectsOfType<FormationCharacterPick>();
@@ -309,7 +223,10 @@ namespace Symphony.Features {
 				}
 			}
 
-			if (LobbyUIHideKey.Value != "" && Helper.KeyCodeParse(LobbyUIHideKey.Value, out var kc) && Input.GetKeyDown(kc)) { // Key downed?
+			if (Conf.SimpleTweaks.LobbyUIHideKey.Value != "" && 
+				Helper.KeyCodeParse(Conf.SimpleTweaks.LobbyUIHideKey.Value, out var kc) && 
+				Input.GetKeyDown(kc)
+			) { // Key downed?
 				var panel_lobby = GameObject.FindObjectOfType<Panel_Lobby>();
 				if (panel_lobby == null) {
 					return;
@@ -319,56 +236,11 @@ namespace Symphony.Features {
 			}
 		}
 
-		private FrameLimit FramerateLimit = new(1f);
-		private int originalFramerate = -1;
-		private int originalVSyncCount = 0;
-		private void Check_FramerateLimit() {
-			if (!FramerateLimit.Valid()) return;
-
-			if (originalFramerate == -1) {
-				originalFramerate = Application.targetFrameRate;
-				originalVSyncCount = QualitySettings.vSyncCount;
-			}
-
-			if (!LimitFPS.Value && !LimitBattleFPS.Value) {
-				ResetFPS();
-				return;
-			}
-
-			if (SceneManager.GetActiveScene().name == "Scene_StageBattle" && LimitBattleFPS.Value && MaxBattleFPS.Value > 0) {
-				if (Application.targetFrameRate != MaxBattleFPS.Value || QualitySettings.vSyncCount != 0) { // should update
-					Application.targetFrameRate = MaxBattleFPS.Value;
-					QualitySettings.vSyncCount = 0;
-					Plugin.Logger.LogInfo(
-						$"[Symphony::SimpleTweak] Set battle framerate limit to {MaxBattleFPS.Value}" +
-						(originalVSyncCount > 0 ? ", VSync also disabled" : "")
-					);
-				}
-			}
-			else if (LimitFPS.Value && MaxFPS.Value > 0) { // framerate has set
-				if (Application.targetFrameRate != MaxFPS.Value || QualitySettings.vSyncCount != 0) { // should update
-					Application.targetFrameRate = MaxFPS.Value;
-					QualitySettings.vSyncCount = 0;
-					Plugin.Logger.LogInfo(
-						$"[Symphony::SimpleTweak] Set framerate limit to {MaxFPS.Value}" +
-						(originalVSyncCount > 0 ? ", VSync also disabled" : "")
-					);
-				}
-			}
-			else // framerate has not set (use vanilla)
-				ResetFPS();
-		}
-		private void ResetFPS() {
-			if (Application.targetFrameRate != originalFramerate || QualitySettings.vSyncCount != originalVSyncCount) {
-				Application.targetFrameRate = originalFramerate;
-				QualitySettings.vSyncCount = originalVSyncCount;
-				Plugin.Logger.LogInfo($"[Symphony::SimpleTweak] Set framerate limit to vanilla");
-			}
-		}
-
 		private static int StoryViewerPatchKey() {
-			if (UsePatchStorySkip.Value) {
-				if (PatchStorySkipKey.Value != "" && Helper.KeyCodeParse(PatchStorySkipKey.Value, out var kc)) // Key valid?
+			if (Conf.SimpleTweaks.UsePatchStorySkip.Value) {
+				if (Conf.SimpleTweaks.PatchStorySkipKey.Value != "" &&
+					Helper.KeyCodeParse(Conf.SimpleTweaks.PatchStorySkipKey.Value, out var kc)
+				) // Key valid?
 					return (int)kc;
 			}
 			return (int)KeyCode.Space;
@@ -376,20 +248,41 @@ namespace Symphony.Features {
 
 		private static bool IsFullScreenKeyDowned() {
 			var key = KeyCode.None;
-			if (Helper.KeyCodeParse(FullScreenKey.Value, out var kc)) {
+			if (Helper.KeyCodeParse(Conf.SimpleTweaks.FullScreenKey.Value, out var kc)) {
 				key = kc;
 			}
 
-			if (Use_FullScreenKey.Value && key != KeyCode.None)
+			if (Conf.SimpleTweaks.Use_FullScreenKey.Value && key != KeyCode.None)
 				return Input.GetKeyDown(key);
 			return Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter); // Game default value
 		}
 		private static bool IsIgnoreWindowRest(ref IEnumerator __result) {
-			if (Use_IgnoreWindowReset.Value) {
+			if (Conf.SimpleTweaks.Use_IgnoreWindowReset.Value) {
 				__result = Enumerable.Empty<YieldInstruction>().GetEnumerator();
 				return false;
 			}
 			return true;
+		}
+
+		private static void MuteOnBackgroundAction(bool paused) {
+			if (paused)
+				AudioListener.volume = 0.0f;
+			else
+				AudioListener.volume = 1.0f;
+		}
+		private static bool OnApplicationPausePatch(bool pause) {
+			if (GameOption.BackGroundSoundOn) return false;
+			if (!Conf.SimpleTweaks.MuteOnBackgroundFix.Value) return true;
+
+			MuteOnBackgroundAction(pause);
+			return false;
+		}
+		private static bool OnApplicationFocusPatch(bool focus) {
+			if (GameOption.BackGroundSoundOn) return false;
+			if (!Conf.SimpleTweaks.MuteOnBackgroundFix.Value) return true;
+
+			MuteOnBackgroundAction(!focus);
+			return false;
 		}
 	}
 }

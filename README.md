@@ -15,10 +15,16 @@ You can configure the plugin's options on the game screen by pressing the `F12` 
 
 The following is a description of each feature within the plugin.
 
+### GracefulFPS
+A collection of FPS related features for the game.
+
+Displays in-game FPS and offers separate limit settings for global and battle scene.
+You can set the FPS limit to Off (Default), Fixed, or VSync.
+
 ### SimpleTweaks
 A collection of various simple quality-of-life improvements for the game.
 
-It provides features to display game FPS, limit FPS, limit FPS for Battle scene, a hotkey to hide the lobby UI, remap the switching full-screen mode key, game volume control, remap the skip key for StoryViewer, prevents a forced aspect ratio on the game window and keeps the window position from resetting after resizing, and fix some bugs.
+This provides features that a hotkey to hide the lobby UI, remap the switching full-screen mode key, game volume control, remap the skip key for StoryViewer, prevents a forced aspect ratio on the game window and keeps the window position from resetting after resizing, and fix some bugs.
 
 The default key for toggling fullscreen/windowed mode is `F11`.
 
@@ -28,6 +34,7 @@ This modifies parts of the UI to make them easier to use.
 You can reduce the display size of the various combatant, equipment, and consumable lists. (This allows you to see more items on one screen.)
 You can also sort the consumable list.
 You can now press Enter to search in some search boxes.
+You can accelerate scroll with mouse wheel.
 
 ### BattleHotkey
 Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Standby`, `Select Enemy`, `Select Enemy Tile`, `Confirm (after selecting an enemy or tile)`, and `Start Action` buttons in battle.
