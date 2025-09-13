@@ -762,6 +762,7 @@ namespace Symphony.UI.Panels {
 							}
 							#endregion
 							break;
+
 						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
 						//offset += 1 + 4;
 
@@ -782,15 +783,18 @@ namespace Symphony.UI.Panels {
 								}
 								offset += 20 + 4;
 							}
-							GUIX.Label(
-								new Rect(0, offset, WIDTH_FILL, 20),
-								"주의: 매크로 기능입니다. 신중하게 사용해 주세요.",
-								Color.yellow
-							);
+
+							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "! 주의 !", Color.yellow);
+							offset += 20;
+
+							GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "일괄 수령은 매크로 기능입니다.", Color.yellow);
+							offset += 20;
+							GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "운영 주체에 의해 이용 제한에 이를 수 있습니다.", Color.yellow);
+							offset += 20;
+							GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "신중하게 사용해 주세요.", Color.yellow);
 							offset += 20 + 4;
 							#endregion
 							break;
-
 					}
 				});
 			});
