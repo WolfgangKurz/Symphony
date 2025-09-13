@@ -6,6 +6,7 @@ using Symphony.UI;
 
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 
@@ -17,6 +18,7 @@ namespace Symphony.Features {
 
 		private WebGiveRewardInfo rewardTotal = null;
 		private WebGiveRewardInfo costTotal = null;
+		private Dictionary<string, int> rewardItemDictionary = new();
 		private bool DisplayGetAllResult = false;
 		private long LastPacketFor = 0;
 
@@ -158,6 +160,21 @@ namespace Symphony.Features {
 					this.resultViewport.height = 0f;
 					this.resultScroll = Vector2.zero;
 
+					var dict = new Dictionary<string, int>();
+					foreach (var item in this.rewardTotal.ItemRewardList) {
+						var info = SingleTon<DataManager>.Instance.GetItem(item.Info.ItemSN);
+						if (info != null && info.ItemType != 0 && info.ItemType != 1 && info.ItemType != 2) {
+							var target = SingleTon<DataManager>.Instance.GetTableItemConsumable(info.ItemKeyString);
+							var itemName = Localization.Get(target?.ItemName ?? info.ItemKeyString);
+							var itemCount = info.StackCount - info.BeforeStatckCount;
+							if (dict.ContainsKey(itemName))
+								dict[itemName] += itemCount;
+							else
+								dict.Add(itemName, itemCount);
+						}
+					}
+					this.rewardItemDictionary = dict;
+
 					this.DisplayGetAllResult = true;
 					InstantPanel.Wait(true, true);
 				}
@@ -256,18 +273,9 @@ namespace Symphony.Features {
 						}
 					}
 					if (this.rewardTotal.ItemRewardList.Count > 0) {
-						foreach (var item in this.rewardTotal.ItemRewardList) {
-							var info = SingleTon<DataManager>.Instance.GetItem(item.Info.ItemSN);
-							if (info != null && info.ItemType != 0 && info.ItemType != 1 && info.ItemType != 2) {
-								var target = SingleTon<DataManager>.Instance.GetTableItemConsumable(info.ItemKeyString);
-								var itemName = target?.ItemName ?? info.ItemKeyString;
-								var itemCount = info.StackCount - info.BeforeStatckCount;
-								GUIX.Label(
-									new Rect(10, offset, 292, 20),
-									$"{itemName} {itemCount:#,##0}"
-								);
-								offset += 20f;
-							}
+						foreach (var kv in this.rewardItemDictionary) {
+							GUIX.Label(new Rect(10, offset, 292, 20), $"{kv.Key} {kv.Value:#,##0}");
+							offset += 20f;
 						}
 					}
 
