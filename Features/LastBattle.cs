@@ -21,7 +21,7 @@ namespace Symphony.Features {
 				postfix: new HarmonyMethod(typeof(LastBattle), nameof(LastBattle.Panel_GameModeMenu_Start))
 			);
 			harmony.Patch(
-				AccessTools.Method(typeof(Panel_StageBattle), "Start"),
+				AccessTools.Method(typeof(SceneStageBattle), "Start"),
 				postfix: new HarmonyMethod(typeof(LastBattle), nameof(LastBattle.Update_MapStage))
 			);
 		}
@@ -29,13 +29,26 @@ namespace Symphony.Features {
 		private static void Panel_GameModeMenu_Start(Panel_GameModeMenu __instance) {
 			if (!Conf.LastBattle.Use_LastBattleMap.Value) return;
 
+			var map = SingleTon<DataManager>.Instance.GetTableChapterStage(Conf.LastBattle.LastBattleMapKey.Value);
+			var chapter = map != null
+				? SingleTon<DataManager>.Instance.GetTableMapChapter(map?.ChapterIndex)
+				: null;
+
+			if(!string.IsNullOrEmpty( chapter?.Event_Category)) {
+				var evChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
+				if (evChapter.Event_OpenType == 0) { // Closed event
+					Plugin.Logger.LogWarning("[Symphony::LastBattle] Last visited map was event and closed, reset to none");
+					Conf.LastBattle.LastBattleMapKey.Value = "";
+					map = null;
+					chapter = null;
+				}
+			}
+
 			var goMain = (GameObject)__instance.GetType()
 				.GetField("_goMain", BindingFlags.Instance | BindingFlags.NonPublic)
 				.GetValue(__instance);
 
-			Plugin.Logger.LogWarning(goMain);
-
-			// Make custom atlas
+			#region Make custom atlas
 			if (atlas == null) {
 				atlas = ScriptableObject.CreateInstance<NGUIAtlas>();
 				Plugin.Logger.LogWarning(atlas);
@@ -80,6 +93,7 @@ namespace Symphony.Features {
 					}
 				});
 			}
+			#endregion
 
 			{ // goBtn adjust
 				var bgsp = goMain.transform.Find("BgSp");
@@ -115,7 +129,7 @@ namespace Symphony.Features {
 				bgsp.localPosition = new Vector3(bgsp.localPosition.x, 270f, bgsp.localPosition.z);
 
 				var box = btn.GetComponent<BoxCollider>();
-				box.center = new Vector3(-20.96f, -141.74f, 0f);
+				box.center = new Vector3(-20.96f, 141.74f, 0f);
 				box.size = new Vector3(646.504f, 247.321f, 0f);
 
 				var sp = bgsp.GetComponent<UISprite>();
@@ -123,10 +137,6 @@ namespace Symphony.Features {
 				sp.spriteName = "UI_SelectWorldBtn_MainStory_Small";
 				sp.height = 280;
 
-				var map = SingleTon<DataManager>.Instance.GetTableChapterStage(Conf.LastBattle.LastBattleMapKey.Value);
-				var chapter = map != null
-					? SingleTon<DataManager>.Instance.GetTableMapChapter(map?.ChapterIndex)
-					: null;
 				var chapterName = !string.IsNullOrEmpty(chapter?.Event_Category)
 					? $"EventName_{chapter.Event_Category}".Localize()
 					: chapter?.ChapterString ?? "";
@@ -155,8 +165,14 @@ namespace Symphony.Features {
 					if (map == null) return;
 
 					SingleTon<GameManager>.Instance.MapInit();
-					SingleTon<GameManager>.Instance.MapStage = map;
-					SingleTon<GameManager>.Instance.GameMode = GAME_MODE.STORY;
+					if (string.IsNullOrEmpty(chapter?.Event_Category)) {
+						SingleTon<GameManager>.Instance.MapStage = map;
+						SingleTon<GameManager>.Instance.GameMode = GAME_MODE.STORY;
+					}
+					else {
+						SingleTon<GameManager>.Instance.MapEventChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
+						SingleTon<GameManager>.Instance.GameMode = GAME_MODE.EVENT;
+					}
 					Handler.Broadcast(new SceneChange(Const.Scene_World)); // __instance.ShowScene(Const.Scene_World);
 				}));
 			}
@@ -165,9 +181,15 @@ namespace Symphony.Features {
 		private static void Update_MapStage() {
 			var map = SingleTon<GameManager>.Instance.MapStage;
 			if (map == null) {
+				Plugin.Logger.LogDebug("[Symphony::LastBattle] GameManager.MapStage has reset");
 				Conf.LastBattle.LastBattleMapKey.Value = "";
 				return;
 			}
+
+			if (Conf.LastBattle.Use_LastBattleMap.Value)
+				Plugin.Logger.LogInfo("[Symphony::LastBattle] Last battle stage is " + map.Key);
+
+			// Last visited battle map always be logged
 			Conf.LastBattle.LastBattleMapKey.Value = map.Key;
 		}
 	}

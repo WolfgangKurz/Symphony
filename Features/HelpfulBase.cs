@@ -74,6 +74,10 @@ namespace Symphony.Features {
 			btn.transform.localScale = Vector3.one;
 
 			uiBtn.normalSprite = "ui_Character_Info_Icon_book";
+
+			var loc = btn.GetComponentInChildren<UILocalize>();
+			if (loc != null) loc.enabled = false; // safe check
+
 			var label = btn.GetComponentInChildren<UILabel>(true);
 			if (label == null) {
 				Plugin.Logger.LogWarning("[Symphony.HelpfulBase] Failed to get UILabel component for cloned button");
@@ -87,10 +91,6 @@ namespace Symphony.Features {
 			uiBtn.onClick.Add(new EventDelegate(() => {
 				StartCoroutine(this.OnClickGetAll());
 			}));
-
-			// ...
-			yield return new WaitForEndOfFrame();
-			label.text = "일괄 수령";
 		}
 
 		private IEnumerator OnClickGetAll() {
