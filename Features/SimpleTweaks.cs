@@ -144,6 +144,8 @@ namespace Symphony.Features {
 			}
 		}
 
+		private static Helper.RECT? lastWindowRect = null;
+
 		//////////////////////////////////////////////////////////////////////////////////////
 
 		public void Start() {
@@ -157,9 +159,14 @@ namespace Symphony.Features {
 			);
 
 			// Window resize fix
-			harmony.Patch(
+			harmony.Patch( // prevent minimum window size & forcing aspect ratio
 				AccessTools.Method(typeof(WindowsGameManager), "ApplyAspectRatioNextFrame"),
 				prefix: new HarmonyMethod(typeof(SimpleTweaks), nameof(SimpleTweaks.IsIgnoreWindowRest))
+			);
+			harmony.Patch( // prevent resetting window size & position after back from fullscreen
+				AccessTools.Method(typeof(Screen), nameof(Screen.SetResolution), [typeof(int), typeof(int), typeof(FullScreenMode), typeof(int)]),
+				prefix: new HarmonyMethod(typeof(SimpleTweaks), nameof(SimpleTweaks.Patch_Screen_SetResolution_Prefix)),
+				postfix: new HarmonyMethod(typeof(SimpleTweaks), nameof(SimpleTweaks.Patch_Screen_SetResolution_Postfix))
 			);
 
 			// Story skip button patch
@@ -262,6 +269,30 @@ namespace Symphony.Features {
 				return false;
 			}
 			return true;
+		}
+		private static void Patch_Screen_SetResolution_Prefix(int width, int height, FullScreenMode fullscreenMode, int preferredRefreshRate) {
+			if (!Conf.SimpleTweaks.Use_IgnoreWindowReset.Value) return;
+
+			if (fullscreenMode != FullScreenMode.Windowed) { // Going to fullscreen
+				if (Helper.GetWindowRect(Plugin.hWnd, out var rc)) // Remember last window position
+					lastWindowRect = rc;
+			}
+		}
+		private static void Patch_Screen_SetResolution_Postfix(int width, int height, FullScreenMode fullscreenMode, int preferredRefreshRate) {
+			if (!Conf.SimpleTweaks.Use_IgnoreWindowReset.Value) return;
+
+			if (fullscreenMode == FullScreenMode.Windowed && lastWindowRect.HasValue) { // Restored to windowed
+				IEnumerator Patch_Screen_SetResolution_Coroutine(Helper.RECT rc) {
+					yield return null;
+					Helper.ResizeWindow(Plugin.hWnd, rc);
+				}
+
+				var rc = lastWindowRect.Value;
+				lastWindowRect = null;
+
+				FindObjectOfType<MonoBehaviour>() // Use any MonoBehaviour
+					.StartCoroutine(Patch_Screen_SetResolution_Coroutine(rc));
+			}
 		}
 
 		private static void MuteOnBackgroundAction(bool paused) {
