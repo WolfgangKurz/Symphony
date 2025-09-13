@@ -87,6 +87,15 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(UIScrollView2), nameof(UIScrollView2.Scroll)),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.AccelerateScrollDelta))
 			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_PcWarehouse), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterCostOff))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_AndroidInventory), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterCostOff))
+			);
 			#endregion
 		}
 
@@ -495,6 +504,20 @@ namespace Symphony.Features {
 				return SingleTon<GameManager>.Instance.InvertSort;
 
 			return a.GetPCID().CompareTo(b.GetPCID());
+		}
+
+		private static void Patch_CharacterCostOff(Panel_Base __instance) {
+			if (!Conf.SimpleUI.Default_CharacterCost_Off.Value) return;
+
+			var OnBtnCost = __instance.GetType()
+				.GetMethod("OnBtnCost", BindingFlags.Instance | BindingFlags.Public);
+			if (OnBtnCost == null) return;
+
+			var _costToggle = (UIToggle)__instance.GetType()
+				.GetField("_costToggle", BindingFlags.Instance | BindingFlags.NonPublic)
+				.GetValue(__instance);
+			_costToggle.value = false;
+			OnBtnCost.Invoke(__instance, []);
 		}
 	}
 }
