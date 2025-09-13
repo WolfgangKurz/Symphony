@@ -421,7 +421,7 @@ namespace Symphony.Features {
 				var go = obj.gameObject;
 				if (!go.TryGetComponent(typeof(UIButton), out var _)) {
 					var btn = go.AddComponent<UIButton>();
-					btn.onClick.Add(new EventDelegate(obj.Pick));
+					btn.onClick.Add(new(obj.Pick));
 
 					var chr = go.GetComponent<Character>();
 					Plugin.Logger.LogMessage($"[Symphony::SimpleTweak] Formation touch fixed for '{chr.PC.GetPCName()}'");

@@ -51,6 +51,7 @@ namespace Symphony {
 			this.gameObject.AddComponent<SimpleUI>();
 			this.gameObject.AddComponent<BattleHotkey>();
 			this.gameObject.AddComponent<HelpfulBase>();
+			this.gameObject.AddComponent<LastBattle>();
 		}
 
 		private IEnumerator InitUI() {
