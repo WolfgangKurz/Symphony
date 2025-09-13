@@ -12,6 +12,9 @@ using UnityEngine.SceneManagement;
 namespace Symphony.Features {
 	internal class SimpleTweaks : MonoBehaviour {
 		private class SimpleTweaks_Patch {
+
+		private static Helper.RECT? lastWindowRect = null;
+
 			public static IEnumerable<CodeInstruction> Patch_PanelBase_Update(MethodBase original, IEnumerable<CodeInstruction> instructions) {
 				Plugin.Logger.LogInfo("[Symphony::SimpleTweaks] Start to patch Panel_Base.Update to patch auto-next");
 
@@ -111,6 +114,181 @@ namespace Symphony.Features {
 				matcher.Insert(new_inst);
 				return matcher.InstructionEnumeration();
 			}
+
+			public static bool IsIgnoreWindowRest(ref IEnumerator __result) {
+				if (Conf.SimpleTweaks.Use_IgnoreWindowReset.Value) {
+					__result = Enumerable.Empty<YieldInstruction>().GetEnumerator();
+					return false;
+				}
+				return true;
+			}
+			public static void Patch_Screen_SetResolution_Prefix(int width, int height, FullScreenMode fullscreenMode, int preferredRefreshRate) {
+				if (!Conf.SimpleTweaks.Use_IgnoreWindowReset.Value) return;
+
+				if (fullscreenMode != FullScreenMode.Windowed) { // Going to fullscreen
+					if (Helper.GetWindowRect(Plugin.hWnd, out var rc)) // Remember last window position
+						lastWindowRect = rc;
+				}
+			}
+			public static void Patch_Screen_SetResolution_Postfix(int width, int height, FullScreenMode fullscreenMode, int preferredRefreshRate) {
+				if (!Conf.SimpleTweaks.Use_IgnoreWindowReset.Value) return;
+
+				if (fullscreenMode == FullScreenMode.Windowed && lastWindowRect.HasValue) { // Restored to windowed
+					IEnumerator Patch_Screen_SetResolution_Coroutine(Helper.RECT rc) {
+						yield return null;
+						Helper.ResizeWindow(Plugin.hWnd, rc);
+					}
+
+					var rc = lastWindowRect.Value;
+					lastWindowRect = null;
+
+					FindObjectOfType<MonoBehaviour>() // Use any MonoBehaviour
+						.StartCoroutine(Patch_Screen_SetResolution_Coroutine(rc));
+				}
+			}
+
+			public static void MuteOnBackgroundAction(bool paused) {
+				if (paused)
+					AudioListener.volume = 0.0f;
+				else
+					AudioListener.volume = 1.0f;
+			}
+
+			public static bool Patch_OnApplicationPause(bool pause) {
+				if (GameOption.BackGroundSoundOn) return false;
+				if (!Conf.SimpleTweaks.MuteOnBackgroundFix.Value) return true;
+
+				MuteOnBackgroundAction(pause);
+				return false;
+			}
+			public static bool Patch_OnApplicationFocus(bool focus) {
+				if (GameOption.BackGroundSoundOn) return false;
+				if (!Conf.SimpleTweaks.MuteOnBackgroundFix.Value) return true;
+
+				MuteOnBackgroundAction(!focus);
+				return false;
+			}
+
+			public static IEnumerable<CodeInstruction> Patch_PanelLogo_OnFinished(MethodBase original, IEnumerable<CodeInstruction> instructions) {
+				if (!Conf.SimpleTweaks.Use_QuickLogo.Value) return instructions;
+
+				Plugin.Logger.LogInfo("[Symphony::WindowedResize] Start to patch Panel_Logo.OnFinished");
+
+				var MonoBehaviour_Invoke = AccessTools.Method(typeof(MonoBehaviour), "Invoke");
+
+				var matcher = new CodeMatcher(instructions);
+				matcher.MatchForward(false,
+					/* this.Invoke("OnTexLogo", 4.2f) */
+					new CodeMatch(OpCodes.Ldarg_0), // this
+					new CodeMatch(OpCodes.Ldstr, "OnTexLogo"), // "OnTexLogo"
+					new CodeMatch(OpCodes.Ldc_R4, 4.2f), // float 4.2
+					new CodeMatch(OpCodes.Call, MonoBehaviour_Invoke) // Invoke
+				);
+
+				if (matcher.IsInvalid) {
+					Plugin.Logger.LogWarning("[Symphony::WindowedResize] Failed to patch Panel_Logo.OnFinished, target instructions not found");
+					return instructions;
+				}
+
+				matcher.Advance(2); // move to 4.2f
+				matcher.Instruction.operand = 1f;
+				return matcher.InstructionEnumeration();
+			}
+			public static IEnumerable<CodeInstruction> Patch_PanelLogo_OnTexLogo(MethodBase original, IEnumerable<CodeInstruction> instructions) {
+				if (!Conf.SimpleTweaks.Use_QuickLogo.Value) return instructions;
+
+				Plugin.Logger.LogInfo("[Symphony::WindowedResize] Start to patch Panel_Logo.OnTexLogo");
+
+				var Mathf_Max = AccessTools.Method(typeof(Mathf), "Max", [typeof(float), typeof(float)]);
+
+				var ret = instructions;
+
+				{
+					var matcher = new CodeMatcher(ret);
+					matcher.MatchForward(false,
+						/* var time = Mathf.Max(this.audioSource.clip.length + 1f, 4f) */
+						new CodeMatch(OpCodes.Ldc_R4, 4f),
+						new CodeMatch(OpCodes.Stloc_0),
+						new CodeMatch(OpCodes.Ldarg_0), // this
+						new CodeMatch(OpCodes.Ldfld), // audioSource
+						new CodeMatch(OpCodes.Callvirt), // get_clip
+						new CodeMatch(OpCodes.Callvirt), // get_length
+						new CodeMatch(OpCodes.Ldc_R4, 1f), // 1f
+						new CodeMatch(OpCodes.Add), // +
+						new CodeMatch(OpCodes.Ldloc_0),
+						new CodeMatch(OpCodes.Call, Mathf_Max), // Mathf.Max
+						new CodeMatch(OpCodes.Stloc_1) // time =
+					);
+
+					if (matcher.IsInvalid) {
+						Plugin.Logger.LogWarning("[Symphony::WindowedResize] Failed to patch Panel_Logo.OnTexLogo (1), target instructions not found");
+						return instructions;
+					}
+
+					matcher.Instruction.operand = 1f;
+
+					matcher.Advance(6);
+					matcher.Instruction.operand = 0f;
+
+					ret = matcher.InstructionEnumeration();
+				}
+
+				{
+					var matcher = new CodeMatcher(ret);
+					matcher.MatchForward(false,
+						// this.audioSource.PlayDelayed(0.5f);
+						new CodeMatch(OpCodes.Ldarg_0), // this
+						new CodeMatch(OpCodes.Ldfld), // audioSource
+						new CodeMatch(OpCodes.Ldc_R4, 0.5f), // 0.5f
+						new CodeMatch(OpCodes.Callvirt) // PlayDelayed
+					);
+
+					if (matcher.IsInvalid) {
+						Plugin.Logger.LogWarning("[Symphony::WindowedResize] Failed to patch Panel_Logo.OnTexLogo (2), target instructions not found");
+						return instructions;
+					}
+
+					matcher.Advance(2);
+					matcher.Instruction.operand = 0f;
+
+					ret = matcher.InstructionEnumeration();
+				}
+
+				return ret;
+			}
+			public static void Patch_PanelLogo_OnFinished_Postfix() {
+				if (!Conf.SimpleTweaks.Use_QuickLogo.Value) return;
+
+				var rating = GameObject.FindObjectsOfType<UIPanel>().FirstOrDefault(x => x.name.StartsWith("Panel_Rating"));
+				var tweens = rating.GetComponentsInChildren<TweenAlpha>(true);
+				foreach (var t in tweens) {
+					if (t.delay == 0f) {
+						t.duration = 0.75f;
+					}
+					else if (t.delay == 4.2f) {
+						t.delay = 0.75f;
+						t.duration = 0.25f;
+					}
+				}
+			}
+
+			public static void Patch_PanelTitle_Start(Panel_Title __instance) {
+				if (!Conf.SimpleTweaks.Use_QuickTitle.Value) return;
+
+				// ignore animation waiting
+				var fns = __instance.GetComponent<AnimatorAction>().onFinished.ToList();
+				__instance.GetComponent<AnimatorAction>().onFinished.Clear();
+				EventDelegate.Execute(fns);
+			}
+			public static void Patch_PanelTitle_RequestPermission(Panel_Title __instance) {
+				if (!Conf.SimpleTweaks.Use_AutoLogin.Value) return; // TODO: Consider multi login-method
+
+				IEnumerator Fn() {
+					yield return null; // ensure next frame
+					__instance.OnBtnTouch();
+				}
+				__instance.StartCoroutine(Fn());
+			}
 		}
 
 		internal static float VolumeBGM {
@@ -157,9 +335,14 @@ namespace Symphony.Features {
 			);
 
 			// Window resize fix
-			harmony.Patch(
+			harmony.Patch( // prevent minimum window size & forcing aspect ratio
 				AccessTools.Method(typeof(WindowsGameManager), "ApplyAspectRatioNextFrame"),
-				prefix: new HarmonyMethod(typeof(SimpleTweaks), nameof(SimpleTweaks.IsIgnoreWindowRest))
+				prefix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.IsIgnoreWindowRest))
+			);
+			harmony.Patch( // prevent resetting window size & position after back from fullscreen
+				AccessTools.Method(typeof(Screen), nameof(Screen.SetResolution), [typeof(int), typeof(int), typeof(FullScreenMode), typeof(int)]),
+				prefix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_Screen_SetResolution_Prefix)),
+				postfix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_Screen_SetResolution_Postfix))
 			);
 
 			// Story skip button patch
@@ -171,11 +354,33 @@ namespace Symphony.Features {
 			// MuteOnBackgroundFix
 			harmony.Patch(
 				AccessTools.Method(typeof(WindowsGameManager), "OnApplicationPause"),
-				prefix: new HarmonyMethod(typeof(SimpleTweaks), nameof(SimpleTweaks.OnApplicationPausePatch))
+				prefix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_OnApplicationPause))
 			);
 			harmony.Patch(
 				AccessTools.Method(typeof(WindowsGameManager), "OnApplicationFocus"),
-				prefix: new HarmonyMethod(typeof(SimpleTweaks), nameof(SimpleTweaks.OnApplicationFocusPatch))
+				prefix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_OnApplicationFocus))
+			);
+
+			// Quick Logo
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Logo), "OnFinished"),
+				postfix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_PanelLogo_OnFinished_Postfix)),
+				transpiler: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_PanelLogo_OnFinished))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Logo), "OnTexLogo"),
+				transpiler: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_PanelLogo_OnTexLogo))
+			);
+
+			// Quick Title
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Title), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_PanelTitle_Start))
+			);
+			// Auto Login
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Title), "RequestPermission"),
+				postfix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_PanelTitle_RequestPermission))
 			);
 			#endregion
 
@@ -236,7 +441,7 @@ namespace Symphony.Features {
 			}
 		}
 
-		private static int StoryViewerPatchKey() {
+		public static int StoryViewerPatchKey() {
 			if (Conf.SimpleTweaks.UsePatchStorySkip.Value) {
 				if (Conf.SimpleTweaks.PatchStorySkipKey.Value != "" &&
 					Helper.KeyCodeParse(Conf.SimpleTweaks.PatchStorySkipKey.Value, out var kc)
@@ -246,7 +451,7 @@ namespace Symphony.Features {
 			return (int)KeyCode.Space;
 		}
 
-		private static bool IsFullScreenKeyDowned() {
+		public static bool IsFullScreenKeyDowned() {
 			var key = KeyCode.None;
 			if (Helper.KeyCodeParse(Conf.SimpleTweaks.FullScreenKey.Value, out var kc)) {
 				key = kc;
@@ -255,34 +460,6 @@ namespace Symphony.Features {
 			if (Conf.SimpleTweaks.Use_FullScreenKey.Value && key != KeyCode.None)
 				return Input.GetKeyDown(key);
 			return Input.GetKeyDown(KeyCode.Return) || Input.GetKeyDown(KeyCode.KeypadEnter); // Game default value
-		}
-		private static bool IsIgnoreWindowRest(ref IEnumerator __result) {
-			if (Conf.SimpleTweaks.Use_IgnoreWindowReset.Value) {
-				__result = Enumerable.Empty<YieldInstruction>().GetEnumerator();
-				return false;
-			}
-			return true;
-		}
-
-		private static void MuteOnBackgroundAction(bool paused) {
-			if (paused)
-				AudioListener.volume = 0.0f;
-			else
-				AudioListener.volume = 1.0f;
-		}
-		private static bool OnApplicationPausePatch(bool pause) {
-			if (GameOption.BackGroundSoundOn) return false;
-			if (!Conf.SimpleTweaks.MuteOnBackgroundFix.Value) return true;
-
-			MuteOnBackgroundAction(pause);
-			return false;
-		}
-		private static bool OnApplicationFocusPatch(bool focus) {
-			if (GameOption.BackGroundSoundOn) return false;
-			if (!Conf.SimpleTweaks.MuteOnBackgroundFix.Value) return true;
-
-			MuteOnBackgroundAction(!focus);
-			return false;
 		}
 	}
 }

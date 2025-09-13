@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Reflection;
 
@@ -66,6 +67,15 @@ namespace Symphony.Features {
 			);
 
 			harmony.Patch(
+				AccessTools.Method(typeof(Panel_PcWarehouse), "Awake"),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByName))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_AndroidInventory), "Awake"),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByName))
+			);
+
+			harmony.Patch(
 				AccessTools.Method(typeof(UIReuseScrollView), nameof(UIReuseScrollView.Scroll)),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.AccelerateScrollDelta))
 			);
@@ -109,7 +119,7 @@ namespace Symphony.Features {
 				}
 			}
 
-			if(Conf.SimpleUI.EnterToSearch_CharWarehouse.Value) {
+			if (Conf.SimpleUI.EnterToSearch_CharWarehouse.Value) {
 				var _inputSearch = (UIInput)__instance.GetType()
 					.GetField("_inputSearch", BindingFlags.NonPublic | BindingFlags.Instance)
 					.GetValue(__instance);
@@ -370,7 +380,7 @@ namespace Symphony.Features {
 				.GetField("_TableManager", BindingFlags.NonPublic | BindingFlags.Instance)
 				.GetValue(__instance);
 
-			if(ConsumableKeyList == null) {
+			if (ConsumableKeyList == null) {
 				var table = tableManager._Table_ItemConsumable;
 				ConsumableKeyList = table.Keys.ToArray();
 			}
@@ -381,6 +391,108 @@ namespace Symphony.Features {
 		private static void AccelerateScrollDelta(ref float delta) {
 			if (Conf.SimpleUI.Use_AccelerateScrollDelta.Value)
 				delta *= 3f;
+		}
+
+		private static void Inject_SortByName(Panel_Base __instance) {
+			if (!Conf.SimpleUI.Use_SortByName.Value) return;
+
+			var goSortPanel = (GameObject)__instance.GetType()
+				.GetField("_goSortPanel", BindingFlags.Instance | BindingFlags.NonPublic)?
+				.GetValue(__instance);
+			if (goSortPanel == null) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find SortPanel");
+				return;
+			}
+
+			var menu = goSortPanel.transform.GetComponentsInChildren<Transform>(true).FirstOrDefault(x => x.name == "Menu");
+			if (menu == null) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Menu on SortPanel");
+				return;
+			}
+
+			var elCount = menu.childCount;
+			for (var i = 0; i < elCount; i++) {
+				var e = menu.GetChild(i);
+				e.localPosition = e.localPosition - new Vector3(0, -74, 0);
+			}
+
+			var els = menu.GetComponentsInChildren<Transform>(true);
+
+			var _sep = els.FirstOrDefault(x => x.name == "DecoSp12");
+			if (_sep == null) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Separator on SortPanel Menu");
+				return;
+			}
+
+			var _btn = els.FirstOrDefault(x => x.name == "Marriage");
+			if (_btn == null) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Marriage button on SortPanel Menu");
+				return;
+			}
+
+			var sep = GameObject.Instantiate(_sep.gameObject);
+			sep.name = "DecoSp_Name";
+			sep.transform.SetParent(_sep.parent);
+			sep.transform.localPosition = _sep.localPosition - new Vector3(0, 74, 0);
+			sep.transform.localScale = Vector3.one;
+
+			var btn = GameObject.Instantiate(_btn.gameObject);
+			btn.name = "Name";
+			btn.transform.SetParent(_btn.parent);
+			btn.transform.localPosition = _btn.localPosition - new Vector3(0, 74, 0);
+			btn.transform.localScale = Vector3.one;
+
+			btn.GetComponentsInChildren<UILocalize>(true).ToList().ForEach(DestroyImmediate);
+
+			var lbl = btn.GetComponentsInChildren<UILabel>(true);
+			foreach (var lb in lbl) lb.text = "이름";
+
+			var btnOff = btn.GetComponentsInChildren<Transform>(true).FirstOrDefault(x => x.name == "btn_OFF");
+			var uiButton = btnOff.GetComponent<UIButton>();
+			uiButton.onClick.Clear();
+			uiButton.onClick.Add(new EventDelegate(() => {
+				try {
+					var lbl = btnOff.GetComponentInChildren<UILabel>(true);
+					OnSortName(__instance, lbl);
+				} catch(Exception e) {
+					Plugin.Logger.LogError(e);
+				}
+			}));
+		}
+		private static void OnSortName(Panel_Base instance, UILabel lbl) {
+			if (instance == null) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] instance is null");
+				return;
+			}
+
+			var Sorting = instance.GetType()
+				.GetMethod("Sorting", BindingFlags.Instance | BindingFlags.NonPublic);
+			if (Sorting == null) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Sorting method");
+				return;
+			}
+
+			Sorting.Invoke(instance, [new Comparison<IReuseCellData>(SortName_Comparer)]);
+
+			var label = (UILabel)instance.GetType()
+				.GetField("_lblSort", BindingFlags.Instance | BindingFlags.NonPublic)
+				.GetValue(instance);
+			if (label != null)
+				label.text = lbl?.text ?? "이름";
+		}
+		private static int SortName_Comparer(IReuseCellData a, IReuseCellData b) {
+			if (a.IsFirst() && !b.IsFirst()) return -1;
+			if (!a.IsFirst() && b.IsFirst()) return 1;
+			if (a.IsLast() && !b.IsLast()) return 1;
+			if (!a.IsLast() && b.IsLast()) return -1;
+
+			if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
+				return -SingleTon<GameManager>.Instance.InvertSort;
+
+			if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
+				return SingleTon<GameManager>.Instance.InvertSort;
+
+			return a.GetPCID().CompareTo(b.GetPCID());
 		}
 	}
 }

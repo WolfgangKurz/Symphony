@@ -31,10 +31,11 @@ The default key for toggling fullscreen/windowed mode is `F11`.
 ### SimpleUI
 This modifies parts of the UI to make them easier to use.
 
-You can reduce the display size of the various combatant, equipment, and consumable lists. (This allows you to see more items on one screen.)
-You can also sort the consumable list.
-You can now press Enter to search in some search boxes.
-You can accelerate scroll with mouse wheel.
+Provides a feature to assign a hotkey for hiding the lobby UI.
+Provides features to prevent the game window's aspect ratio from being locked, prevent the window position from resetting after resizing, and allow reassigning the fullscreen toggle key.
+Provides features to change the mute behavior in the background and to control the volume.
+Provides a feature to reassign the story viewer skip key, and includes several bug patches.
+Provides a fast logo screen, immediate login-able, and an automatic login feature.
 
 ### BattleHotkey
 Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Standby`, `Select Enemy`, `Select Enemy Tile`, `Confirm (after selecting an enemy or tile)`, and `Start Action` buttons in battle.
