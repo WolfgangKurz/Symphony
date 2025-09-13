@@ -165,7 +165,7 @@ namespace Symphony.Features {
 						var info = SingleTon<DataManager>.Instance.GetItem(item.Info.ItemSN);
 						if (info != null && info.ItemType != 0 && info.ItemType != 1 && info.ItemType != 2) {
 							var target = SingleTon<DataManager>.Instance.GetTableItemConsumable(info.ItemKeyString);
-							var itemName = Localization.Get(target?.ItemName ?? info.ItemKeyString);
+							var itemName = SingleTon<DataManager>.Instance.GetLocalization(target?.ItemName ?? info.ItemKeyString) ?? info.ItemKeyString;
 							var itemCount = info.StackCount - info.BeforeStatckCount;
 							if (dict.ContainsKey(itemName))
 								dict[itemName] += itemCount;
@@ -272,7 +272,7 @@ namespace Symphony.Features {
 							}
 						}
 					}
-					if (this.rewardTotal.ItemRewardList.Count > 0) {
+					if (this.rewardItemDictionary.Count > 0) {
 						foreach (var kv in this.rewardItemDictionary) {
 							GUIX.Label(new Rect(10, offset, 292, 20), $"{kv.Key} {kv.Value:#,##0}");
 							offset += 20f;
