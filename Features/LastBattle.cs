@@ -186,11 +186,13 @@ namespace Symphony.Features {
 				return;
 			}
 
-			if (Conf.LastBattle.Use_LastBattleMap.Value)
-				Plugin.Logger.LogInfo("[Symphony::LastBattle] Last battle stage is " + map.Key);
+			if (map.GameModeType == (int)GAME_MODE.STORY || map.GameModeType == (int)GAME_MODE.EVENT) {
+				if (Conf.LastBattle.Use_LastBattleMap.Value)
+					Plugin.Logger.LogInfo("[Symphony::LastBattle] Last battle stage is " + map.Key);
 
-			// Last visited battle map always be logged
-			Conf.LastBattle.LastBattleMapKey.Value = map.Key;
+				// Last visited battle map always be logged
+				Conf.LastBattle.LastBattleMapKey.Value = map.Key;
+			}
 		}
 	}
 }
