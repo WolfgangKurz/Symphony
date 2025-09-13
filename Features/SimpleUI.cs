@@ -103,6 +103,8 @@ namespace Symphony.Features {
 			_reUseGrid.m_Column = 8;
 			_reUseGrid.m_cellWidth = (int)(_reUseGrid.m_cellWidth * SMALL_ORIGINAL6_RATIO);
 			_reUseGrid.m_cellHeight = (int)(_reUseGrid.m_cellHeight * SMALL_ORIGINAL6_RATIO);
+
+			__instance.HeightInvenSquad = (int)(__instance.HeightInvenSquad * SMALL_ORIGINAL6_RATIO);
 		}
 		private static void GridItemsPatch_PCWarehouse_Start_post(Panel_PcWarehouse __instance) {
 			if (Conf.SimpleUI.Small_CharWarehouse.Value) {
