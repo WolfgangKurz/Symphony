@@ -230,7 +230,10 @@ namespace Symphony.UI.Panels {
 								offset += 20 + 4;
 							}
 
-							offset += 10; {
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
 								var value = GUIX.Toggle(
 									new Rect(0, offset, WIDTH_FILL, 20),
 									Conf.SimpleTweaks.Use_IgnoreWindowReset.Value,
@@ -269,7 +272,10 @@ namespace Symphony.UI.Panels {
 								offset += 20 + 4;
 							}
 
-							offset += 10; {
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
 								var value = GUIX.Toggle(
 									new Rect(0, offset, WIDTH_FILL, 20),
 									Conf.SimpleTweaks.MuteOnBackgroundFix.Value,
@@ -306,7 +312,10 @@ namespace Symphony.UI.Panels {
 							)) / 200f;
 							offset += 20 + 4;
 
-							offset += 10; {
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
 								var value = GUIX.Toggle(
 									new Rect(0, offset, WIDTH_FILL, 20),
 									Conf.SimpleTweaks.UsePatchStorySkip.Value,
@@ -339,6 +348,46 @@ namespace Symphony.UI.Panels {
 								);
 								if (value != Conf.SimpleTweaks.UseFormationFix.Value) {
 									Conf.SimpleTweaks.UseFormationFix.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleTweaks.Use_QuickLogo.Value,
+									"빠른 로고 화면"
+								);
+								if (value != Conf.SimpleTweaks.Use_QuickLogo.Value) {
+									Conf.SimpleTweaks.Use_QuickLogo.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleTweaks.Use_QuickTitle.Value,
+									"바로 로그인 가능"
+								);
+								if (value != Conf.SimpleTweaks.Use_QuickTitle.Value) {
+									Conf.SimpleTweaks.Use_QuickTitle.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleTweaks.Use_AutoLogin.Value,
+									"자동 로그인"
+								);
+								if (value != Conf.SimpleTweaks.Use_AutoLogin.Value) {
+									Conf.SimpleTweaks.Use_AutoLogin.Value = value;
 									Conf.config.Save();
 								}
 								offset += 20 + 4;
