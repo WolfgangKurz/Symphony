@@ -102,6 +102,9 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_PlayButton = config.Bind("BattleHotkey", "Use_PlayButton", true, "Use play button hotkeys");
 			public static readonly ConfigEntry<string> Key_Play = config.Bind("BattleHotkey", "Play", "KeypadPlus", "Play button hotkey");
 		}
+		internal class HelpfulBase {
+			public static readonly ConfigEntry<bool> Use_GetAll = config.Bind("HelpfulBase", "Use_GetAll", false, "Use Get All button for Base");
+		}
 		internal class LastBattle {
 			public static readonly ConfigEntry<bool> Use_LastBattleMap = config.Bind("LastBattle", "Use_LastBattleMap", false, "Whether to use the function that adds a button to the World screen that moves you directly to the last visited battle map.");
 			public static readonly ConfigEntry<string> LastBattleMapKey = config.Bind("LastBattle", "LastBattleMapKey", "");
