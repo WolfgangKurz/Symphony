@@ -51,7 +51,6 @@ namespace Symphony.Features {
 			#region Make custom atlas
 			if (atlas == null) {
 				atlas = ScriptableObject.CreateInstance<NGUIAtlas>();
-				Plugin.Logger.LogWarning(atlas);
 
 				var src_sprite = goMain.GetComponentInChildren<UISprite>();
 				var src_atlas = src_sprite.atlas;
