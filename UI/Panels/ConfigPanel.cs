@@ -12,7 +12,7 @@ namespace Symphony.UI.Panels {
 		private Rect panelViewport = new Rect(0, 0, 248, 0);
 		private Vector2 panelScroll = Vector2.zero;
 
-		private readonly string[] PluginFeatures = ["GracefulFPS", "SimpleTweaks", "SimpleUI", "BattleHotkey"];
+		private readonly string[] PluginFeatures = ["GracefulFPS", "SimpleTweaks", "SimpleUI", "BattleHotkey", "LastBattle"];
 		private string SelectedFeature = "GracefulFPS";
 
 		public ConfigPanel(MonoBehaviour instance) : base(instance) { }
@@ -757,6 +757,29 @@ namespace Symphony.UI.Panels {
 									);
 									offset += 20 + 4;
 								}
+							}
+							#endregion
+							break;
+
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
+
+						case "LastBattle":
+							#region LastBattle Section
+							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "LastBattle");
+							offset += 20 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.LastBattle.Use_LastBattleMap.Value,
+									"마지막 방문 전투 지역 버튼 추가"
+								);
+								if (value != Conf.LastBattle.Use_LastBattleMap.Value) {
+									Conf.LastBattle.Use_LastBattleMap.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
 							}
 							#endregion
 							break;

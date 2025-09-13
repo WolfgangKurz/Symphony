@@ -461,7 +461,7 @@ namespace Symphony.Features {
 			var btnOff = btn.GetComponentsInChildren<Transform>(true).FirstOrDefault(x => x.name == "btn_OFF");
 			var uiButton = btnOff.GetComponent<UIButton>();
 			uiButton.onClick.Clear();
-			uiButton.onClick.Add(new EventDelegate(() => {
+			uiButton.onClick.Add(new(() => {
 				try {
 					var lbl = btnOff.GetComponentInChildren<UILabel>(true);
 					OnSortName(__instance, lbl);
