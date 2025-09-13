@@ -24,18 +24,22 @@ You can set the FPS limit to Off (Default), Fixed, or VSync.
 ### SimpleTweaks
 A collection of various simple quality-of-life improvements for the game.
 
-This provides features that a hotkey to hide the lobby UI, remap the switching full-screen mode key, game volume control, remap the skip key for StoryViewer, prevents a forced aspect ratio on the game window and keeps the window position from resetting after resizing, and fix some bugs.
+Provides a feature to assign a hotkey for hiding the lobby UI.
+Provides features to prevent the game window's aspect ratio from being locked, prevent the window position from resetting after resizing, and allow reassigning the fullscreen toggle key.
+Provides features to change the mute behavior in the background and to control the volume.
+Provides a feature to reassign the story viewer skip key, and includes several bug patches.
+Provides a fast logo screen, immediate login-able, and an automatic login feature.
 
 The default key for toggling fullscreen/windowed mode is `F11`.
 
 ### SimpleUI
 This modifies parts of the UI to make them easier to use.
 
-Provides a feature to assign a hotkey for hiding the lobby UI.
-Provides features to prevent the game window's aspect ratio from being locked, prevent the window position from resetting after resizing, and allow reassigning the fullscreen toggle key.
-Provides features to change the mute behavior in the background and to control the volume.
-Provides a feature to reassign the story viewer skip key, and includes several bug patches.
-Provides a fast logo screen, immediate login-able, and an automatic login feature.
+Provides the ability to reduce the display size of combatant, equipment, and consumable lists. (Allows more items to be seen on one screen.)
+Provides a sorting function for the consumable list.
+Provides instant search with the Enter key in some search input fields.
+Provides accelerated scrolling via the mouse wheel.
+Provides the `Set Character's resource cost display default to Off` feature.
 
 ### BattleHotkey
 Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Standby`, `Select Enemy`, `Select Enemy Tile`, `Confirm (after selecting an enemy or tile)`, and `Start Action` buttons in battle.

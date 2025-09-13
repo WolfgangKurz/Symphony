@@ -592,6 +592,18 @@ namespace Symphony.UI.Panels {
 								}
 								offset += 20 + 4;
 							}
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleUI.Default_CharacterCost_Off.Value,
+									"전투원 소모 자원 표기 기본 끄기"
+								);
+								if (value != Conf.SimpleUI.Default_CharacterCost_Off.Value) {
+									Conf.SimpleUI.Default_CharacterCost_Off.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
 							#endregion
 							break;
 

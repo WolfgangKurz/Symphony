@@ -87,6 +87,15 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(UIScrollView2), nameof(UIScrollView2.Scroll)),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.AccelerateScrollDelta))
 			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_PcWarehouse), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterCostOff))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_AndroidInventory), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterCostOff))
+			);
 			#endregion
 		}
 
@@ -103,6 +112,8 @@ namespace Symphony.Features {
 			_reUseGrid.m_Column = 8;
 			_reUseGrid.m_cellWidth = (int)(_reUseGrid.m_cellWidth * SMALL_ORIGINAL6_RATIO);
 			_reUseGrid.m_cellHeight = (int)(_reUseGrid.m_cellHeight * SMALL_ORIGINAL6_RATIO);
+
+			__instance.HeightInvenSquad = (int)(__instance.HeightInvenSquad * SMALL_ORIGINAL6_RATIO);
 		}
 		private static void GridItemsPatch_PCWarehouse_Start_post(Panel_PcWarehouse __instance) {
 			if (Conf.SimpleUI.Small_CharWarehouse.Value) {
@@ -493,6 +504,20 @@ namespace Symphony.Features {
 				return SingleTon<GameManager>.Instance.InvertSort;
 
 			return a.GetPCID().CompareTo(b.GetPCID());
+		}
+
+		private static void Patch_CharacterCostOff(Panel_Base __instance) {
+			if (!Conf.SimpleUI.Default_CharacterCost_Off.Value) return;
+
+			var OnBtnCost = __instance.GetType()
+				.GetMethod("OnBtnCost", BindingFlags.Instance | BindingFlags.Public);
+			if (OnBtnCost == null) return;
+
+			var _costToggle = (UIToggle)__instance.GetType()
+				.GetField("_costToggle", BindingFlags.Instance | BindingFlags.NonPublic)
+				.GetValue(__instance);
+			_costToggle.value = false;
+			OnBtnCost.Invoke(__instance, []);
 		}
 	}
 }
