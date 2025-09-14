@@ -35,6 +35,7 @@ The default key for toggling fullscreen/windowed mode is `F11`.
 ### SimpleUI
 This modifies parts of the UI to make them easier to use.
 
+Provides a feature that, when an Auto-Battle is in progress, tapping the Battle map will bring up the Map screen instead of the Auto-Battle screen.
 Provides the ability to reduce the display size of combatant, equipment, and consumable lists. (Allows more items to be seen on one screen.)
 Provides a sorting function for the consumable list.
 Provides instant search with the Enter key in some search input fields.
@@ -47,6 +48,13 @@ Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Standby`, `Sel
 `Confirm (after selecting an enemy or tile)` works by pressing the key corresponding to the selected enemy or tile a second time.
 The numbering for enemies and tiles corresponds to the numpad layout (Enemy `1` is located at the bottom left).
 
+### Automation
+This is an Automation (macro) feature.
+Please be aware that its use may lead to restrictions by the game operator.
+Please use with caution.
+
+Provides a Get-All and Restart-All function for completed Facilities in the Base.
+Provides a Restart function for completed Auto-Battles. (The Disassembling settings will use the settings from the last Auto-Battle run on PC.)
 
 ## Updates
 If the plugin requires an update, the following message will be displayed when the game starts.

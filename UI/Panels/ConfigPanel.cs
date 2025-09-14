@@ -12,7 +12,7 @@ namespace Symphony.UI.Panels {
 		private Rect panelViewport = new Rect(0, 0, 248, 0);
 		private Vector2 panelScroll = Vector2.zero;
 
-		private readonly string[] PluginFeatures = ["GracefulFPS", "SimpleTweaks", "SimpleUI", "BattleHotkey", "HelpfulBase", "LastBattle"];
+		private readonly string[] PluginFeatures = ["GracefulFPS", "SimpleTweaks", "SimpleUI", "BattleHotkey", "LastBattle", "Automation"];
 		private string SelectedFeature = "GracefulFPS";
 
 		public ConfigPanel(MonoBehaviour instance) : base(instance) { }
@@ -409,7 +409,7 @@ namespace Symphony.UI.Panels {
 								var value = GUIX.Toggle(
 									new Rect(0, offset, WIDTH_FILL, 20),
 									Conf.SimpleUI.Use_OfflineBattle_Bypass.Value,
-									"오프라인 전투 확인 대신 맵으로"
+									"자율 전투 확인 대신 맵으로"
 								);
 								if (value != Conf.SimpleUI.Use_OfflineBattle_Bypass.Value) {
 									Conf.SimpleUI.Use_OfflineBattle_Bypass.Value = value;
@@ -782,39 +782,6 @@ namespace Symphony.UI.Panels {
 						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
 						//offset += 1 + 4;
 
-						case "HelpfulBase":
-							#region HelpfulBase Section
-							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "HelpfulBase");
-							offset += 20 + 4;
-
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.HelpfulBase.Use_GetAll.Value,
-									"일괄 수령 사용하기"
-								);
-								if (value != Conf.HelpfulBase.Use_GetAll.Value) {
-									Conf.HelpfulBase.Use_GetAll.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-
-							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "! 주의 !", Color.yellow);
-							offset += 20;
-
-							GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "일괄 수령은 매크로 기능입니다.", Color.yellow);
-							offset += 20;
-							GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "운영 주체에 의해 이용 제한에 이를 수 있습니다.", Color.yellow);
-							offset += 20;
-							GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "신중하게 사용해 주세요.", Color.yellow);
-							offset += 20 + 4;
-							#endregion
-							break;
-
-						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-						//offset += 1 + 4;
-
 						case "LastBattle":
 							#region LastBattle Section
 							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "LastBattle");
@@ -828,6 +795,51 @@ namespace Symphony.UI.Panels {
 								);
 								if (value != Conf.LastBattle.Use_LastBattleMap.Value) {
 									Conf.LastBattle.Use_LastBattleMap.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+							#endregion
+							break;
+
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
+
+						case "Automation":
+							#region Automation Section
+							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "Automation");
+							offset += 20 + 4;
+
+							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "! 주의 !", Color.yellow);
+							offset += 20;
+
+							GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "이 기능은 매크로 동작을 포함합니다.", Color.yellow);
+							offset += 20;
+							GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "사용 시 운영 주체에 의해 이용 제한에 이를 수 있습니다.", Color.yellow);
+							offset += 20;
+							GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "신중하게 사용해 주세요.", Color.yellow);
+							offset += 20 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.Automation.Use_Base_GetAll.Value,
+									"기지 일괄 수령 사용하기"
+								);
+								if (value != Conf.Automation.Use_Base_GetAll.Value) {
+									Conf.Automation.Use_Base_GetAll.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.Automation.Use_OfflineBattle_Restart.Value,
+									"자율 전투 재시작 사용하기"
+								);
+								if (value != Conf.Automation.Use_OfflineBattle_Restart.Value) {
+									Conf.Automation.Use_OfflineBattle_Restart.Value = value;
 									Conf.config.Save();
 								}
 								offset += 20 + 4;

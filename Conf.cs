@@ -104,8 +104,13 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_PlayButton = config.Bind("BattleHotkey", "Use_PlayButton", true, "Use play button hotkeys");
 			public static readonly ConfigEntry<string> Key_Play = config.Bind("BattleHotkey", "Play", "KeypadPlus", "Play button hotkey");
 		}
-		internal class HelpfulBase {
-			public static readonly ConfigEntry<bool> Use_GetAll = config.Bind("HelpfulBase", "Use_GetAll", false, "Use Get All button for Base");
+		internal class Automation {
+			public static readonly ConfigEntry<bool> Use_Base_GetAll = config.Bind("Automation", "Use_Base_GetAll", false, "Use Get All button for Base");
+
+			public static ConfigEntry<bool> Use_OfflineBattle_Restart = config.Bind("Automation", "Use_OfflineBattle_Restart", false, "Add Restart button to offline battle result screen");
+			public static ConfigEntry<byte> OfflineBattle_Last_CharDiscomp = config.Bind("Automation", "OfflineBattle_Last_CharDiscomp", (byte)1);
+			public static ConfigEntry<byte> OfflineBattle_Last_EquipDiscomp = config.Bind("Automation", "OfflineBattle_Last_EquipDiscomp", (byte)1);
+
 		}
 		internal class LastBattle {
 			public static readonly ConfigEntry<bool> Use_LastBattleMap = config.Bind("LastBattle", "Use_LastBattleMap", false, "Whether to use the function that adds a button to the World screen that moves you directly to the last visited battle map.");
@@ -280,6 +285,17 @@ namespace Symphony {
 					BattleHotkey.Key_Play.Value = prev.Bind("BattleHotKey", "Play", "KeypadPlus").Value;
 
 					File.Delete(path);
+				}
+			}
+			#endregion
+
+			#region Migration renamed Configs
+			{ // HelpfulBase -> Automation
+				ConfigEntry<bool> entry_bool;
+
+				if (config.TryGetEntry("HelpfulBase", "Use_GetAll", out entry_bool)){
+					Automation.Use_Base_GetAll.Value = entry_bool.Value;
+					config.Remove(new ConfigDefinition("Automation", "Use_Base_GetAll"), out _);
 				}
 			}
 			#endregion
