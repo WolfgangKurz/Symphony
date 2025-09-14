@@ -18,29 +18,29 @@ The following is a description of each feature within the plugin.
 ### GracefulFPS
 A collection of FPS related features for the game.
 
-Displays in-game FPS and offers separate limit settings for global and battle scene.
-You can set the FPS limit to Off (Default), Fixed, or VSync.
+- Displays in-game FPS and offers separate limit settings for global and battle scene.\
+  You can set the FPS limit to `Off(Use vanilla)`, `Fixed`, or `VSync`.
 
 ### SimpleTweaks
 A collection of various simple quality-of-life improvements for the game.
 
-Provides a feature to assign a hotkey for hiding the lobby UI.
-Provides features to prevent the game window's aspect ratio from being locked, prevent the window position from resetting after resizing, and allow reassigning the fullscreen toggle key.
-Provides features to change the mute behavior in the background and to control the volume.
-Provides a feature to reassign the story viewer skip key, and includes several bug patches.
-Provides a fast logo screen, immediate login-able, and an automatic login feature.
+- Provides a feature to assign a hotkey for hiding the lobby UI.
+- Provides features to prevent the game window's aspect ratio from being locked, prevent the window position from resetting after resizing, and allow reassigning the fullscreen toggle key.
+- Provides features to change the mute behavior in the background and to control the volume.
+- Provides a feature to reassign the story viewer skip key, and includes several bug patches.
+- Provides a fast logo screen, immediate login-able, and an automatic login feature.
 
 The default key for toggling fullscreen/windowed mode is `F11`.
 
 ### SimpleUI
 This modifies parts of the UI to make them easier to use.
 
-Provides a feature that, when an Auto-Battle is in progress, tapping the Battle map will bring up the Map screen instead of the Auto-Battle screen.
-Provides the ability to reduce the display size of combatant, equipment, and consumable lists. (Allows more items to be seen on one screen.)
-Provides a sorting function for the consumable list.
-Provides instant search with the Enter key in some search input fields.
-Provides accelerated scrolling via the mouse wheel.
-Provides the `Set Character's resource cost display default to Off` feature.
+- Provides a feature that, when an Auto-Battle is in progress, tapping the Battle map will bring up the Map screen instead of the Auto-Battle screen.
+- Provides the ability to reduce the display size of combatant, equipment, and consumable lists. (Allows more items to be seen on one screen.)
+- Provides a sorting function for the consumable list.
+- Provides instant search with the Enter key in some search input fields.
+- Provides accelerated scrolling via the mouse wheel.
+- Provides the `Set Character's resource cost display default to Off` feature.
 
 ### BattleHotkey
 Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Standby`, `Select Enemy`, `Select Enemy Tile`, `Confirm (after selecting an enemy or tile)`, and `Start Action` buttons in battle.
@@ -49,19 +49,21 @@ Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Standby`, `Sel
 The numbering for enemies and tiles corresponds to the numpad layout (Enemy `1` is located at the bottom left).
 
 ### Automation
-This is an Automation (macro) feature.
-Please be aware that its use may lead to restrictions by the game operator.
+This is an <font color=crimson>__Automation(macro)__</font> feature.\
+Please be aware that its use may lead to restrictions by the game operator.\
 Please use with caution.
 
-Provides a Get-All and Restart-All function for completed Facilities in the Base.
-Provides a Restart function for completed Auto-Battles. (The Disassembling settings will use the settings from the last Auto-Battle run on PC.)
+- Provides a Get-All and Restart-All function for completed Facilities in the Base.
+- Provides a Restart function for completed Auto-Battles. (The Disassembling settings will use the settings from the last Auto-Battle run on PC.)
 
 ## Updates
 If the plugin requires an update, the following message will be displayed when the game starts.
 
 ![Update Screen](doc/update.png)
 
-Clicking the `[Github 페이지로 이동]` button will automatically take you to the Releases page of this repository.
+Clicking the `[설치]`(Install) button will download and install the latest version plugin automatically, and restart the game after complete install.
+
+Clicking the `[Github]` button will automatically take you to the Releases page of this repository.
 
 ## Disclaimer
 This is an unofficial mod. By using this mod, you agree that you are solely responsible for any issues or damages that may arise. Always back up your important data before use. The developer assumes no liability for any loss or damage caused by the use of this mod.
