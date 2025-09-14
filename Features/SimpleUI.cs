@@ -45,6 +45,11 @@ namespace Symphony.Features {
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_ItemEquipInventory_Start_post))
 			);
 			harmony.Patch(
+				AccessTools.Method(typeof(Panel_ItemSelectInventory), "Start"),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_ItemSelectInventory_Start_pre)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_ItemSelectInventory_Start_post))
+			);
+			harmony.Patch(
 				AccessTools.Method(typeof(Panel_TempInventory), "Start"),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_TempInventory_Start_pre)),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_TempInventory_Start_post))
@@ -299,6 +304,49 @@ namespace Symphony.Features {
 
 				foreach (var cell in m_cellList) {
 					cell.transform.localScale = new Vector3(SMALL_ORIGINAL5_RATIO, SMALL_ORIGINAL5_RATIO, SMALL_ORIGINAL5_RATIO);
+				}
+			}
+
+			if (Conf.SimpleUI.EnterToSearch_ItemSelection.Value) {
+				var _inputSearch = (UIInput)__instance.GetType()
+					.GetField("_inputSearch", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(__instance);
+				_inputSearch.onReturnKey = UIInput.OnReturnKey.Submit;
+				_inputSearch.onSubmit.Add(new(() => {
+					if (string.IsNullOrEmpty(_inputSearch.value)) {
+						var ev = _inputSearch.transform.Find("BtnReset")?.gameObject.GetComponent<UIButton>()?.onClick;
+						if (ev != null) EventDelegate.Execute(ev);
+					}
+					else {
+						var ev = _inputSearch.transform.Find("BtnSearch")?.gameObject.GetComponent<UIButton>()?.onClick;
+						if (ev != null) EventDelegate.Execute(ev);
+					}
+				}));
+			}
+		}
+		private static void GridItemsPatch_ItemSelectInventory_Start_pre(Panel_ItemSelectInventory __instance) {
+			if (!Conf.SimpleUI.Small_ItemSelection.Value) return;
+
+			var _gridItemList = (UIReuseGrid)__instance.GetType()
+				.GetField("_gridItemList", BindingFlags.NonPublic | BindingFlags.Instance)
+				.GetValue(__instance);
+
+			_gridItemList.m_Column = 8;
+			_gridItemList.m_cellWidth = (int)(_gridItemList.m_cellWidth * SMALL_ORIGINAL6_RATIO);
+			_gridItemList.m_cellHeight = (int)(_gridItemList.m_cellHeight * SMALL_ORIGINAL6_RATIO);
+		}
+		private static void GridItemsPatch_ItemSelectInventory_Start_post(Panel_ItemSelectInventory __instance) {
+			if (Conf.SimpleUI.Small_ItemSelection.Value) {
+				var _gridItemList = (UIReuseGrid)__instance.GetType()
+					.GetField("_gridItemList", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(__instance);
+
+				var m_cellList = (UIReuseScrollViewCell[])_gridItemList.GetType()
+					.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(_gridItemList);
+
+				foreach (var cell in m_cellList) {
+					cell.transform.localScale = new Vector3(SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO);
 				}
 			}
 
