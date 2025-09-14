@@ -408,6 +408,22 @@ namespace Symphony.UI.Panels {
 							; {
 								var value = GUIX.Toggle(
 									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleUI.Use_OfflineBattle_Bypass.Value,
+									"오프라인 전투 확인 대신 맵으로"
+								);
+								if (value != Conf.SimpleUI.Use_OfflineBattle_Bypass.Value) {
+									Conf.SimpleUI.Use_OfflineBattle_Bypass.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
 									Conf.SimpleUI.Small_CharWarehouse.Value,
 									"더 작은 전투원 목록 항목"
 								);

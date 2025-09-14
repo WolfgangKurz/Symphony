@@ -13,6 +13,12 @@ namespace Symphony.Features {
 		public void Start() {
 			#region Patch
 			var harmony = new Harmony("Symphony.SimpleUI");
+
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_GameModeMenu), nameof(Panel_GameModeMenu.OnBtnOfflineBattleCheck)),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.OfflineBattleBypass_Patch))
+			);
+
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_PcWarehouse), "Start"),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_PCWarehouse_Start_pre)),
@@ -97,6 +103,13 @@ namespace Symphony.Features {
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterCostOff))
 			);
 			#endregion
+		}
+
+		private static bool OfflineBattleBypass_Patch(Panel_GameModeMenu __instance) {
+			if (!Conf.SimpleUI.Use_OfflineBattle_Bypass.Value) return true;
+
+			__instance.OnBtnMainStroyMode(); // OnBtnOfflineBattleCheck
+			return false;
 		}
 
 		private const float SMALL_ORIGINAL6_RATIO = (1f / 8f * 6f); // 6 -> 8
