@@ -6,6 +6,8 @@ using UnityEngine;
 namespace Symphony.UI {
 	internal static class GUIX {
 		public class Colors {
+			public static readonly Color Empty = new(0f, 0f, 0f, 0f);
+
 			public static readonly Color WindowBG = new(0.06f, 0.06f, 0.06f, 0.94f);
 			public static readonly Color Border = new(0.43f, 0.43f, 0.5f, 0.5f);
 
@@ -704,7 +706,7 @@ namespace Symphony.UI {
 			var e = Event.current;
 
 			var trackHeight = rc.height - SLIDER_THUMB_SIZE - SLIDER_THUMB_PADDING * 2;
-			var valueRatio = topValue == bottomValue ? 0 
+			var valueRatio = topValue == bottomValue ? 0
 				: bottomValue - topValue > 0
 					? (value - topValue) / (bottomValue - topValue)
 					: (value - bottomValue) / (topValue - bottomValue);
@@ -853,6 +855,35 @@ namespace Symphony.UI {
 		}
 		public static void VLine(Rect rc, Color? color = null) {
 			GUIX.Fill(rc.Width(1), color ?? Colors.Border);
+		}
+
+		public static void DrawAtlasSprite(Rect rc, UIAtlas atlas, string spriteName) => GUIX.DrawSpriteData(rc, atlas, atlas.GetSprite(spriteName));
+		public static void DrawSpriteData(Rect rc, UIAtlas atlas, UISpriteData sprite) {
+			if (atlas == null || sprite == null) return;
+
+			var tex = atlas.texture;
+
+			// src corods (0.0 ~ 1.0)
+			var coords = Rect.MinMaxRect(
+				(float)sprite.x / tex.width,
+				1.0f - (float)(sprite.y + sprite.height) / tex.height,
+				(float)(sprite.x + sprite.width) / tex.width,
+				1.0f - (float)sprite.y / tex.height
+			);
+
+			var padWidth = sprite.width + sprite.paddingLeft + sprite.paddingRight;
+			var padHeight = sprite.height + sprite.paddingTop + sprite.paddingBottom;
+			var ratioX = rc.width / padWidth;
+			var ratioY = rc.height / padHeight;
+
+			var outX = sprite.paddingLeft * ratioX;
+			var outY = sprite.paddingTop * ratioY;
+			var rcDest = new Rect(
+				rc.x + outX, rc.y + outY,
+				sprite.width * ratioX,
+				sprite.height * ratioY
+			);
+			GUI.DrawTextureWithTexCoords(rc, tex, coords);
 		}
 	}
 }

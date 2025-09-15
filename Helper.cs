@@ -1,9 +1,9 @@
 ﻿using BepInEx.Logging;
 
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
 
@@ -288,6 +288,24 @@ namespace Symphony {
 			Mathf.Clamp(rc.xMax, to.xMin, to.xMax),
 			Mathf.Clamp(rc.yMax, to.yMin, to.xMax)
 		);
+		#endregion
+
+		#region Reflection
+		public static T GetValue<T>(this FieldInfo fi, object obj) => (T)fi.GetValue(obj);
+
+		public static T XGetFieldValue<T>(this object obj, string name)
+			=> obj.GetType()
+				.GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)
+				.GetValue<T>(obj);
+		public static void XSetFieldValue<T>(this object obj, string name, T value)
+			=> obj.GetType()
+				.GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)?
+				.SetValue(obj, value);
+
+		public static Func<T> XGetMethod<T>(this object obj, string name) {
+			var mi = obj.GetType().GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance);
+			return () => (T)mi.Invoke(obj, []);
+		}
 		#endregion
 	}
 

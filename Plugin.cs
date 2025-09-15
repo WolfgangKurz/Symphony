@@ -51,6 +51,7 @@ namespace Symphony {
 			this.gameObject.AddComponent<SimpleUI>();
 			this.gameObject.AddComponent<BattleHotkey>();
 			this.gameObject.AddComponent<LastBattle>();
+			this.gameObject.AddComponent<Presets>();
 			this.gameObject.AddComponent<Automation>();
 		}
 

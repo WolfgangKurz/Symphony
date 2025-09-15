@@ -116,6 +116,13 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_LastBattleMap = config.Bind("LastBattle", "Use_LastBattleMap", false, "Whether to use the function that adds a button to the World screen that moves you directly to the last visited battle map.");
 			public static readonly ConfigEntry<string> LastBattleMapKey = config.Bind("LastBattle", "LastBattleMapKey", "");
 		}
+		internal class Presets {
+			public static readonly ConfigEntry<bool> Use_CharMaking_Preset= config.Bind("Presets", "Use_CharMakingPreset", false, "Use Preset for Character making screen");
+			public static readonly ConfigEntry<bool> Use_Last_CharMakingData = config.Bind("Presets", "Use_Last_CharMakingData", false, "Load last character making data automatically");
+
+			public static readonly ConfigEntry<string> Last_CharMaking_Data = config.Bind("Presets", "Last_CharMaking_Data", "0,0,0,0,0,0");
+			public static readonly ConfigEntry<string> CharMaking_Preset_Data = config.Bind("Presets", "CharMaking_Preset_Data", "");
+		}
 
 		public static void Migrate() {
 			#region Migration Old Configs

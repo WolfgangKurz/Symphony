@@ -12,7 +12,7 @@ namespace Symphony.UI.Panels {
 		private Rect panelViewport = new Rect(0, 0, 248, 0);
 		private Vector2 panelScroll = Vector2.zero;
 
-		private readonly string[] PluginFeatures = ["GracefulFPS", "SimpleTweaks", "SimpleUI", "BattleHotkey", "LastBattle", "Automation"];
+		private readonly string[] PluginFeatures = ["GracefulFPS", "SimpleTweaks", "SimpleUI", "BattleHotkey", "LastBattle", "Presets", "Automation"];
 		private string SelectedFeature = "GracefulFPS";
 
 		public ConfigPanel(MonoBehaviour instance) : base(instance) { }
@@ -795,6 +795,41 @@ namespace Symphony.UI.Panels {
 								);
 								if (value != Conf.LastBattle.Use_LastBattleMap.Value) {
 									Conf.LastBattle.Use_LastBattleMap.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+							#endregion
+							break;
+
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
+
+						case "Presets":
+							#region Presets Section
+							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "Presets");
+							offset += 20 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.Presets.Use_CharMaking_Preset.Value,
+									"전투원 제조 프리셋 사용하기"
+								);
+								if (value != Conf.Presets.Use_CharMaking_Preset.Value) {
+									Conf.Presets.Use_CharMaking_Preset.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.Presets.Use_Last_CharMakingData.Value,
+									"마지막 전투원 제조 수치 불러오기"
+								);
+								if (value != Conf.Presets.Use_Last_CharMakingData.Value) {
+									Conf.Presets.Use_Last_CharMakingData.Value = value;
 									Conf.config.Save();
 								}
 								offset += 20 + 4;
