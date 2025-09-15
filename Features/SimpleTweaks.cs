@@ -391,7 +391,6 @@ namespace Symphony.Features {
 
 		public void Update() {
 			Check_LobbyUIToggle();
-			Check_FormationFix();
 		}
 
 		private void Check_LobbyUIToggle() {
@@ -405,35 +404,6 @@ namespace Symphony.Features {
 				var panel_lobby = GameObject.FindObjectOfType<Panel_Lobby>();
 				if (panel_lobby == null) {
 					Plugin.Logger.LogWarning("[Symphony::SimpleTweak] In Lobby scene, but Panel_Lobby not found");
-					return;
-				}
-
-				panel_lobby.OnBtnExtend();
-			}
-		}
-
-		private void Check_FormationFix() {
-			if (!Conf.SimpleTweaks.UseFormationFix.Value) return;
-			if (SceneManager.GetActiveScene().name != "Scene_Formation2") return;
-
-			var objects = GameObject.FindObjectsOfType<FormationCharacterPick>();
-			foreach (var obj in objects) {
-				var go = obj.gameObject;
-				if (!go.TryGetComponent(typeof(UIButton), out var _)) {
-					var btn = go.AddComponent<UIButton>();
-					btn.onClick.Add(new(obj.Pick));
-
-					var chr = go.GetComponent<Character>();
-					Plugin.Logger.LogMessage($"[Symphony::SimpleTweak] Formation touch fixed for '{chr.PC.GetPCName()}'");
-				}
-			}
-
-			if (Conf.SimpleTweaks.LobbyUIHideKey.Value != "" && 
-				Helper.KeyCodeParse(Conf.SimpleTweaks.LobbyUIHideKey.Value, out var kc) && 
-				Input.GetKeyDown(kc)
-			) { // Key downed?
-				var panel_lobby = GameObject.FindObjectOfType<Panel_Lobby>();
-				if (panel_lobby == null) {
 					return;
 				}
 

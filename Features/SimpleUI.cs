@@ -1,6 +1,9 @@
 ﻿using HarmonyLib;
 
+using LO_ClientNetwork;
+
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -10,6 +13,8 @@ using UnityEngine;
 
 namespace Symphony.Features {
 	internal class SimpleUI : MonoBehaviour {
+		private static ulong SquadClear_LastUnsetPC = 0;
+
 		public void Start() {
 			#region Patch
 			var harmony = new Harmony("Symphony.SimpleUI");
@@ -106,6 +111,11 @@ namespace Symphony.Features {
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_AndroidInventory), "Start"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterCostOff))
+			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_SquadInfo), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Squad_Clear))
 			);
 			#endregion
 		}
@@ -526,7 +536,7 @@ namespace Symphony.Features {
 				try {
 					var lbl = btnOff.GetComponentInChildren<UILabel>(true);
 					OnSortName(__instance, lbl);
-				} catch(Exception e) {
+				} catch (Exception e) {
 					Plugin.Logger.LogError(e);
 				}
 			}));
@@ -579,6 +589,61 @@ namespace Symphony.Features {
 				.GetValue(__instance);
 			_costToggle.value = false;
 			OnBtnCost.Invoke(__instance, []);
+		}
+
+		private static void Patch_Squad_Clear(Panel_SquadInfo __instance) {
+			var btn_src = __instance.GetComponentsInChildren<UIButton>()
+				.FirstOrDefault(x => x.name == "BtnPresetOn")?
+				.gameObject;
+			if (btn_src == null) return;
+
+			var btn = GameObject.Instantiate<GameObject>(btn_src, btn_src.transform.parent);
+			btn.name = "BtnClear";
+			btn.transform.localPosition = btn_src.transform.localPosition - new Vector3(0f, 106f, 0f);
+			btn.GetComponentInChildren<UILabel>().text = "CLEAR";
+			btn.GetComponent<UISprite>().spriteName = "UI_Icon_SquadPreset_Trashcan";
+
+			var _btn = btn.GetComponent<UIButton>();
+			_btn.onClick.Clear();
+			_btn.onClick.Add(new(() => {
+				IEnumerator Fn() {
+					var squad = SingleTon<DataManager>.Instance.GetCurrentSquad(SingleTon<GameManager>.Instance.SquadType);
+					var chars = squad.SquadSlotList // move leader to last of list
+						.Where(r => r.PCId != 0 && r.PCId != squad.LeaderPCID)
+						.Concat(SingleTon<DataManager>.Instance.GetUserInfo().MasterSquadIndex == squad.SquadIndex
+							? [] // exclude leader for master squad
+							: squad.SquadSlotList.Where(r => r.PCId == squad.LeaderPCID)
+						)
+						.ToArray();
+
+					foreach (var chr in chars) {
+						SquadClear_LastUnsetPC = 0;
+
+						// FormationCharacterPick.OnPick
+						MonoSingleton<SceneBase>.Instance.ShowWaitMessage(true);
+						C2WPacket.Send_C2W_UNSET_PC_TO_SQUAD(
+							SingleTon<DataManager>.Instance.AccessToken,
+							SingleTon<DataManager>.Instance.WID,
+							chr.PCId,
+							squad.SquadIndex,
+							SingleTon<DataManager>.Instance.GetSquadSlotNumber(chr.PCId)
+						);
+
+						yield return new WaitUntil(() => SquadClear_LastUnsetPC == chr.PCId);
+					}
+
+					var selector = FindObjectOfType<UISquadInfoCreatureSelect>()?.gameObject;
+					if (selector != null) Destroy(selector);
+				}
+				_btn.StartCoroutine(Fn());
+			}));
+		}
+		private void HandlePacketUnsetPcToSquad(WebResponseState obj) {
+			W2C_UNSET_PC_TO_SQUAD data = obj as W2C_UNSET_PC_TO_SQUAD;
+			MonoSingleton<SceneBase>.Instance.ShowWaitMessage(false);
+			if (data.result.ErrorCode != 0) return;
+
+			SquadClear_LastUnsetPC = data.result.PCID;
 		}
 	}
 }

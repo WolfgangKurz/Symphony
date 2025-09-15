@@ -302,6 +302,10 @@ namespace Symphony {
 				.GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)?
 				.SetValue(obj, value);
 
+		public static Action XGetMethodVoid(this object obj, string name) {
+			var mi = obj.GetType().GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance);
+			return () => mi.Invoke(obj, []);
+		}
 		public static Func<T> XGetMethod<T>(this object obj, string name) {
 			var mi = obj.GetType().GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance);
 			return () => (T)mi.Invoke(obj, []);

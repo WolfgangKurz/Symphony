@@ -342,19 +342,6 @@ namespace Symphony.UI.Panels {
 								offset += 20 + 4;
 							}
 
-							offset += 10; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleTweaks.UseFormationFix.Value,
-									"편성 화면 선택 버그 수정"
-								);
-								if (value != Conf.SimpleTweaks.UseFormationFix.Value) {
-									Conf.SimpleTweaks.UseFormationFix.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-
 							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
 							offset += 1 + 4;
 
@@ -616,6 +603,23 @@ namespace Symphony.UI.Panels {
 								);
 								if (value != Conf.SimpleUI.Default_CharacterCost_Off.Value) {
 									Conf.SimpleUI.Default_CharacterCost_Off.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+							;
+
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleUI.Use_Squad_Clear.Value,
+									"편성 전체 해제 추가"
+								);
+								if (value != Conf.SimpleUI.Use_Squad_Clear.Value) {
+									Conf.SimpleUI.Use_Squad_Clear.Value = value;
 									Conf.config.Save();
 								}
 								offset += 20 + 4;
