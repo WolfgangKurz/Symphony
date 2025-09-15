@@ -49,7 +49,7 @@ Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Standby`, `Sel
 The numbering for enemies and tiles corresponds to the numpad layout (Enemy `1` is located at the bottom left).
 
 ### Automation
-This is an <font color=crimson>__Automation(macro)__</font> feature.\
+This is an <span style="color:crimson">__Automation(macro)__</span> feature.\
 Please be aware that its use may lead to restrictions by the game operator.\
 Please use with caution.
 
