@@ -48,6 +48,12 @@ Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Standby`, `Sel
 `Confirm (after selecting an enemy or tile)` works by pressing the key corresponding to the selected enemy or tile a second time.
 The numbering for enemies and tiles corresponds to the numpad layout (Enemy `1` is located at the bottom left).
 
+### Presets
+A collection of various preset functions.
+
+- Adds a resource preset for the amount of resources used in making a Character.
+- Adds a feature that automatically loads the amount of resources last used for making.
+
 ### Automation
 This is an <span style="color:crimson">__Automation(macro)__</span> feature.\
 Please be aware that its use may lead to restrictions by the game operator.\
