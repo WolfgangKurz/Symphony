@@ -244,6 +244,7 @@ namespace Symphony.Features {
 				.GetField("offlineBattleEnter", BindingFlags.Instance | BindingFlags.NonPublic)
 				.GetValue(__instance);
 
+			Plugin.Logger.LogInfo($"[Symphony::Automation] Last OfflineBattle memorized, char: {enter.characterDiscompose}, equip: {enter.eqiupDiscompose}");
 			Conf.Automation.OfflineBattle_Last_CharDiscomp.Value = enter.characterDiscompose;
 			Conf.Automation.OfflineBattle_Last_EquipDiscomp.Value = enter.eqiupDiscompose;
 		}
@@ -260,7 +261,7 @@ namespace Symphony.Features {
 			var prefab = SingleTon<ResourceManager>.Instance.LoadUIPrefab("Panel_OfflineBattle");
 			var btn_src_bg = prefab.GetComponentsInChildren<UIButton>().FirstOrDefault(x => x.transform.parent?.name == "Btn_End");
 			if (btn_src_bg == null) {
-				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Btn_End in Panel_OfflineBattle not found");
+				Plugin.Logger.LogWarning("[Symphony::Automation] Btn_End in Panel_OfflineBattle not found");
 				return; // Source not found
 			}
 			var btn_src = btn_src_bg.transform.parent.gameObject;
@@ -359,27 +360,38 @@ namespace Symphony.Features {
 				SingleTon<DataManager>.Instance.Power >= last.Power;
 			if (enoughResource) {
 				btn.onClick.Add(new(() => {
-					var enter = new OfflineBattleEnterClass();
-					enter.offlineBattleStage = SingleTon<DataManager>.Instance.GetTableChapterStage(last.StageKey);
-					enter.offlineBattleSquad = new SquadInfo(0, last.SquadIndex, 0, [], ""); // dummy, just use SquadIndex
-					enter.characterDiscompose = (byte)(Conf.Automation.OfflineBattle_Last_CharDiscomp.Value | 1);
-					enter.eqiupDiscompose = (byte)(Conf.Automation.OfflineBattle_Last_EquipDiscomp.Value | 1);
-					enter.offlineBattleMaxTime = new TimeSpan(99, 0, 0); // dummy value
-					enter.offlineBattleMinTime = new TimeSpan(TimeSpan.TicksPerSecond * (long)last.ClearTime);
-					enter.usingResources = [last.Metal, last.Nutrient, last.Power];
+					var stage = SingleTon<DataManager>.Instance.GetTableChapterStage(last.StageKey);
+					if(stage == null) {
+						Plugin.Logger.LogWarning($"[Symphony::Automation] Stage info not found, key was {last.StageKey}");
+						return;
+					}
 
-					var go = new GameObject();
-					go.transform.localScale = Vector3.zero;
+					try {
+						var enter = new OfflineBattleEnterClass();
+						enter.offlineBattleStage = stage;
+						enter.offlineBattleSquad = new SquadInfo(0, last.SquadIndex, 0, [], ""); // dummy, just use SquadIndex
+						enter.characterDiscompose = (byte)((Conf.Automation.OfflineBattle_Last_CharDiscomp.Value | 1) & 15);
+						enter.eqiupDiscompose = (byte)((Conf.Automation.OfflineBattle_Last_EquipDiscomp.Value | 1) & 15);
+						enter.offlineBattleMaxTime = new TimeSpan(99, 0, 0); // dummy value
+						enter.offlineBattleMinTime = new TimeSpan(TimeSpan.TicksPerSecond * (long)last.ClearTime);
+						enter.usingResources = [last.Metal, last.Nutrient, last.Power];
 
-					var popup = go
-						.AddChild(SingleTon<ResourceManager>.Instance.LoadUIPrefab("Panel_OfflineBattlePopup"))
-						.GetComponent<Panel_OfflineBattlePopup>();
-					popup.InitOfflineBattlePopup(enter);
-					popup.GetType().GetField("selectTimeHour", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(popup, hours);
+						var go = new GameObject();
+						go.transform.localScale = Vector3.zero;
 
-					SingleTon<KeyListener>.Instance.AddPopupObj(popup.gameObject);
+						var popup = go
+							.AddChild(SingleTon<ResourceManager>.Instance.LoadUIPrefab("Panel_OfflineBattlePopup"))
+							.GetComponent<Panel_OfflineBattlePopup>();
+						popup.InitOfflineBattlePopup(enter);
+						popup.GetType().GetField("selectTimeHour", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(popup, hours);
 
-					popup.OnOfflineBattleStartButton();
+						SingleTon<KeyListener>.Instance.AddPopupObj(popup.gameObject);
+
+						popup.OnOfflineBattleStartButton();
+					} catch (Exception e) {
+						Plugin.Logger.LogError($"[Symphony::Automation] Error while trying to restart OfflineBattle");
+						Plugin.Logger.LogError(e.ToString());
+					}
 				}));
 			}
 			else {
