@@ -115,8 +115,11 @@ namespace Symphony.Features {
 
 				var scene = GameObject.FindObjectOfType<Scene_LivingStation>();
 
+				string[] charMakers = ["NukerMaking1", "NukerMaking2", "TankerMaking1", "TankerMaking2", "SupporterMaking1", "SupporterMaking2"];
 				var facilities = GameObject.FindObjectsOfType<InstallationFacility>();
-				var facilitiesToWork = facilities.Where(x => x.GetState() == InstallationFacility.State.WorkComplete);
+				var facilitiesToWork = facilities
+					.Where(x => !charMakers.Contains(x.Packet.Facility_key))
+					.Where(x => x.GetState() == InstallationFacility.State.WorkComplete);
 				Plugin.Logger.LogDebug($"[Symphony.Automation] Facilities : {facilities.Length}");
 				Plugin.Logger.LogDebug($"[Symphony.Automation] Facilities to get : {facilitiesToWork.Count()}");
 				foreach (var fac in facilitiesToWork) {
