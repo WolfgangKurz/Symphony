@@ -40,7 +40,8 @@ This modifies parts of the UI to make them easier to use.
 - Provides a sorting function for the consumable list.
 - Provides instant search with the Enter key in some search input fields.
 - Provides accelerated scrolling via the mouse wheel.
-- Provides the `Set Character's resource cost display default to Off` feature.
+- Provides the Set Character's resource cost display default to Off feature.
+- Provides clearing all member in squad feature.
 
 ### BattleHotkey
 Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Standby`, `Select Enemy`, `Select Enemy Tile`, `Confirm (after selecting an enemy or tile)`, and `Start Action` buttons in battle.
