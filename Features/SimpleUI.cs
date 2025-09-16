@@ -129,6 +129,7 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Panel_SquadInfo), "Start"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Squad_Clear))
 			);
+			EventManager.StartListening(this, 12U, new Action<WebResponseState>(this.HandlePacketUnsetPcToSquad));
 			#endregion
 		}
 
