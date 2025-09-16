@@ -103,14 +103,6 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_PlayButton = config.Bind("BattleHotkey", "Use_PlayButton", true, "Use play button hotkeys");
 			public static readonly ConfigEntry<string> Key_Play = config.Bind("BattleHotkey", "Play", "KeypadPlus", "Play button hotkey");
 		}
-		internal class Automation {
-			public static readonly ConfigEntry<bool> Use_Base_GetAll = config.Bind("Automation", "Use_Base_GetAll", false, "Use Get All button for Base");
-
-			public static readonly ConfigEntry<bool> Use_OfflineBattle_Restart = config.Bind("Automation", "Use_OfflineBattle_Restart", false, "Add Restart button to offline battle result screen");
-			public static readonly ConfigEntry<byte> OfflineBattle_Last_CharDiscomp = config.Bind("Automation", "OfflineBattle_Last_CharDiscomp", (byte)1);
-			public static readonly ConfigEntry<byte> OfflineBattle_Last_EquipDiscomp = config.Bind("Automation", "OfflineBattle_Last_EquipDiscomp", (byte)1);
-
-		}
 		internal class LastBattle {
 			public static readonly ConfigEntry<bool> Use_LastBattleMap = config.Bind("LastBattle", "Use_LastBattleMap", false, "Whether to use the function that adds a button to the World screen that moves you directly to the last visited battle map.");
 			public static readonly ConfigEntry<string> LastBattleMapKey = config.Bind("LastBattle", "LastBattleMapKey", "");
@@ -121,6 +113,14 @@ namespace Symphony {
 
 			public static readonly ConfigEntry<string> Last_CharMaking_Data = config.Bind("Presets", "Last_CharMaking_Data", "0,0,0,0,0,0");
 			public static readonly ConfigEntry<string> CharMaking_Preset_Data = config.Bind("Presets", "CharMaking_Preset_Data", "");
+		}
+		internal class Automation {
+			public static readonly ConfigEntry<bool> Use_Base_GetAll = config.Bind("Automation", "Use_Base_GetAll", false, "Use Get All button for Base");
+
+			public static readonly ConfigEntry<bool> Use_OfflineBattle_Restart = config.Bind("Automation", "Use_OfflineBattle_Restart", false, "Add Restart button to offline battle result screen");
+			public static readonly ConfigEntry<byte> OfflineBattle_Last_CharDiscomp = config.Bind("Automation", "OfflineBattle_Last_CharDiscomp", (byte)1);
+			public static readonly ConfigEntry<byte> OfflineBattle_Last_EquipDiscomp = config.Bind("Automation", "OfflineBattle_Last_EquipDiscomp", (byte)1);
+
 		}
 
 		public static void Migrate() {
