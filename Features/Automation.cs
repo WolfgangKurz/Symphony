@@ -377,7 +377,7 @@ namespace Symphony.Features {
 						enter.eqiupDiscompose = (byte)((Conf.Automation.OfflineBattle_Last_EquipDiscomp.Value | 1) & 15);
 						enter.offlineBattleMaxTime = new TimeSpan(99, 0, 0); // dummy value
 						enter.offlineBattleMinTime = new TimeSpan(TimeSpan.TicksPerSecond * (long)last.ClearTime);
-						enter.usingResources = [last.Metal, last.Nutrient, last.Power];
+						enter.usingResources = [last.OnceMetal, last.OnceNutrient, last.OncePower]; // will be checked as `value * playCount` internally
 
 						var go = new GameObject();
 						go.transform.localScale = Vector3.zero;
