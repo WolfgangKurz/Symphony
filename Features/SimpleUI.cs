@@ -725,8 +725,9 @@ namespace Symphony.Features {
 				IEnumerator Reposition(UISprite a, UISprite b) {
 					yield return null; // ensure run at next frame
 
-					a.SetRect(646f, -440f, 152f, 90f);
-					b.SetRect(808f, -440f, 152f, 90f);
+					var yBtn = a.transform.parent.Find("btnDecision").transform.localPosition.y + 100f;
+					a.SetRect(646f, yBtn, 152f, 90f);
+					b.SetRect(808f, yBtn, 152f, 90f);
 				}
 
 				DestroyImmediate(source.GetComponentInChildren<UILocalize>(true));
@@ -853,8 +854,9 @@ namespace Symphony.Features {
 				IEnumerator Reposition(UISprite a, UISprite b) {
 					yield return null; // ensure run at next frame
 
-					a.SetRect(-315f, -430f, 152f, 100f);
-					b.SetRect(-153f, -430f, 152f, 100f);
+					var yBtn = a.transform.parent.Find("btnDecision").transform.localPosition.y + 110f;
+					a.SetRect(-315f, yBtn, 152f, 100f);
+					b.SetRect(-153f, yBtn, 152f, 100f);
 				}
 
 				DestroyImmediate(source.GetComponentInChildren<UILocalize>(true));
@@ -967,8 +969,9 @@ namespace Symphony.Features {
 				yield return null; // ensure after Reposition
 
 				// Move at initial not work properly, so move buttons forcely
-				btnGroup._disableBt.GetComponent<UISprite>()?.SetRect(-153f, -430f, 152f, 100f);
-				btnGroup._bgBt.GetComponent<UISprite>()?.SetRect(-153f, -430f, 152f, 100f);
+				var yBtn = btnGroup._disableBt.transform.parent.Find("btnDecision").transform.localPosition.y + 110f;
+				btnGroup._disableBt.GetComponent<UISprite>()?.SetRect(-153f, yBtn, 152f, 100f);
+				btnGroup._bgBt.GetComponent<UISprite>()?.SetRect(-153f, yBtn, 152f, 100f);
 			}
 			__instance.StartCoroutine(UpdateButton());
 		}
