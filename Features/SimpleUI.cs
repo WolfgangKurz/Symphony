@@ -682,7 +682,8 @@ namespace Symphony.Features {
 							SingleTon<DataManager>.Instance.GetSquadSlotNumber(chr.PCId)
 						);
 
-						yield return new WaitUntil(() => SquadClear_LastUnsetPC == chr.PCId);
+						var waitFor = chr.PCId;
+						yield return new WaitUntil(() => SquadClear_LastUnsetPC == waitFor);
 					}
 
 					var selector = FindObjectOfType<UISquadInfoCreatureSelect>()?.gameObject;
@@ -699,7 +700,7 @@ namespace Symphony.Features {
 		}
 		#endregion
 
-		#region Disassemble Select All Characters & Equips
+			#region Disassemble Select All Characters & Equips
 		private static bool Disassemble_All_IsTargetPc(ClientPcInfo p)
 			=> p.PCTable.Enchant_Exclusive == 0 && p.Level == 1 && !p.IsMarriagePc();
 		private static bool Disassemble_All_IsTargetItem(ClientItemInfo e)
