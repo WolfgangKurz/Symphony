@@ -619,6 +619,8 @@ namespace Symphony.Features {
 
 		#region Squad Clear Button
 		private static void Patch_Squad_Clear(Panel_SquadInfo __instance) {
+if(!Conf.SimpleUI.Use_Squad_Clear.Value) return;
+
 			var btn_src = __instance.GetComponentsInChildren<UIButton>()
 				.FirstOrDefault(x => x.name == "BtnPresetOn")?
 				.gameObject;
