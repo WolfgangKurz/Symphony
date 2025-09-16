@@ -624,6 +624,34 @@ namespace Symphony.UI.Panels {
 								}
 								offset += 20 + 4;
 							}
+
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleUI.Use_Disassemble_SelectAll_Character.Value,
+									"분해에 모든 전투원 선택 추가"
+								);
+								if (value != Conf.SimpleUI.Use_Disassemble_SelectAll_Character.Value) {
+									Conf.SimpleUI.Use_Disassemble_SelectAll_Character.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleUI.Use_Disassemble_SelectAll_Equip.Value,
+									"분해에 모든 장비 선택 추가"
+								);
+								if (value != Conf.SimpleUI.Use_Disassemble_SelectAll_Equip.Value) {
+									Conf.SimpleUI.Use_Disassemble_SelectAll_Equip.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
 							#endregion
 							break;
 

@@ -11,21 +11,26 @@ using System.Reflection;
 
 using UnityEngine;
 
+using static Panel_Cheat;
+
 namespace Symphony.Features {
 	internal class SimpleUI : MonoBehaviour {
 		private static ulong SquadClear_LastUnsetPC = 0;
 
-		public void Start() {
-						var harmony = new Harmony("Symphony.SimpleUI");
+		private static ButtonChangeSupport Disassemble_Char_All_Buttons = null;
+		private static ButtonChangeSupport Disassemble_Equip_All_Buttons = null;
 
-#region Bypass World Button while Offline Battle
+		public void Start() {
+			var harmony = new Harmony("Symphony.SimpleUI");
+
+			#region Bypass World Button while Offline Battle
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_GameModeMenu), nameof(Panel_GameModeMenu.OnBtnOfflineBattleCheck)),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.OfflineBattleBypass_Patch))
 			);
-#endregion
+			#endregion
 
-#region Smaller List Items
+			#region Smaller List Items
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_PcWarehouse), "Start"),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_PCWarehouse_Start_pre)),
@@ -61,9 +66,9 @@ namespace Symphony.Features {
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_TempInventory_Start_pre)),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_TempInventory_Start_post))
 			);
-#endregion
+			#endregion
 
-#region Smaller Consumable List Items & Sorting
+			#region Smaller Consumable List Items & Sorting
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_MaterialWarehouse), "Start"),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_Consumable_Start_pre)),
@@ -85,9 +90,9 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(DataManager), "GetItemConsumableSticker"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.DataSortPatch_DataManager_List))
 			);
-#endregion
+			#endregion
 
-#region Sort by Name
+			#region Sort by Name
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_PcWarehouse), "Awake"),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByName))
@@ -96,9 +101,9 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Panel_AndroidInventory), "Awake"),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByName))
 			);
-#endregion
+			#endregion
 
-#region Scroll Acceleration
+			#region Scroll Acceleration
 			harmony.Patch(
 				AccessTools.Method(typeof(UIReuseScrollView), nameof(UIReuseScrollView.Scroll)),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.AccelerateScrollDelta))
@@ -111,9 +116,9 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(UIScrollView2), nameof(UIScrollView2.Scroll)),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.AccelerateScrollDelta))
 			);
-#endregion
+			#endregion
 
-#region Character Cost Display Defaultly Off on Character List
+			#region Character Cost Display Defaultly Off on Character List
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_PcWarehouse), "Start"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterCostOff))
@@ -122,14 +127,33 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Panel_AndroidInventory), "Start"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterCostOff))
 			);
-#endregion
+			#endregion
 
-#region Squad Clear Button
+			#region Squad Clear Button
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_SquadInfo), "Start"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Squad_Clear))
 			);
 			EventManager.StartListening(this, 12U, new Action<WebResponseState>(this.HandlePacketUnsetPcToSquad));
+			#endregion
+
+			#region Disassemble Select All Characters & Equips
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_PcWarehouse), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Disassemble_AllSelect_Char))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_ItemSelectInventory), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Disassemble_AllSelect_Equip))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_PcWarehouse), "RefreshTotalSelectBtn"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Disassemble_Char_RefreshTotalSelectBtn))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_ItemSelectInventory), "RefreshTotalSelectBtn"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Disassemble_Equip_RefreshTotalSelectBtn))
+			);
 			#endregion
 		}
 
@@ -556,32 +580,32 @@ namespace Symphony.Features {
 			uiButton.onClick.Clear();
 			uiButton.onClick.Add(new(() => {
 				void OnSortName(Panel_Base instance, UILabel lbl) {
-			if (instance == null) {
-				Plugin.Logger.LogWarning("[Symphony::SimpleUI] instance is null");
-				return;
-			}
+					if (instance == null) {
+						Plugin.Logger.LogWarning("[Symphony::SimpleUI] instance is null");
+						return;
+					}
 
-			var Sorting = instance.GetType()
-				.GetMethod("Sorting", BindingFlags.Instance | BindingFlags.NonPublic);
-			if (Sorting == null) {
-				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Sorting method");
-				return;
-			}
+					var Sorting = instance.GetType()
+						.GetMethod("Sorting", BindingFlags.Instance | BindingFlags.NonPublic);
+					if (Sorting == null) {
+						Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Sorting method");
+						return;
+					}
 
 					int SortName_Comparer(IReuseCellData a, IReuseCellData b) {
-			if (a.IsFirst() && !b.IsFirst()) return -1;
-			if (!a.IsFirst() && b.IsFirst()) return 1;
-			if (a.IsLast() && !b.IsLast()) return 1;
-			if (!a.IsLast() && b.IsLast()) return -1;
+						if (a.IsFirst() && !b.IsFirst()) return -1;
+						if (!a.IsFirst() && b.IsFirst()) return 1;
+						if (a.IsLast() && !b.IsLast()) return 1;
+						if (!a.IsLast() && b.IsLast()) return -1;
 
-			if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
-				return -SingleTon<GameManager>.Instance.InvertSort;
+						if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
+							return -SingleTon<GameManager>.Instance.InvertSort;
 
-			if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
-				return SingleTon<GameManager>.Instance.InvertSort;
+						if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
+							return SingleTon<GameManager>.Instance.InvertSort;
 
-			return a.GetPCID().CompareTo(b.GetPCID());
-		}
+						return a.GetPCID().CompareTo(b.GetPCID());
+					}
 					Sorting.Invoke(instance, [new Comparison<IReuseCellData>(SortName_Comparer)]);
 
 					var label = (UILabel)instance.GetType()
@@ -619,7 +643,7 @@ namespace Symphony.Features {
 
 		#region Squad Clear Button
 		private static void Patch_Squad_Clear(Panel_SquadInfo __instance) {
-if(!Conf.SimpleUI.Use_Squad_Clear.Value) return;
+			if(!Conf.SimpleUI.Use_Squad_Clear.Value) return;
 
 			var btn_src = __instance.GetComponentsInChildren<UIButton>()
 				.FirstOrDefault(x => x.name == "BtnPresetOn")?
@@ -672,6 +696,280 @@ if(!Conf.SimpleUI.Use_Squad_Clear.Value) return;
 			if (data.result.ErrorCode != 0) return;
 
 			SquadClear_LastUnsetPC = data.result.PCID;
+		}
+		#endregion
+
+		#region Disassemble Select All Characters & Equips
+		private static bool Disassemble_All_IsTargetPc(ClientPcInfo p)
+			=> p.PCTable.Enchant_Exclusive == 0 && p.Level == 1 && !p.IsMarriagePc();
+		private static bool Disassemble_All_IsTargetItem(ClientItemInfo e)
+			=> e.TableItemEquip.Enchant_Exclusive == 0 && e.EnchantLevel == 0;
+
+		private static void Patch_Disassemble_AllSelect_Char(Panel_PcWarehouse __instance) {
+			if (!Conf.SimpleUI.Use_Disassemble_SelectAll_Character.Value) return;
+			if (__instance.XGetFieldValue<byte>("_invenType") != (byte)3) return; // Panel_PcWarehouse.WAREHOUSETYPE
+
+			// Copy button
+			var btn_src = __instance.XGetFieldValue<ButtonChangeSupport>("_btnBSelect");
+			if (btn_src == null) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Cannot find 'B Select' button");
+				return;
+			}
+
+			var btnGroup = new ButtonChangeSupport();
+
+			GameObject BuildButton(GameObject source, string name, Func<string, string> sourceLabel, string label, Action onClick) {
+				source.SetActive(true); // to move and access components inactive button
+
+				IEnumerator Reposition(UISprite a, UISprite b) {
+					yield return null; // ensure run at next frame
+
+					a.SetRect(646f, -440f, 152f, 90f);
+					b.SetRect(808f, -440f, 152f, 90f);
+				}
+
+				DestroyImmediate(source.GetComponentInChildren<UILocalize>(true));
+
+				var deco = source.transform.Find("DecoSp").GetComponent<UISprite>();
+				deco.width = 152;
+				
+				var lblSrc = source.GetComponentInChildren<UILabel>();
+				lblSrc.text = sourceLabel?.Invoke(lblSrc.text) ?? lblSrc.text;
+				lblSrc.fontSize = 28;
+				
+				var btn = GameObject.Instantiate(source, source.transform.parent);
+				btn.name = name;
+				
+				var lbl = btn.GetComponentInChildren<UILabel>();
+				lbl.text = label;
+				
+				var _btn = btn.GetComponent<UIButton>();
+				if (_btn != null) {
+					_btn.onClick.Clear();
+					_btn.onClick.Add(new(() => onClick?.Invoke()));
+				}
+
+				__instance.StartCoroutine(Reposition(source.GetComponent<UISprite>(), btn.GetComponent<UISprite>()));
+
+				return btn;
+			}
+			void UpdateList() {
+				__instance.XGetFieldValue<UIReuseGrid>("_reUseGrid").UpdateAllCellData();
+				__instance.XGetMethodVoid("RefreshTotalSelectBtn").Invoke();
+			}
+
+			btnGroup._enableBt = BuildButton(
+				btn_src._enableBt,
+				"AllSelectAll",
+				(x) => x.Replace("B급", "B급\n"),
+				"전체\n일괄 선택",
+				() => {
+					var _listCurFilter = __instance.XGetFieldValue<List<ItemCellInvenCharacter>>("_listCurFilter");
+					var _listDisSelectedPc = __instance.XGetFieldValue<List<ClientPcInfo>>("_listDisSelectedPc");
+					foreach (var item in _listCurFilter.FindAll(p => Disassemble_All_IsTargetPc(p.pcInfo))) {
+						// Const.MAX_PC_DISASSEMBLE_CLIENT = byte.MaxValue
+						if (!_listDisSelectedPc.Contains(item.pcInfo) && _listDisSelectedPc.Count >= byte.MaxValue) {
+							__instance.ShowMessage(Localization.Get("818"));
+							break;
+						}
+
+						item.IsSelect = true;
+						if (!_listDisSelectedPc.Contains(item.pcInfo))
+							_listDisSelectedPc.Add(item.pcInfo);
+					}
+
+					UpdateList();
+				}
+			);
+			btnGroup._disableBt = BuildButton(
+				btn_src._disableBt,
+				"AllDisableAll",
+				(x) => x.Replace("B급", "B급\n"),
+				"전체\n일괄 해제",
+				() => {
+					var _listCurFilter = __instance.XGetFieldValue<List<ItemCellInvenCharacter>>("_listCurFilter");
+					foreach (var item in _listCurFilter)
+						item.IsSelect = false;
+
+					var _listDisSelectedPc = __instance.XGetFieldValue<List<ClientPcInfo>>("_listDisSelectedPc");
+					_listDisSelectedPc.Clear();
+
+					UpdateList();
+				}
+			);
+			btnGroup._bgBt = BuildButton(
+				btn_src._bgBt,
+				"NotFindAll",
+				(x) => x.Replace("B급", "B급\n"),
+				"전체\n일괄 선택",
+				null
+			);
+			Disassemble_Char_All_Buttons = btnGroup;
+
+			IEnumerator UpdateButton() {
+				yield return null; // BuildButton.Reposition
+				yield return null; // ensure after Reposition
+
+				UpdateList();
+			}
+			__instance.StartCoroutine(UpdateButton());
+		}
+		private static void Patch_Disassemble_Char_RefreshTotalSelectBtn(Panel_PcWarehouse __instance) {
+			var btnGroup = Disassemble_Char_All_Buttons;
+			if (btnGroup == null) return;
+
+			var _listDisSelectedPc = __instance.XGetFieldValue<List<ClientPcInfo>>("_listDisSelectedPc");
+			var listAvailable = __instance.XGetFieldValue<List<ItemCellInvenCharacter>>("_listCurFilter")
+				.FindAll(p => Disassemble_All_IsTargetPc(p.pcInfo) &&
+					!_listDisSelectedPc.Contains(p.pcInfo)
+				);
+			var listSelected = _listDisSelectedPc.FindAll(Disassemble_All_IsTargetPc);
+
+			if (listAvailable.Count == 0 && listSelected.Count == 0)
+				btnGroup.ButtonAllDisable();
+			else if (listAvailable.Count > 0)
+				btnGroup.ButtonEnable();
+			else
+				btnGroup.ButtonDisable();
+		}
+
+		private static void Patch_Disassemble_AllSelect_Equip(Panel_ItemSelectInventory __instance) {
+			if (!Conf.SimpleUI.Use_Disassemble_SelectAll_Equip.Value) return;
+			if (__instance.XGetFieldValue<byte>("_invenType") != (byte)1) return; // Panel_ItemSelectInventory.INVENTYPE_EQUIP_DISASSEMBLE
+
+			// Copy button
+			var btn_src = __instance.XGetFieldValue<ButtonChangeSupport>("_btnBSelect");
+			if (btn_src == null) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Cannot find 'B Select' button");
+				return;
+			}
+
+			var btnGroup = new ButtonChangeSupport();
+
+			GameObject BuildButton(GameObject source, string name, Func<string, string> sourceLabel, string label, Action onClick) {
+				source.SetActive(true); // to move and access components inactive button
+
+				IEnumerator Reposition(UISprite a, UISprite b) {
+					yield return null; // ensure run at next frame
+
+					a.SetRect(-315f, -430f, 152f, 100f);
+					b.SetRect(-153f, -430f, 152f, 100f);
+				}
+
+				DestroyImmediate(source.GetComponentInChildren<UILocalize>(true));
+
+				var deco = source.transform.Find("DecoSp").GetComponent<UISprite>();
+				deco.width = 152;
+
+				var lblSrc = source.GetComponentInChildren<UILabel>();
+				lblSrc.text = sourceLabel?.Invoke(lblSrc.text) ?? lblSrc.text;
+				lblSrc.fontSize = 28;
+
+				var btn = GameObject.Instantiate(source, source.transform.parent);
+				btn.SetActive(true);
+				btn.name = name;
+
+				var lbl = btn.GetComponentInChildren<UILabel>();
+				lbl.text = label;
+
+				var _btn = btn.GetComponent<UIButton>();
+				if (_btn != null) {
+					_btn.onClick.Clear();
+					_btn.onClick.Add(new(() => onClick?.Invoke()));
+				}
+
+				__instance.StartCoroutine(Reposition(source.GetComponent<UISprite>(), btn.GetComponent<UISprite>()));
+
+				return btn;
+			}
+			void UpdateList() {
+				__instance.XGetFieldValue<UIReuseGrid>("_gridItemList").UpdateAllCellData();
+				__instance.XGetMethodVoid("RefreshTotalSelectBtn").Invoke();
+			}
+
+			btnGroup._enableBt = BuildButton(
+				btn_src._enableBt,
+				"AllSelectAll",
+				(x) => x.Replace("B급", "B급\n"),
+				"전체\n일괄 선택",
+				() => {
+					var _listCurFilter = __instance.XGetFieldValue<List<ItemCellInvenItem>>("_listCurFilter");
+					var _listDisSelectedItem = __instance.XGetFieldValue<List<ClientItemInfo>>("_listDisSelectedItem");
+					foreach (var item in _listCurFilter.FindAll(e => Disassemble_All_IsTargetItem(e.itemInfo))) {
+						// Const.MAX_PC_DISASSEMBLE_CLIENT = byte.MaxValue
+						if (!_listDisSelectedItem.Contains(item.itemInfo) && _listDisSelectedItem.Count >= byte.MaxValue) {
+							__instance.ShowMessage(Localization.Get("819"));
+							break;
+						}
+
+						item.IsSelect = true;
+						if (!_listDisSelectedItem.Contains(item.itemInfo))
+							_listDisSelectedItem.Add(item.itemInfo);
+					}
+
+					UpdateList();
+				}
+			);
+			btnGroup._disableBt = BuildButton(
+				btn_src._disableBt,
+				"AllDisableAll",
+				(x) => x.Replace("B급", "B급\n"),
+				"전체\n일괄 해제",
+				() => {
+					var _listCurFilter = __instance.XGetFieldValue<List<ItemCellInvenItem>>("_listCurFilter");
+					foreach (var item in _listCurFilter)
+						item.IsSelect = false;
+
+					var _listDisSelectedItem = __instance.XGetFieldValue<List<ClientItemInfo>>("_listDisSelectedItem");
+					_listDisSelectedItem.Clear();
+
+					UpdateList();
+				}
+			);
+			btnGroup._bgBt = BuildButton(
+				btn_src._bgBt,
+				"NotFindAll",
+				(x) => x.Replace("B급", "B급\n"),
+				"전체\n일괄 선택",
+				null
+			);
+			Disassemble_Equip_All_Buttons = btnGroup;
+
+			IEnumerator UpdateButton() {
+				yield return null; // BuildButton.Reposition
+				yield return null; // ensure after Reposition
+
+				UpdateList();
+			}
+			__instance.StartCoroutine(UpdateButton());
+		}
+		private static void Patch_Disassemble_Equip_RefreshTotalSelectBtn(Panel_ItemSelectInventory __instance) {
+			var btnGroup = Disassemble_Equip_All_Buttons;
+			if (btnGroup == null) return;
+
+			var _listDisSelectedItem = __instance.XGetFieldValue<List<ClientItemInfo>>("_listDisSelectedItem");
+			var listAvailable = __instance.XGetFieldValue<List<ItemCellInvenItem>>("_listCurFilter")
+				.FindAll(e => Disassemble_All_IsTargetItem(e.itemInfo) &&
+					!_listDisSelectedItem.Contains(e.itemInfo)
+				);
+			var listSelected = _listDisSelectedItem.FindAll(Disassemble_All_IsTargetItem);
+
+			if (listAvailable.Count == 0 && listSelected.Count == 0)
+				btnGroup.ButtonAllDisable();
+			else if (listAvailable.Count > 0)
+				btnGroup.ButtonEnable();
+			else
+				btnGroup.ButtonDisable();
+
+			IEnumerator UpdateButton() {
+				yield return null; // BuildButton.Reposition
+				yield return null; // ensure after Reposition
+
+				// Move at initial not work properly, so move buttons forcely
+				btnGroup._disableBt.GetComponent<UISprite>()?.SetRect(-153f, -430f, 152f, 100f);
+				btnGroup._bgBt.GetComponent<UISprite>()?.SetRect(-153f, -430f, 152f, 100f);
+			}
+			__instance.StartCoroutine(UpdateButton());
 		}
 		#endregion
 	}

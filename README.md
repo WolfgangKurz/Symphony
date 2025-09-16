@@ -29,6 +29,7 @@ A collection of various simple quality-of-life improvements for the game.
 - Provides features to change the mute behavior in the background and to control the volume.
 - Provides a feature to reassign the story viewer skip key.
 - Provides a fast logo screen, immediate login-able, and an automatic login feature.
+- Provides feature to select all character or equip in disassemble screen.
 
 The default key for toggling fullscreen/windowed mode is `F11`.
 
