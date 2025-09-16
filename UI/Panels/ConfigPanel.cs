@@ -616,7 +616,7 @@ namespace Symphony.UI.Panels {
 								var value = GUIX.Toggle(
 									new Rect(0, offset, WIDTH_FILL, 20),
 									Conf.SimpleUI.Use_Squad_Clear.Value,
-									"편성 전체 해제 추가"
+									"편성에 전체 해제 추가"
 								);
 								if (value != Conf.SimpleUI.Use_Squad_Clear.Value) {
 									Conf.SimpleUI.Use_Squad_Clear.Value = value;
