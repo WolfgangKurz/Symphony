@@ -16,14 +16,16 @@ namespace Symphony.Features {
 		private static ulong SquadClear_LastUnsetPC = 0;
 
 		public void Start() {
-			#region Patch
-			var harmony = new Harmony("Symphony.SimpleUI");
+						var harmony = new Harmony("Symphony.SimpleUI");
 
+#region Bypass World Button while Offline Battle
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_GameModeMenu), nameof(Panel_GameModeMenu.OnBtnOfflineBattleCheck)),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.OfflineBattleBypass_Patch))
 			);
+#endregion
 
+#region Smaller List Items
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_PcWarehouse), "Start"),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_PCWarehouse_Start_pre)),
@@ -59,7 +61,9 @@ namespace Symphony.Features {
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_TempInventory_Start_pre)),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_TempInventory_Start_post))
 			);
+#endregion
 
+#region Smaller Consumable List Items & Sorting
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_MaterialWarehouse), "Start"),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_Consumable_Start_pre)),
@@ -81,7 +85,9 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(DataManager), "GetItemConsumableSticker"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.DataSortPatch_DataManager_List))
 			);
+#endregion
 
+#region Sort by Name
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_PcWarehouse), "Awake"),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByName))
@@ -90,7 +96,9 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Panel_AndroidInventory), "Awake"),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByName))
 			);
+#endregion
 
+#region Scroll Acceleration
 			harmony.Patch(
 				AccessTools.Method(typeof(UIReuseScrollView), nameof(UIReuseScrollView.Scroll)),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.AccelerateScrollDelta))
@@ -103,7 +111,9 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(UIScrollView2), nameof(UIScrollView2.Scroll)),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.AccelerateScrollDelta))
 			);
+#endregion
 
+#region Character Cost Display Defaultly Off on Character List
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_PcWarehouse), "Start"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterCostOff))
@@ -112,7 +122,9 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Panel_AndroidInventory), "Start"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterCostOff))
 			);
+#endregion
 
+#region Squad Clear Button
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_SquadInfo), "Start"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Squad_Clear))
@@ -120,13 +132,16 @@ namespace Symphony.Features {
 			#endregion
 		}
 
+		#region Bypass World Button while Offline Battle
 		private static bool OfflineBattleBypass_Patch(Panel_GameModeMenu __instance) {
 			if (!Conf.SimpleUI.Use_OfflineBattle_Bypass.Value) return true;
 
 			__instance.OnBtnMainStroyMode(); // OnBtnOfflineBattleCheck
 			return false;
 		}
+		#endregion
 
+		#region Smaller Consumable List Items
 		private const float SMALL_ORIGINAL6_RATIO = (1f / 8f * 6f); // 6 -> 8
 		private const float SMALL_ORIGINAL5_RATIO = (1f / 7f * 5f); // 5 -> 7
 		private const float SMALL_CONSUMABLE_RATIO = (1f / 7f * 6f); // 6 -> 7
@@ -426,7 +441,9 @@ namespace Symphony.Features {
 				}
 			}
 		}
+		#endregion
 
+		#region Smaller Consumable List Items & Sorting
 		private static void GridItemsPatch_Consumable_Start_pre(Panel_MaterialWarehouse __instance) {
 			if (!Conf.SimpleUI.Small_Consumables.Value) return;
 
@@ -469,12 +486,16 @@ namespace Symphony.Features {
 
 			__result.Sort((x, y) => Array.IndexOf(ConsumableKeyList, x.ItemKeyString) - Array.IndexOf(ConsumableKeyList, y.ItemKeyString));
 		}
+		#endregion
 
+		#region Scroll Acceleration
 		private static void AccelerateScrollDelta(ref float delta) {
 			if (Conf.SimpleUI.Use_AccelerateScrollDelta.Value)
 				delta *= 3f;
 		}
+		#endregion
 
+		#region Sort by Name
 		private static void Inject_SortByName(Panel_Base __instance) {
 			if (!Conf.SimpleUI.Use_SortByName.Value) return;
 
@@ -533,15 +554,7 @@ namespace Symphony.Features {
 			var uiButton = btnOff.GetComponent<UIButton>();
 			uiButton.onClick.Clear();
 			uiButton.onClick.Add(new(() => {
-				try {
-					var lbl = btnOff.GetComponentInChildren<UILabel>(true);
-					OnSortName(__instance, lbl);
-				} catch (Exception e) {
-					Plugin.Logger.LogError(e);
-				}
-			}));
-		}
-		private static void OnSortName(Panel_Base instance, UILabel lbl) {
+				void OnSortName(Panel_Base instance, UILabel lbl) {
 			if (instance == null) {
 				Plugin.Logger.LogWarning("[Symphony::SimpleUI] instance is null");
 				return;
@@ -554,15 +567,7 @@ namespace Symphony.Features {
 				return;
 			}
 
-			Sorting.Invoke(instance, [new Comparison<IReuseCellData>(SortName_Comparer)]);
-
-			var label = (UILabel)instance.GetType()
-				.GetField("_lblSort", BindingFlags.Instance | BindingFlags.NonPublic)
-				.GetValue(instance);
-			if (label != null)
-				label.text = lbl?.text ?? "이름";
-		}
-		private static int SortName_Comparer(IReuseCellData a, IReuseCellData b) {
+					int SortName_Comparer(IReuseCellData a, IReuseCellData b) {
 			if (a.IsFirst() && !b.IsFirst()) return -1;
 			if (!a.IsFirst() && b.IsFirst()) return 1;
 			if (a.IsLast() && !b.IsLast()) return 1;
@@ -576,7 +581,26 @@ namespace Symphony.Features {
 
 			return a.GetPCID().CompareTo(b.GetPCID());
 		}
+					Sorting.Invoke(instance, [new Comparison<IReuseCellData>(SortName_Comparer)]);
 
+					var label = (UILabel)instance.GetType()
+						.GetField("_lblSort", BindingFlags.Instance | BindingFlags.NonPublic)
+						.GetValue(instance);
+					if (label != null)
+						label.text = lbl?.text ?? "이름";
+				}
+
+				try {
+					var lbl = btnOff.GetComponentInChildren<UILabel>(true);
+					OnSortName(__instance, lbl);
+				} catch (Exception e) {
+					Plugin.Logger.LogError(e);
+				}
+			}));
+		}
+		#endregion
+
+		#region Character Cost Display Defaultly Off on Character List
 		private static void Patch_CharacterCostOff(Panel_Base __instance) {
 			if (!Conf.SimpleUI.Default_CharacterCost_Off.Value) return;
 
@@ -590,7 +614,9 @@ namespace Symphony.Features {
 			_costToggle.value = false;
 			OnBtnCost.Invoke(__instance, []);
 		}
+		#endregion
 
+		#region Squad Clear Button
 		private static void Patch_Squad_Clear(Panel_SquadInfo __instance) {
 			var btn_src = __instance.GetComponentsInChildren<UIButton>()
 				.FirstOrDefault(x => x.name == "BtnPresetOn")?
@@ -599,7 +625,7 @@ namespace Symphony.Features {
 
 			var btn = GameObject.Instantiate<GameObject>(btn_src, btn_src.transform.parent);
 			btn.name = "BtnClear";
-			btn.transform.localPosition = btn_src.transform.localPosition - new Vector3(0f, 106f, 0f);
+			btn.transform.localPosition = btn_src.transform.localPosition - new Vector3(0f, 110f, 0f);
 			btn.GetComponentInChildren<UILabel>().text = "CLEAR";
 			btn.GetComponent<UISprite>().spriteName = "UI_Icon_SquadPreset_Trashcan";
 
@@ -640,10 +666,10 @@ namespace Symphony.Features {
 		}
 		private void HandlePacketUnsetPcToSquad(WebResponseState obj) {
 			W2C_UNSET_PC_TO_SQUAD data = obj as W2C_UNSET_PC_TO_SQUAD;
-			MonoSingleton<SceneBase>.Instance.ShowWaitMessage(false);
 			if (data.result.ErrorCode != 0) return;
 
 			SquadClear_LastUnsetPC = data.result.PCID;
 		}
+		#endregion
 	}
 }
