@@ -79,3 +79,14 @@ This is an unofficial mod. By using this mod, you agree that you are solely resp
 
 ## License
 The `Symphony` project is under the `LGPL-2.1 license`.
+
+### Exceptions
+The following exceptions apply.
+
+`VALOFE`, the developer/operator of the game `LastOrigin` (including its subsidiaries and affiliates), is not required to fulfill all or part of the obligations normally required under `LGPL-2.1`—such as `source code disclosure`, `permitting relinking or linking to alternative versions`, and `allowing reverse engineering`—when using, modifying, or distributing this library and source code **within the scope directly related to the development and operation of `LastOrigin`**.
+
+This additional permission is **limited to VALOFE** and may not be transferred or assigned to any third party.
+
+This additional permission applies **only to code owned by the copyright holder (project owner)** and does not affect components or external dependencies that include third-party copyrights.
+
+These exceptions do not restrict the rights of other users; all third parties other than VALOFE remain subject to the base license (`LGPL-2.1`).
