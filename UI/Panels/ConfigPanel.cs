@@ -570,7 +570,7 @@ namespace Symphony.UI.Panels {
 								var value = GUIX.Toggle(
 									new Rect(0, offset, WIDTH_FILL, 20),
 									Conf.SimpleUI.Use_AccelerateScrollDelta.Value,
-									"스크롤, 패닝/줌 가속하기"
+									"스크롤/패닝 가속, 줌 반전하기"
 								);
 								if (value != Conf.SimpleUI.Use_AccelerateScrollDelta.Value) {
 									Conf.SimpleUI.Use_AccelerateScrollDelta.Value = value;
