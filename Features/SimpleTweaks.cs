@@ -83,7 +83,7 @@ namespace Symphony.Features {
 			}
 
 			public static IEnumerable<CodeInstruction> Patch_GameManager_Update(MethodBase original, IEnumerable<CodeInstruction> instructions) {
-				Plugin.Logger.LogInfo("[Symphony::WindowedResize] Start to patch GameManager.Update");
+				Plugin.Logger.LogInfo("[Symphony::SimpleTweaks] Start to patch GameManager.Update");
 
 				var Input_GetKeyDown_KeyCode = AccessTools.Method(typeof(Input), "GetKeyDown", [typeof(KeyCode)]);
 
@@ -100,7 +100,7 @@ namespace Symphony.Features {
 				);
 
 				if (matcher.IsInvalid) {
-					Plugin.Logger.LogWarning("[Symphony::WindowedResize] Failed to patch GameManager.Update, target instructions not found");
+					Plugin.Logger.LogWarning("[Symphony::SimpleTweaks] Failed to patch GameManager.Update, target instructions not found");
 					return instructions;
 				}
 
