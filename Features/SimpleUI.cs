@@ -1,4 +1,6 @@
-﻿using HarmonyLib;
+﻿using Com.LuisPedroFonseca.ProCamera2D;
+
+using HarmonyLib;
 
 using LO_ClientNetwork;
 
@@ -106,15 +108,24 @@ namespace Symphony.Features {
 			#region Scroll Acceleration
 			harmony.Patch(
 				AccessTools.Method(typeof(UIReuseScrollView), nameof(UIReuseScrollView.Scroll)),
-				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.AccelerateScrollDelta))
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_ScrollDelta))
 			);
 			harmony.Patch(
 				AccessTools.Method(typeof(UIScrollView), nameof(UIScrollView.Scroll)),
-				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.AccelerateScrollDelta))
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_ScrollDelta))
 			);
 			harmony.Patch(
 				AccessTools.Method(typeof(UIScrollView2), nameof(UIScrollView2.Scroll)),
-				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.AccelerateScrollDelta))
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_ScrollDelta))
+);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(ProCamera2DPanAndZoom), "Pan"),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_CameraPanDelta))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(ProCamera2DPanAndZoom), "Zoom"),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_CameraZoomDelta))
 			);
 			#endregion
 
@@ -514,9 +525,17 @@ namespace Symphony.Features {
 		#endregion
 
 		#region Scroll Acceleration
-		private static void AccelerateScrollDelta(ref float delta) {
+		private static void Accelerate_ScrollDelta(ref float delta) {
 			if (Conf.SimpleUI.Use_AccelerateScrollDelta.Value)
 				delta *= 3f;
+		}
+private static void Accelerate_CameraPanDelta(ref float deltaTime) {
+			if (Conf.SimpleUI.Use_AccelerateScrollDelta.Value)
+				deltaTime *= 10f;
+		}
+		private static void Accelerate_CameraZoomDelta(ref float deltaTime) {
+			if (Conf.SimpleUI.Use_AccelerateScrollDelta.Value)
+				deltaTime *= -1f;
 		}
 		#endregion
 
