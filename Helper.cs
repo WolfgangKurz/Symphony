@@ -1,6 +1,7 @@
 ﻿using BepInEx.Logging;
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
@@ -309,6 +310,24 @@ namespace Symphony {
 		public static Func<T> XGetMethod<T>(this object obj, string name) {
 			var mi = obj.GetType().GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance);
 			return () => (T)mi.Invoke(obj, []);
+		}
+		#endregion
+
+		#region LastOrigin
+		public static bool IsPartsActive(this ActorSpinePartsView aspv) {
+			var ssp = aspv.XGetFieldValue<ActorSpineSkinController>("spineSkinController");
+			return ssp.XGetFieldValue<bool>("isActiveParts");
+		}
+		public static bool IsPartsActive(this ActorPartsView apv) {
+			var _isSwapParts = apv.XGetFieldValue<bool>("_isSwapParts");
+
+			if (!_isSwapParts) {
+				var _listParts = apv.XGetFieldValue<List<GameObject>>("_listParts");
+				return _listParts.Any(x => x.activeSelf);
+			}
+
+			var _listSwapActiveObject = apv.XGetFieldValue<List<GameObject>>("_listSwapActiveObject");
+			return _listSwapActiveObject.Any(x => x.activeSelf);
 		}
 		#endregion
 	}

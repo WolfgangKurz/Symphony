@@ -10,10 +10,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+using System.Reflection.Emit;
 
 using UnityEngine;
-
-using static Panel_Cheat;
 
 namespace Symphony.Features {
 	internal class SimpleUI : MonoBehaviour {
@@ -21,6 +20,8 @@ namespace Symphony.Features {
 
 		private static ButtonChangeSupport Disassemble_Char_All_Buttons = null;
 		private static ButtonChangeSupport Disassemble_Equip_All_Buttons = null;
+
+		private static UIAtlas asset_masterAtlas = null;
 
 		public void Start() {
 			var harmony = new Harmony("Symphony.SimpleUI");
@@ -117,7 +118,7 @@ namespace Symphony.Features {
 			harmony.Patch(
 				AccessTools.Method(typeof(UIScrollView2), nameof(UIScrollView2.Scroll)),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_ScrollDelta))
-);
+			);
 
 			harmony.Patch(
 				AccessTools.Method(typeof(ProCamera2DPanAndZoom), "Pan"),
@@ -166,6 +167,35 @@ namespace Symphony.Features {
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Disassemble_Equip_RefreshTotalSelectBtn))
 			);
 			#endregion
+
+			#region Scrapbook Must Be Fancy
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_CharacterBookDetail), nameof(Panel_CharacterBookDetail.OnBtnView)),
+				transpiler: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_ScrapbookMBF_NoRotate))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_CharacterBookDetail), "change"),
+				transpiler: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_ScrapbookMBF_NoRotate_final))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_CharacterBookDetail), "OnBtnView"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.ScrapbookMBF_ChangeButton))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_CharacterBookDetail), "coModeLoad"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.ScrapbookMBF_Model_BGOnLoad))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_CharacterBookDetail), "RefreshSkinAndWound"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.ScrapbookMBF_Skin_BGOnLoad))
+			);
+			#endregion
+		}
+
+		private static void LazyInit() {
+			if (asset_masterAtlas == null) {
+				asset_masterAtlas = SingleTon<ResourceManager>.Instance.LoadAtlas("masterAtlas");
+			}
 		}
 
 		#region Bypass World Button while Offline Battle
@@ -529,7 +559,7 @@ namespace Symphony.Features {
 			if (Conf.SimpleUI.Use_AccelerateScrollDelta.Value)
 				delta *= 3f;
 		}
-private static void Accelerate_CameraPanDelta(ref float deltaTime) {
+		private static void Accelerate_CameraPanDelta(ref float deltaTime) {
 			if (Conf.SimpleUI.Use_AccelerateScrollDelta.Value)
 				deltaTime *= 10f;
 		}
@@ -719,7 +749,7 @@ private static void Accelerate_CameraPanDelta(ref float deltaTime) {
 		}
 		#endregion
 
-			#region Disassemble Select All Characters & Equips
+		#region Disassemble Select All Characters & Equips
 		private static bool Disassemble_All_IsTargetPc(ClientPcInfo p)
 			=> p.PCTable.Enchant_Exclusive == 0 && p.Level == 1 && !p.IsMarriagePc();
 		private static bool Disassemble_All_IsTargetItem(ClientItemInfo e)
@@ -993,6 +1023,227 @@ private static void Accelerate_CameraPanDelta(ref float deltaTime) {
 				btnGroup._bgBt.GetComponent<UISprite>()?.SetRect(-153f, yBtn, 152f, 100f);
 			}
 			__instance.StartCoroutine(UpdateButton());
+		}
+		#endregion
+
+		#region Scrapbook Must Be Fancy
+		private static IEnumerable<CodeInstruction> Patch_ScrapbookMBF_NoRotate(MethodBase original, IEnumerable<CodeInstruction> instructions) {
+			Plugin.Logger.LogInfo("[Symphony::SimpleUI] Start to patch Panel_CharacterBookDetail.OnBtnView");
+
+			var matcher = new CodeMatcher(instructions);
+			matcher.MatchForward(false,
+				/* TweenRotation.Begin(this._texPc.gameObject, 0.2f, Quaternion.Euler(0.0f, 0.0f, 90f)).SetOnFinished(new EventDelegate.Callback(this.change)); */
+				new CodeMatch(OpCodes.Ldarg_0), // this
+				new CodeMatch(OpCodes.Ldfld, AccessTools.Field(typeof(Panel_CharacterBookDetail), "_texPc")), // ._texPc
+				new CodeMatch(OpCodes.Callvirt, AccessTools.PropertyGetter(typeof(UIWidget), nameof(UIWidget.gameObject))), // .gameObject
+
+				new CodeMatch(OpCodes.Ldc_R4, 0.2f), // 0.2f
+
+				new CodeMatch(OpCodes.Ldc_R4, 0.0f), // 0.0f
+				new CodeMatch(OpCodes.Ldc_R4, 0.0f), // 0.0f
+				new CodeMatch(OpCodes.Ldc_R4, 90.0f), // 90.0f
+				new CodeMatch(OpCodes.Call, AccessTools.Method(
+					typeof(Quaternion),
+					nameof(Quaternion.Euler),
+					[typeof(float), typeof(float), typeof(float)]
+				)), // Quaternion.Euler
+
+				new CodeMatch(OpCodes.Call, AccessTools.Method(typeof(TweenRotation), nameof(TweenRotation.Begin))), // TweenRotation.Begin
+
+				new CodeMatch(OpCodes.Ldarg_0), // this
+				new CodeMatch(OpCodes.Ldftn, AccessTools.Method(typeof(Panel_CharacterBookDetail), "change")), // .change
+
+				new CodeMatch(OpCodes.Newobj), // new EventDelegate/Callback::.ctor
+				new CodeMatch(OpCodes.Callvirt) // UITweener::SetOnFinished
+			);;
+
+			if (matcher.IsInvalid) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to patch Panel_CharacterBookDetail.OnBtnView, target instructions not found");
+				return instructions;
+			}
+
+			matcher.Advance(6);
+			
+			// Change 90f to calling ScrapbookMBF_OnView_TweenRotate
+			var new_inst = new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(SimpleUI), nameof(SimpleUI.ScrapbookMBF_OnView_TweenRotate)));
+			new_inst.labels = matcher.Instruction.labels;
+			matcher.RemoveInstruction();
+			matcher.Insert(new_inst);
+
+			return matcher.InstructionEnumeration();
+		}
+		private static IEnumerable<CodeInstruction> Patch_ScrapbookMBF_NoRotate_final(MethodBase original, IEnumerable<CodeInstruction> instructions) {
+			Plugin.Logger.LogInfo("[Symphony::SimpleUI] Start to patch Panel_CharacterBookDetail.change");
+
+			var matcher = new CodeMatcher(instructions);
+			matcher.MatchForward(false,
+				/* this._cameraModel.transform.localEulerAngles = new Vector3(0.0f, 0.0f, -90f); */
+				new CodeMatch(OpCodes.Ldarg_0), // this
+				new CodeMatch(OpCodes.Ldfld, AccessTools.Field(typeof(Panel_CharacterBookDetail), "_cameraModel")), // ._cameraModel
+				new CodeMatch(OpCodes.Callvirt, AccessTools.PropertyGetter(typeof(Component), "transform")), // .transform
+
+				new CodeMatch(OpCodes.Ldc_R4, 0.0f), // 0.0f
+				new CodeMatch(OpCodes.Ldc_R4, 0.0f), // 0.0f
+				new CodeMatch(OpCodes.Ldc_R4, -90.0f), // -90.0f
+				new CodeMatch(OpCodes.Newobj), // new Vector3::.ctor
+
+				new CodeMatch(OpCodes.Callvirt, AccessTools.PropertySetter(typeof(Transform), nameof(Transform.localEulerAngles))) // .localEulerAngles =
+			); ;
+
+			if (matcher.IsInvalid) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to patch Panel_CharacterBookDetail.change, target instructions not found");
+				return instructions;
+			}
+
+			matcher.Advance(5);
+
+			// Change -90f to calling ScrapbookMBF_OnView_TweenRotate_final
+			var new_inst = new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(SimpleUI), nameof(SimpleUI.ScrapbookMBF_OnView_TweenRotate_final)));
+			new_inst.labels = matcher.Instruction.labels;
+			matcher.RemoveInstruction();
+			matcher.Insert(new_inst);
+
+			return matcher.InstructionEnumeration();
+		}
+		private static float ScrapbookMBF_OnView_TweenRotate() {
+			if (!Conf.SimpleUI.Use_ScrapbookMustBeFancy.Value) return 90f;
+			return 0f;
+		}
+		private static float ScrapbookMBF_OnView_TweenRotate_final() {
+			if (!Conf.SimpleUI.Use_ScrapbookMustBeFancy.Value) return -90f;
+			return 0f;
+		}
+		private static void ScrapbookMBF_ChangeButton(Panel_CharacterBookDetail __instance) {
+			LazyInit();
+
+			if (!Conf.SimpleUI.Use_ScrapbookMustBeFancy.Value) return;
+
+			var _model = __instance.XGetFieldValue<GameObject>("_model");
+			if (_model == null) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] _model not found");
+				return;
+			}
+
+			bool hasBg = new Func<bool>(() => {
+				if (_model.TryGetComponent<ActorSpinePartsView>(out var aspv))
+					return aspv.IsUseBg();
+				else if (_model.TryGetComponent<ActorPartsView>(out var apv))
+					return apv.IsUseBg();
+				return false;
+			}).Invoke();
+			bool hasParts = new Func<bool>(() => {
+				if (_model.TryGetComponent<ActorSpinePartsView>(out var aspv))
+					return aspv.IsUseParts();
+				else if (_model.TryGetComponent<ActorPartsView>(out var apv))
+					return apv.IsUseParts();
+				return false;
+			}).Invoke();
+
+			bool ToggleBG() {
+				var active = false;
+				if (_model.TryGetComponent<ActorSpinePartsView>(out var aspv)) {
+					active = !aspv.IsBgActive();
+					aspv.SetBgView(active);
+				}
+				else if (_model.TryGetComponent<ActorPartsView>(out var apv)) {
+					active = !apv.IsBgActive();
+					apv.SetBgView(active);
+				}
+				return active;
+			}
+			bool ToggleParts() {
+				var active = false;
+				if (_model.TryGetComponent<ActorSpinePartsView>(out var aspv)) {
+					active = !aspv.IsPartsActive();
+					aspv.SetPartsView(active);
+				}
+				else if (_model.TryGetComponent<ActorPartsView>(out var apv)) {
+					active = !apv.IsPartsActive();
+					apv.SetPartsView(active);
+				}
+				return active;
+			}
+
+			var goModeChange = __instance.XGetFieldValue<GameObject>("_goModeChange");
+			goModeChange.SetActive(false);
+
+			var goScreenshot = __instance.XGetFieldValue<GameObject>("_goScreenShot");
+			goScreenshot.SetActive(hasBg);
+			if (hasBg) {
+				goScreenshot.transform.localEulerAngles = new Vector3(0f, 0f, -90f);
+
+				var sp = goScreenshot.GetComponent<UISprite>();
+				sp.atlas = asset_masterAtlas;
+
+				var bgsp = goScreenshot.transform.Find("GameObject")?.GetComponent<UISprite>();
+				if (bgsp != null) bgsp.color = new Color(0f, 0f, 0f, 0.7373f);
+
+				var btn = goScreenshot.GetComponent<UIButton>();
+				btn.normalSprite = "newui_Lobby_Icon_bg_on";
+				btn.onClick.Clear();
+				btn.onClick.Add(new(() => {
+					var active = ToggleBG();
+					btn.normalSprite = active ? "newui_Lobby_Icon_bg_on" : "newui_Lobby_Icon_bg_off";
+				}));
+			}
+
+			var goFacingCamera = __instance.XGetFieldValue<GameObject>("_goFacingCamera");
+			goFacingCamera.SetActive(hasParts);
+			if (hasParts) {
+				goFacingCamera.transform.localEulerAngles = new Vector3(0f, 0f, -90f);
+
+				var sp = goFacingCamera.GetComponent<UISprite>();
+				sp.atlas = asset_masterAtlas;
+
+				var bgsp = goFacingCamera.transform.Find("GameObject")?.GetComponent<UISprite>();
+				if (bgsp != null) bgsp.color = new Color(0f, 0f, 0f, 0.7373f);
+
+				var btn = goFacingCamera.GetComponent<UIButton>();
+				btn.normalSprite = "newui_Lobby_Icon_Props_on";
+				btn.onClick.Clear();
+				btn.onClick.Add(new(() => {
+					var active = ToggleParts();
+					btn.normalSprite = active ? "newui_Lobby_Icon_Props_on" : "newui_Lobby_Icon_Props_off";
+				}));
+			}
+		}
+
+		private static void ScrapbookMBF_Skin_BGOnLoad(Panel_CharacterBookDetail __instance) {
+			if (!Conf.SimpleUI.Use_ScrapbookMustBeFancy.Value) return;
+
+			IEnumerator Fn() {
+				yield return null;
+
+				var _model = __instance.XGetFieldValue<GameObject>("_model");
+				if (_model == null) {
+					Plugin.Logger.LogWarning("[Symphony::SimpleUI] _model not found");
+					yield break;
+				}
+
+				if (_model.TryGetComponent<ActorSpinePartsView>(out var aspv)) {
+					if (aspv.IsUseBg())
+						aspv.SetBgView(true);
+				}
+				else if (_model.TryGetComponent<ActorPartsView>(out var apv)) {
+					if (apv.IsUseBg())
+						apv.SetBgView(true);
+				}
+			}
+			__instance.StartCoroutine(Fn());
+		}
+		private static void ScrapbookMBF_Model_BGOnLoad(Panel_CharacterBookDetail __instance, ref IEnumerator __result) {
+			if (!Conf.SimpleUI.Use_ScrapbookMustBeFancy.Value) return;
+
+			var orig = __result;
+			IEnumerator Fn() {
+				while (orig.MoveNext())
+					yield return orig.Current;
+
+				if (!Conf.SimpleUI.Use_ScrapbookMustBeFancy.Value) yield break;
+
+				ScrapbookMBF_Skin_BGOnLoad(__instance);
+			}
+			__result = Fn();
 		}
 		#endregion
 	}

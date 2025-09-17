@@ -570,7 +570,7 @@ namespace Symphony.UI.Panels {
 								var value = GUIX.Toggle(
 									new Rect(0, offset, WIDTH_FILL, 20),
 									Conf.SimpleUI.Use_AccelerateScrollDelta.Value,
-									"스크롤 가속하기"
+									"스크롤, 패닝/줌 가속하기"
 								);
 								if (value != Conf.SimpleUI.Use_AccelerateScrollDelta.Value) {
 									Conf.SimpleUI.Use_AccelerateScrollDelta.Value = value;
@@ -652,6 +652,23 @@ namespace Symphony.UI.Panels {
 								}
 								offset += 20 + 4;
 							}
+
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleUI.Use_ScrapbookMustBeFancy.Value,
+									"도감은 멋져야 한다"
+								);
+								if (value != Conf.SimpleUI.Use_ScrapbookMustBeFancy.Value) {
+									Conf.SimpleUI.Use_ScrapbookMustBeFancy.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+							;
 							#endregion
 							break;
 
