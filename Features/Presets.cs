@@ -144,7 +144,11 @@ namespace Symphony.Features {
 			if (panel == null) return;
 
 			Plugin.Logger.LogDebug("[Symphony::Presets] Show dummy message to prevent close making screen");
-			panel.ShowMessage("If you see this message, something wrong.");
+			panel.ShowMessage(
+				"임시 메시지입니다.\n이 메시지가 자동으로 닫히지 않는다면, 직접 닫아도 됩니다.",
+				"[Symphony::Presets]",
+				"", ""
+			);
 
 			panel.StartCoroutine(LogCallback(panel, Modules));
 		}
