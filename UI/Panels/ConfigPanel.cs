@@ -12,7 +12,7 @@ namespace Symphony.UI.Panels {
 		private Rect panelViewport = new Rect(0, 0, 248, 0);
 		private Vector2 panelScroll = Vector2.zero;
 
-		private readonly string[] PluginFeatures = ["GracefulFPS", "SimpleTweaks", "SimpleUI", "BattleHotkey", "LastBattle", "Presets", "Automation"];
+		private readonly string[] PluginFeatures = ["GracefulFPS", "SimpleTweaks", "SimpleUI", "BattleHotkey", "LastBattle", "Notification", "Presets", "Automation"];
 		private string SelectedFeature = "GracefulFPS";
 
 		public ConfigPanel(MonoBehaviour instance) : base(instance) { }
@@ -844,6 +844,29 @@ namespace Symphony.UI.Panels {
 								);
 								if (value != Conf.LastBattle.Use_LastBattleMap.Value) {
 									Conf.LastBattle.Use_LastBattleMap.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+							#endregion
+							break;
+
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
+
+						case "Notification":
+							#region Notification Section
+							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "Notification");
+							offset += 20 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.Notification.Handle_Notification.Value,
+									"인게임 알림을 윈도우 알림으로 받기"
+								);
+								if (value != Conf.Notification.Handle_Notification.Value) {
+									Conf.Notification.Handle_Notification.Value = value;
 									Conf.config.Save();
 								}
 								offset += 20 + 4;

@@ -112,6 +112,9 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_LastBattleMap = config.Bind("LastBattle", "Use_LastBattleMap", false, "Whether to use the function that adds a button to the World screen that moves you directly to the last visited battle map.");
 			public static readonly ConfigEntry<string> LastBattleMapKey = config.Bind("LastBattle", "LastBattleMapKey", "");
 		}
+		internal class Notification {
+			public static readonly ConfigEntry<bool> Handle_Notification = config.Bind("LastBattle", "Handle_Notification", true, "Bypass in-game push notification as windows notification.");
+		}
 		internal class Presets {
 			public static readonly ConfigEntry<bool> Use_CharMaking_Preset= config.Bind("Presets", "Use_CharMakingPreset", false, "Use Preset for Character making screen");
 			public static readonly ConfigEntry<bool> Use_Last_CharMakingData = config.Bind("Presets", "Use_Last_CharMakingData", false, "Load last character making data automatically");

@@ -6,6 +6,8 @@ using System.Windows.Forms;
 
 using Windows.UI.Notifications;
 
+using static System.Windows.Forms.VisualStyles.VisualStyleElement;
+
 namespace Symphony.Notification {
 	internal static class Program {
 		[STAThread]
@@ -66,6 +68,8 @@ namespace Symphony.Notification {
 					Tag = tag,
 					Group = "Toast"
 				};
+
+				RemoveScheduled(tag); // Remove all same tag schedules first
 				ToastNotificationManagerCompat
 					.CreateToastNotifier()
 					.AddToSchedule(scheduledToast);
@@ -77,16 +81,19 @@ namespace Symphony.Notification {
 					return;
 				}
 
-				var notifier = ToastNotificationManagerCompat.CreateToastNotifier();
-				var scheduledToasts = notifier.GetScheduledToastNotifications();
-
-				foreach (var toast in scheduledToasts) {
-					MessageBox.Show(toast.Tag);
-					if (toast.Tag == tag)
-						notifier.RemoveFromSchedule(toast);
-				}
+				RemoveScheduled(tag);
 			} else {
 				Console.WriteLine("Invalid calling");
+			}
+		}
+
+		private static void RemoveScheduled(string Tag) {
+			var notifier = ToastNotificationManagerCompat.CreateToastNotifier();
+			var scheduledToasts = notifier.GetScheduledToastNotifications();
+
+			foreach (var toast in scheduledToasts) {
+				if (toast.Tag == Tag)
+					notifier.RemoveFromSchedule(toast);
 			}
 		}
 	}
