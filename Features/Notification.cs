@@ -25,6 +25,11 @@ namespace Symphony.Features {
 			// Notification Tool not exists
 			if (!File.Exists(NotiToolPath)) return;
 
+			if (!Conf.Notification.Handle_Notification.Value) {
+				CancelNotification(Tag); // Cancel previous scheduled notification
+				return;
+			}
+
 			try {
 				var pi = new ProcessStartInfo {
 					FileName = NotiToolPath,
