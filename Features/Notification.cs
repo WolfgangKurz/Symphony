@@ -248,14 +248,14 @@ namespace Symphony.Features {
 			var info = p.result.AutoRepeatInfo;
 			var tag = "OfflienBattle";
 
-			if (info == null) {
+			if (info == null || info.EndUnixTime == 0) {
 				CancelNotification(tag);
 				Plugin.Logger.LogDebug($"[Symphony::Notification] Cancel for {tag}");
 				return;
 			}
 
 			var scheduleTime = new DateTime((long)info.EndUnixTime * TimeSpan.TicksPerSecond);
-			var stageName = SingleTon<DataManager>.Instance.GetTableChapterStage(info.StageKey).StageIdxString ?? "Unknown";
+			var stageName = SingleTon<DataManager>.Instance.GetTableChapterStage(info.StageKey)?.StageIdxString ?? "Unknown";
 
 			ScheduleNotification(
 				scheduleTime,
