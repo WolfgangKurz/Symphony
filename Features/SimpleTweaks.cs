@@ -169,6 +169,47 @@ namespace Symphony.Features {
 				return false;
 			}
 
+			public static void Patch_OfflineBattle_Options_SquadSelect(Panel_SquadSelectOfflineBattle __instance) {
+				if (!Conf.SimpleTweaks.Use_OfflineBattle_Memorize.Value) return;
+
+				var toggleCharDisassemble = __instance.XGetFieldValue<UIToggle[]>("_toggleRewardCharacterDecomposeArr");
+				var toggleItemDisassemble = __instance.XGetFieldValue<UIToggle[]>("_toggleRewardItemDecomposeArr");
+
+				var conf_Char = (Conf.SimpleTweaks.OfflineBattle_Last_CharDiscomp.Value | 1) & 15;
+				var conf_Equip = (Conf.SimpleTweaks.OfflineBattle_Last_EquipDiscomp.Value | 1) & 15;
+
+				// B:1, A:2, S:4, SS:8
+				string[] dbgName = ["B", "A", "S", "SS"];
+				for (int i = 0; i < toggleCharDisassemble.Length; i++) {
+					var v = conf_Char & (1 << i);
+					toggleCharDisassemble[toggleCharDisassemble.Length - i - 1].Set(v != 0, false);
+					Plugin.Logger.LogDebug($"[Symphony::SimpleTweaks] Char {dbgName[i]} = {v != 0}");
+				}
+				for (int i = 0; i < toggleItemDisassemble.Length; i++) {
+					var v = conf_Equip & (1 << i);
+					toggleItemDisassemble[toggleItemDisassemble.Length - i - 1].Set(v != 0, false);
+					Plugin.Logger.LogDebug($"[Symphony::SimpleTweaks] Equip {dbgName[i]} = {v != 0}");
+				}
+				Plugin.Logger.LogInfo($"[Symphony::SimpleTweaks] Last OfflineBattle disassemble grades loaded");
+			}
+			public static void Patch_OfflineBattle_Options_TimePopup(Panel_OfflineBattlePopup __instance) {
+				if (!Conf.SimpleTweaks.Use_OfflineBattle_Memorize.Value) return;
+
+				var t = Conf.SimpleTweaks.OfflineBattle_Last_Time.Value;
+				var inp = __instance.XGetFieldValue<UIInput>("selectTimeInput");
+				inp.value = t.ToString();
+				__instance.OnTimeInputFieldValueChange(inp);
+				Plugin.Logger.LogInfo($"[Symphony::SimpleTweaks] Last OfflineBattle time loaded");
+			}
+			public static void Patch_OfflineBattle_Options_Memorize(Panel_OfflineBattlePopup __instance) {
+				var enter = __instance.XGetFieldValue<OfflineBattleEnterClass>("offlineBattleEnter");
+
+				Plugin.Logger.LogInfo($"[Symphony::SimpleTweaks] Last OfflineBattle memorized, char: {enter.characterDiscompose}, equip: {enter.eqiupDiscompose}");
+				Conf.SimpleTweaks.OfflineBattle_Last_CharDiscomp.Value = enter.characterDiscompose;
+				Conf.SimpleTweaks.OfflineBattle_Last_EquipDiscomp.Value = enter.eqiupDiscompose;
+				Conf.SimpleTweaks.OfflineBattle_Last_Time.Value = (int)__instance.XGetFieldValue<uint>("selectTimeHour");
+			}
+
 			public static IEnumerable<CodeInstruction> Patch_PanelLogo_OnFinished(MethodBase original, IEnumerable<CodeInstruction> instructions) {
 				if (!Conf.SimpleTweaks.Use_QuickLogo.Value) return instructions;
 
@@ -359,6 +400,20 @@ namespace Symphony.Features {
 			harmony.Patch(
 				AccessTools.Method(typeof(WindowsGameManager), "OnApplicationFocus"),
 				prefix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_OnApplicationFocus))
+			);
+
+			// OfflineBattle Disassemble grades & Time memorizing
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_SquadSelectOfflineBattle), nameof(Panel_SquadSelectOfflineBattle.Start)),
+				postfix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_OfflineBattle_Options_SquadSelect))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_OfflineBattlePopup), nameof(Panel_OfflineBattlePopup.Start)),
+				postfix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_OfflineBattle_Options_TimePopup))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_OfflineBattlePopup), nameof(Panel_OfflineBattlePopup.OnOfflineBattleStartButton)),
+				prefix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_OfflineBattle_Options_Memorize))
 			);
 
 			// Quick Logo

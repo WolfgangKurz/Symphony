@@ -35,6 +35,11 @@ namespace Symphony {
 
 			public static readonly ConfigEntry<bool> MuteOnBackgroundFix = config.Bind("SimpleTweaks", "MuteOnBackgroundFix", false, $"Fix MuteOnBackground feature to prevent stop music playing even in background");
 
+			public static readonly ConfigEntry<bool> Use_OfflineBattle_Memorize = config.Bind("SimpleTweaks", "Use_OfflineBattle_Memorize", false, "Remember last OfflineBattle options");
+			public static readonly ConfigEntry<byte> OfflineBattle_Last_CharDiscomp = config.Bind("SimpleTweaks", "OfflineBattle_Last_CharDiscomp", (byte)3);
+			public static readonly ConfigEntry<byte> OfflineBattle_Last_EquipDiscomp = config.Bind("SimpleTweaks", "OfflineBattle_Last_EquipDiscomp", (byte)3);
+			public static readonly ConfigEntry<int> OfflineBattle_Last_Time = config.Bind("SimpleTweaks", "OfflineBattle_Last_Time", 1);
+
 			public static readonly ConfigEntry<bool> UsePatchStorySkip = config.Bind("SimpleTweaks", "UsePatchStorySkip", true, $"Prevent StoryViewer from proceeding automatically when the Space key is held down, and remap the key to PatchStorySkipKey");
 			public static readonly ConfigEntry<string> PatchStorySkipKey = config.Bind("SimpleTweaks", "PatchStorySkipKey", "LeftControl", $"Key to remap for StoryViewer");
 
@@ -128,7 +133,6 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_OfflineBattle_Restart = config.Bind("Automation", "Use_OfflineBattle_Restart", false, "Add Restart button to offline battle result screen");
 			public static readonly ConfigEntry<byte> OfflineBattle_Last_CharDiscomp = config.Bind("Automation", "OfflineBattle_Last_CharDiscomp", (byte)1);
 			public static readonly ConfigEntry<byte> OfflineBattle_Last_EquipDiscomp = config.Bind("Automation", "OfflineBattle_Last_EquipDiscomp", (byte)1);
-
 		}
 
 		public static void Migrate() {
