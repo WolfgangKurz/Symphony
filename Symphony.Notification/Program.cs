@@ -12,13 +12,6 @@ namespace Symphony.Notification {
 	internal static class Program {
 		[STAThread]
 		static void Main(string[] args) {
-			ToastNotificationManagerCompat.OnActivated += toastArgs => {
-				new ToastContentBuilder()
-					.AddText("안녕하세요!")
-					.AddText(string.Join("\n", toastArgs.Argument))
-					.Show();
-			};
-
 			if (args.Contains("-Schedule")) {
 				var tag = args.FirstOrDefault(x => x.StartsWith("-Tag:"))?.Substring(5);
 				if (tag == null) {
