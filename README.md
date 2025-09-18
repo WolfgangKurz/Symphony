@@ -26,6 +26,7 @@ A collection of various simple quality-of-life improvements for the game.
 
 - Provides a feature to assign a hotkey for hiding the lobby UI.
 - Provides features to prevent the game window's aspect ratio from being locked, prevent the window position from resetting after resizing, and allow reassigning the fullscreen toggle key.
+- Provides a feature to remember Offline Battle's last option.
 - Provides features to change the mute behavior in the background and to control the volume.
 - Provides a feature to reassign the story viewer skip key.
 - Provides a fast logo screen, immediate login-able, and an automatic login feature.

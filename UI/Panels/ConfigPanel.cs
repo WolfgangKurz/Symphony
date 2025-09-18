@@ -277,19 +277,6 @@ namespace Symphony.UI.Panels {
 							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
 							offset += 1 + 4;
 
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleTweaks.MuteOnBackgroundFix.Value,
-									"백그라운드에서 음소거 동작 변경"
-								);
-								if (value != Conf.SimpleTweaks.MuteOnBackgroundFix.Value) {
-									Conf.SimpleTweaks.MuteOnBackgroundFix.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-
 							GUIX.Label(new Rect(0, offset, 80, 20), "BGM");
 							SimpleTweaks.VolumeBGM = Mathf.Round(200f * GUIX.HorizontalSlider(
 								new Rect(80, offset, WIDTH_FILL - 80, 20),
@@ -313,6 +300,38 @@ namespace Symphony.UI.Panels {
 								v => (v * 100f).ToString("0.0") + " %"
 							)) / 200f;
 							offset += 20 + 4;
+
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleTweaks.MuteOnBackgroundFix.Value,
+									"백그라운드에서 음소거 동작 변경"
+								);
+								if (value != Conf.SimpleTweaks.MuteOnBackgroundFix.Value) {
+									Conf.SimpleTweaks.MuteOnBackgroundFix.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleTweaks.Use_OfflineBattle_Memorize.Value,
+									"마지막 자율 전투 옵션 기억하기"
+								);
+								if (value != Conf.SimpleTweaks.Use_OfflineBattle_Memorize.Value) {
+									Conf.SimpleTweaks.Use_OfflineBattle_Memorize.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
 
 							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
 							offset += 1 + 4;
