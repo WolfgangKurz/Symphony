@@ -4,6 +4,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 17.14.36408.4
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Symphony", "Symphony.csproj", "{A6C92886-49A9-45B7-9D12-B1F4139D76FA}"
+	ProjectSection(ProjectDependencies) = postProject
+		{1152D8BE-1A8F-4818-A6FA-E16E2B0C06DA} = {1152D8BE-1A8F-4818-A6FA-E16E2B0C06DA}
+	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Symphony.Notification", "Symphony.Notification\Symphony.Notification.csproj", "{1152D8BE-1A8F-4818-A6FA-E16E2B0C06DA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +20,10 @@ Global
 		{A6C92886-49A9-45B7-9D12-B1F4139D76FA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A6C92886-49A9-45B7-9D12-B1F4139D76FA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A6C92886-49A9-45B7-9D12-B1F4139D76FA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1152D8BE-1A8F-4818-A6FA-E16E2B0C06DA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1152D8BE-1A8F-4818-A6FA-E16E2B0C06DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1152D8BE-1A8F-4818-A6FA-E16E2B0C06DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1152D8BE-1A8F-4818-A6FA-E16E2B0C06DA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
