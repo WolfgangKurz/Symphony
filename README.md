@@ -51,6 +51,9 @@ Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Standby`, `Sel
 `Confirm (after selecting an enemy or tile)` works by pressing the key corresponding to the selected enemy or tile a second time.
 The numbering for enemies and tiles corresponds to the numpad layout (Enemy `1` is located at the bottom left).
 
+### Notification
+This handles in-game push-notification as Windows Notification.
+
 ### Presets
 A collection of various preset functions.
 
