@@ -113,7 +113,7 @@ namespace Symphony {
 			public static readonly ConfigEntry<string> LastBattleMapKey = config.Bind("LastBattle", "LastBattleMapKey", "");
 		}
 		internal class Notification {
-			public static readonly ConfigEntry<bool> Handle_Notification = config.Bind("LastBattle", "Handle_Notification", true, "Bypass in-game push notification as windows notification.");
+			public static readonly ConfigEntry<bool> Handle_Notification = config.Bind("LastBattle", "Handle_Notification", true, "Handle in-game push notification as windows notification.");
 		}
 		internal class Presets {
 			public static readonly ConfigEntry<bool> Use_CharMaking_Preset= config.Bind("Presets", "Use_CharMakingPreset", false, "Use Preset for Character making screen");

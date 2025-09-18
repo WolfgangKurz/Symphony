@@ -102,7 +102,13 @@ namespace Symphony.Features {
 			if (!GameOption.ExplorationAlram) return; // Exploration toast not allowed
 
 			var list = p.result.ExplorationList;
-			if (list == null) return;
+			if (list == null) {
+				var squads = SingleTon<DataManager>.Instance.GetAllSquadInfo();
+				foreach (var sq in squads)
+					CancelNotification($"Exploration_{sq.SquadIndex}");
+				Plugin.Logger.LogDebug($"[Symphony::Notification] Cancel for Exploration");
+				return;
+			}
 
 			foreach (var info in list) {
 				var tag = $"Exploration_{info.SquadIndex}";
@@ -236,6 +242,12 @@ namespace Symphony.Features {
 
 			var info = p.result.AutoRepeatInfo;
 			var tag = "OfflienBattle";
+
+			if (info == null) {
+				CancelNotification(tag);
+				Plugin.Logger.LogDebug($"[Symphony::Notification] Cancel for {tag}");
+				return;
+			}
 
 			var scheduleTime = new DateTime((long)info.EndUnixTime * TimeSpan.TicksPerSecond);
 			var stageName = SingleTon<DataManager>.Instance.GetTableChapterStage(info.StageKey).StageIdxString ?? "Unknown";
