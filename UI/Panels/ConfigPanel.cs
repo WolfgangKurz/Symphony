@@ -17,18 +17,27 @@ namespace Symphony.UI.Panels {
 		private Rect panelViewport = new Rect(0, 0, 248, 0);
 		private Vector2 panelScroll = Vector2.zero;
 
-		private readonly string[] PluginFeatures = [
-			"QuickConfig",
-			"GracefulFPS",
-			"SimpleTweaks",
-			"SimpleUI",
-			"BattleHotkey",
-			"LastBattle",
-			"Notification",
-			"Presets",
-			"Automation"
+		private static Texture2D Icon_Robot = new Texture2D(1, 1, TextureFormat.ARGB32, false);
+		private static Texture2D Icon_Construction = new Texture2D(1, 1, TextureFormat.ARGB32, false);
+
+		private readonly (string key, string disp)[] PluginFeatures = [
+			("QuickConfig", null),
+			("GracefulFPS", null),
+			("SimpleTweaks", null),
+			("SimpleUI", null),
+			("BattleHotkey", null),
+			("LastBattle", null),
+			("Notification", null),
+			("Presets", null),
+			("Automation", null),
+			("Experimental", null)
 		];
 		private string SelectedFeature = "QuickConfig";
+
+		static ConfigPanel() {
+			Icon_Robot.LoadImage(Resource.icon_robot);
+			Icon_Construction.LoadImage(Resource.icon_construction);
+		}
 
 		public ConfigPanel(MonoBehaviour instance) : base(instance) { }
 
@@ -84,13 +93,23 @@ namespace Symphony.UI.Panels {
 					var rc = new Rect(0, i * 23, 120 - 1, 22);
 					if (GUIX.Button(
 						rc, "",
-						feat == SelectedFeature ? null : new Color(1f, 1f, 1f, 0f),
-						feat == SelectedFeature ? null : new Color(1f, 1f, 1f, 0.2f),
-						feat == SelectedFeature ? null : new Color(1f, 1f, 1f, 0.4f)
+						feat.key == SelectedFeature ? null : new Color(1f, 1f, 1f, 0f),
+						feat.key == SelectedFeature ? null : new Color(1f, 1f, 1f, 0.2f),
+						feat.key == SelectedFeature ? null : new Color(1f, 1f, 1f, 0.4f)
 					)) {
-						this.SelectedFeature = feat;
+						this.SelectedFeature = feat.key;
 					}
-					GUIX.Label(rc.Shrink(4), feat);
+
+					if (feat.key == "Automation") {
+						GUI.DrawTexture(rc.Shrink(4).Width(14), Icon_Robot);
+						GUIX.Label(rc.Shrink(4).Shrink(18, 0, 0, 0), feat.disp ?? feat.key);
+					}
+					else if (feat.key == "Experimental") {
+						GUI.DrawTexture(rc.Shrink(4).Width(14), Icon_Construction);
+						GUIX.Label(rc.Shrink(4).Shrink(18, 0, 0, 0), feat.disp ?? feat.key);
+					}
+					else
+						GUIX.Label(rc.Shrink(4), feat.disp ?? feat.key);
 				}
 			});
 			#endregion
@@ -1070,7 +1089,8 @@ namespace Symphony.UI.Panels {
 
 						case "Automation":
 							#region Automation Section
-							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "Automation");
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icon_Robot);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "Automation");
 							offset += 20 + 4;
 
 							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "! 주의 !", Color.yellow);
@@ -1107,6 +1127,27 @@ namespace Symphony.UI.Panels {
 								}
 								offset += 20 + 4;
 							}
+							#endregion
+							break;
+
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
+
+						case "Experimental":
+							#region Experimental Section
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icon_Construction);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "Experimental");
+							offset += 20 + 4;
+
+							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "! 주의 !", Color.yellow);
+							offset += 20;
+
+							GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "이 기능은 완전히 검증되지 않은 동작을 포함합니다.", Color.yellow);
+							offset += 20;
+							GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "사용 시 게임 동작에 문제가 발생할 수 있습니다.", Color.yellow);
+							offset += 20;
+							GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "위 내용을 충분히 숙지 후 사용해 주세요.", Color.yellow);
+							offset += 20 + 4;
 							#endregion
 							break;
 					}

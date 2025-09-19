@@ -48,6 +48,7 @@ namespace Symphony {
 
 			this.gameObject.AddComponent<GracefulFPS>();
 			this.gameObject.AddComponent<SimpleTweaks>();
+			this.gameObject.AddComponent<Experimental>();
 			this.gameObject.AddComponent<SimpleUI>();
 			this.gameObject.AddComponent<BattleHotkey>();
 			this.gameObject.AddComponent<LastBattle>();

@@ -307,9 +307,13 @@ namespace Symphony {
 			var mi = obj.GetType().GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance);
 			return () => mi.Invoke(obj, []);
 		}
-		public static Func<T> XGetMethod<T>(this object obj, string name) {
+		public static Func<R> XGetMethod<R>(this object obj, string name) {
 			var mi = obj.GetType().GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance);
-			return () => (T)mi.Invoke(obj, []);
+			return () => (R)mi.Invoke(obj, []);
+		}
+		public static Func<P1, R> XGetMethod<P1, R>(this object obj, string name) {
+			var mi = obj.GetType().GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance);
+			return (P1 p1) => (R)mi.Invoke(obj, [p1]);
 		}
 		#endregion
 

@@ -63,6 +63,26 @@ namespace Symphony {
         /// <summary>
         ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
         /// </summary>
+        internal static byte[] icon_construction {
+            get {
+                object obj = ResourceManager.GetObject("icon_construction", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
+        internal static byte[] icon_robot {
+            get {
+                object obj = ResourceManager.GetObject("icon_robot", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
         internal static byte[] LastBattleAtlas {
             get {
                 object obj = ResourceManager.GetObject("LastBattleAtlas", resourceCulture);

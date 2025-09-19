@@ -139,6 +139,8 @@ namespace Symphony {
 			public static readonly ConfigEntry<byte> OfflineBattle_Last_CharDiscomp = config.Bind("Automation", "OfflineBattle_Last_CharDiscomp", (byte)1);
 			public static readonly ConfigEntry<byte> OfflineBattle_Last_EquipDiscomp = config.Bind("Automation", "OfflineBattle_Last_EquipDiscomp", (byte)1);
 		}
+		internal class Experimental {
+		}
 
 		public static void Migrate() {
 			#region Migration Old Configs
