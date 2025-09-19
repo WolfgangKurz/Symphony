@@ -687,7 +687,34 @@ namespace Symphony.UI.Panels {
 								}
 								offset += 20 + 4;
 							}
-							;
+
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleUI.Use_CharacterMakingPreview.Value,
+									"전투원 제조 결과 미리보기"
+								);
+								if (value != Conf.SimpleUI.Use_CharacterMakingPreview.Value) {
+									Conf.SimpleUI.Use_CharacterMakingPreview.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleUI.Use_EquipMakingPreview.Value,
+									"장비 제조 결과 미리보기"
+								);
+								if (value != Conf.SimpleUI.Use_EquipMakingPreview.Value) {
+									Conf.SimpleUI.Use_EquipMakingPreview.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
 							#endregion
 							break;
 

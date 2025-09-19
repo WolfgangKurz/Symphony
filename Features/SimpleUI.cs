@@ -190,6 +190,34 @@ namespace Symphony.Features {
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.ScrapbookMBF_Skin_BGOnLoad))
 			);
 			#endregion
+
+			#region Preview Making
+			harmony.Patch(
+				AccessTools.Method(typeof(UIUnitMake), "SetMaking"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Preview_UnitMaking_Display))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(UIUnitMake), "SetComplate"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Preview_UnitMaking_Display))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(UIUnitMake), "SetReady"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Preview_UnitMaking_Display_Clear))
+			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(UIEquipMake), "SetMaking"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Preview_EquipMaking_Display))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(UIEquipMake), "SetComplate"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Preview_EquipMaking_Display))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(UIEquipMake), "SetReady"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Preview_EquipMaking_Display_Clear))
+			);
+			#endregion
 		}
 
 		private static void LazyInit() {
@@ -692,7 +720,7 @@ namespace Symphony.Features {
 
 		#region Squad Clear Button
 		private static void Patch_Squad_Clear(Panel_SquadInfo __instance) {
-			if(!Conf.SimpleUI.Use_Squad_Clear.Value) return;
+			if (!Conf.SimpleUI.Use_Squad_Clear.Value) return;
 
 			var btn_src = __instance.GetComponentsInChildren<UIButton>()
 				.FirstOrDefault(x => x.name == "BtnPresetOn")?
@@ -783,17 +811,17 @@ namespace Symphony.Features {
 
 				var deco = source.transform.Find("DecoSp").GetComponent<UISprite>();
 				deco.width = 152;
-				
+
 				var lblSrc = source.GetComponentInChildren<UILabel>();
 				lblSrc.text = sourceLabel?.Invoke(lblSrc.text) ?? lblSrc.text;
 				lblSrc.fontSize = 28;
-				
+
 				var btn = GameObject.Instantiate(source, source.transform.parent);
 				btn.name = name;
-				
+
 				var lbl = btn.GetComponentInChildren<UILabel>();
 				lbl.text = label;
-				
+
 				var _btn = btn.GetComponent<UIButton>();
 				if (_btn != null) {
 					_btn.onClick.Clear();
@@ -1055,7 +1083,7 @@ namespace Symphony.Features {
 
 				new CodeMatch(OpCodes.Newobj), // new EventDelegate/Callback::.ctor
 				new CodeMatch(OpCodes.Callvirt) // UITweener::SetOnFinished
-			);;
+			);
 
 			if (matcher.IsInvalid) {
 				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to patch Panel_CharacterBookDetail.OnBtnView, target instructions not found");
@@ -1063,7 +1091,7 @@ namespace Symphony.Features {
 			}
 
 			matcher.Advance(6);
-			
+
 			// Change 90f to calling ScrapbookMBF_OnView_TweenRotate
 			var new_inst = new CodeInstruction(OpCodes.Call, AccessTools.Method(typeof(SimpleUI), nameof(SimpleUI.ScrapbookMBF_OnView_TweenRotate)));
 			new_inst.labels = matcher.Instruction.labels;
@@ -1244,6 +1272,174 @@ namespace Symphony.Features {
 				ScrapbookMBF_Skin_BGOnLoad(__instance);
 			}
 			__result = Fn();
+		}
+		#endregion
+
+		#region Preview Making
+		private static void Patch_Preview_UnitMaking_Label(UIUnitMake __instance) {
+			var p_label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
+			if (p_label != null) return;
+
+			var lbl_src = __instance.XGetFieldValue<UILabel>("_lblMakingTime");
+
+			var active = lbl_src.gameObject.activeSelf;
+			lbl_src.gameObject.SetActive(true);
+
+			{
+				var lbl = GameObject.Instantiate(lbl_src.gameObject);
+				lbl.name = "Label_Preview";
+				lbl.transform.SetParent(lbl_src.transform.parent.parent.parent);
+				lbl.transform.localScale = Vector3.one;
+				lbl.transform.localPosition = lbl_src.transform.localPosition + new Vector3(280f, 0f, 0f);
+
+				var label = lbl.GetComponent<UILabel>();
+				label.height += 20;
+				label.fontSize = 26;
+				label.text = "";
+			}
+			{
+				var lbl = GameObject.Instantiate(lbl_src.gameObject);
+				lbl.name = "Label_Result_New";
+				lbl.transform.SetParent(lbl_src.transform.parent.parent.parent);
+				lbl.transform.localScale = Vector3.one;
+				lbl.transform.localPosition = lbl_src.transform.localPosition + new Vector3(280f, -156f, 0f);
+
+				var label = lbl.GetComponent<UILabel>();
+				label.fontSize = 28;
+				label.color = new Color(1f, 0.73f, 0.27f);
+				label.text = "NEW !";
+				label.enabled = false;
+			}
+
+			lbl_src.gameObject.SetActive(active);
+		}
+		private static void Patch_Preview_UnitMaking_Display(UIUnitMake __instance, PCMakingIngInfo makingInfo) {
+			Patch_Preview_UnitMaking_Label(__instance);
+
+			if(!Conf.SimpleUI.Use_CharacterMakingPreview.Value) {
+				Patch_Preview_UnitMaking_Display_Clear(__instance);
+				return;
+			}
+
+			var info = makingInfo;
+			var label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
+			if (info == null) {
+				if (label != null) label.text = "";
+				return;
+			}
+
+			var pcMaking = SingleTon<DataManager>.Instance.TableLastOne?._TableManager?._Table_PCMaking;
+			if (pcMaking == null) {
+				if (label != null) label.text = string.Empty;
+				return;
+			}
+
+			var scrapbook = SingleTon<DataManager>.Instance.GetCollectionHero();
+
+			var units = pcMaking
+				.Where(x => x.Value.PCMakingTime == (int)(info.EndTime - info.StartTime))
+				.Select(x => x.Value.Key)
+				.ToArray();
+			var unitNames = string.Join(
+				"\n",
+				units.Select(x => (SingleTon<DataManager>.Instance.GetTablePC(x)?.Name ?? $"${x}").Localize())
+			);
+			if (label != null)
+				label.text = unitNames;
+			else
+				Plugin.Logger.LogWarning($"[Symphony::SimpleUI] Workbench Unit Slot {info.SlotNo} result is {unitNames.Replace("\n", " / ")}, but label not found");
+
+			var label_new = __instance.GetComponentsInChildren<UILabel>(true)
+				.FirstOrDefault(x => x.gameObject.name == "Label_Result_New");
+
+			if (units.All(x => !scrapbook.Contains(x))) { // all results are not in scrapbook
+				if (label_new != null) {
+					label_new.text = "NEW !";
+					label_new.enabled = true;
+				}
+			}
+			else if (units.Any(x => !scrapbook.Contains(x))) { // some result are not in scrapbook
+				if (label_new != null) {
+					label_new.text = "NEW ?";
+					label_new.enabled = true;
+				}
+			}
+			else { // all result are in scrapbook
+				if (label_new != null)
+					label_new.enabled = false;
+			}
+		}
+		private static void Patch_Preview_UnitMaking_Display_Clear(UIUnitMake __instance) {
+			Patch_Preview_UnitMaking_Label(__instance);
+
+			var label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
+			if (label != null) label.text = "";
+
+			var label_new = __instance.GetComponentsInChildren<UILabel>(true)
+				.FirstOrDefault(x => x.gameObject.name == "Label_Result_New");
+			if (label_new != null) label_new.enabled = false;
+		}
+
+		private static void Patch_Preview_EquipMaking_Label(UIEquipMake __instance) {
+			var p_label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
+			if (p_label != null) return;
+
+			var lbl_src = __instance.XGetFieldValue<UILabel>("_lblMakingTime");
+
+			var active = lbl_src.gameObject.activeSelf;
+			lbl_src.gameObject.SetActive(true);
+
+			var lbl = GameObject.Instantiate(lbl_src.gameObject);
+			lbl.name = "Label_Preview";
+			lbl.transform.SetParent(lbl_src.transform.parent.parent.parent);
+			lbl.transform.localScale = Vector3.one;
+			lbl.transform.localPosition = lbl_src.transform.localPosition + new Vector3(280f, 0f, 0f);
+
+			var label = lbl.GetComponent<UILabel>();
+			label.height += 20;
+			label.fontSize = 26;
+			label.text = "";
+
+			lbl_src.gameObject.SetActive(active);
+		}
+		private static void Patch_Preview_EquipMaking_Display(UIEquipMake __instance, EquipMakingIngInfo makingInfo) {
+			Patch_Preview_EquipMaking_Label(__instance);
+
+			if (!Conf.SimpleUI.Use_EquipMakingPreview.Value) {
+				Patch_Preview_EquipMaking_Display_Clear(__instance);
+				return;
+			}
+
+			var info = makingInfo;
+			var label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
+			if (info == null) {
+				if (label != null) label.text = "";
+				return;
+			}
+
+			var eqMaking = SingleTon<DataManager>.Instance.TableLastOne?._TableManager?._Table_EquipMaking;
+			if (eqMaking == null) {
+				if (label != null) label.text = string.Empty;
+				return;
+			}
+
+			var units = string.Join(
+				"\n",
+				eqMaking
+					.Where(x => x.Value.EquipMakingTime == (int)(info.EndTime - info.StartTime))
+					.Select(x => SingleTon<DataManager>.Instance.GetTableItemEquip(x.Value.Key)?.ItemName ?? $"${x.Value.Key}")
+					.Select(x => x.Localize())
+			);
+			if (label != null)
+				label.text = units;
+			else
+				Plugin.Logger.LogWarning($"[Symphony::SimpleUI] Workbench Equip Slot {info.SlotNo} result is {units}, but label not found");
+		}
+		private static void Patch_Preview_EquipMaking_Display_Clear(UIEquipMake __instance) {
+			Patch_Preview_EquipMaking_Label(__instance);
+
+			var label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
+			if (label != null) label.text = "";
 		}
 		#endregion
 	}
