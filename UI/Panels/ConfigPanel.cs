@@ -494,6 +494,22 @@ namespace Symphony.UI.Panels {
 								}
 								offset += 20 + 4;
 							}
+
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleTweaks.Use_ContinueBGM.Value,
+									"BGM 초기화 방지하기 (마지막 위치 기억하기)"
+								);
+								if (value != Conf.SimpleTweaks.Use_ContinueBGM.Value) {
+									Conf.SimpleTweaks.Use_ContinueBGM.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
 							#endregion
 							break;
 

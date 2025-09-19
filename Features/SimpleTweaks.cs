@@ -12,8 +12,7 @@ using UnityEngine.SceneManagement;
 namespace Symphony.Features {
 	internal class SimpleTweaks : MonoBehaviour {
 		private class SimpleTweaks_Patch {
-
-		private static Helper.RECT? lastWindowRect = null;
+			private static Helper.RECT? lastWindowRect = null;
 
 			public static IEnumerable<CodeInstruction> Patch_PanelBase_Update(MethodBase original, IEnumerable<CodeInstruction> instructions) {
 				Plugin.Logger.LogInfo("[Symphony::SimpleTweaks] Start to patch Panel_Base.Update to patch auto-next");
@@ -330,9 +329,24 @@ namespace Symphony.Features {
 				}
 				__instance.StartCoroutine(Fn());
 			}
+
+			public static float lastBGMTime = 0f;
+			public static void Patch_BGM_ContinueBGM(GameSoundManager __instance, bool isDeviceChanged) {
+				if (!Conf.SimpleTweaks.Use_ContinueBGM.Value) return;
+				if (isDeviceChanged) return;
+
+				var bgm = __instance.XGetFieldValue<GameObject>("_goBGM");
+				if (bgm == null) return;
+
+				if (!bgm.TryGetComponent<AudioSource>(out var audio)) return;
+
+				audio.time = lastBGMTime;
+			}
 		}
 
 		//////////////////////////////////////////////////////////////////////////////////////
+
+		private FrameLimit frameBGMMemorize = new FrameLimit(0.1f);
 
 		public void Start() {
 			#region Patch
@@ -406,6 +420,12 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Panel_Title), "RequestPermission"),
 				postfix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_PanelTitle_RequestPermission))
 			);
+
+			// Continue BGM
+			harmony.Patch(
+				AccessTools.Method(typeof(GameSoundManager), "OnAudioConfigurationChanged"),
+				postfix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_BGM_ContinueBGM))
+			);
 			#endregion
 
 			if (Helper.KeyCodeParse(Conf.SimpleTweaks.FullScreenKey.Value, out var kc)) {
@@ -415,6 +435,7 @@ namespace Symphony.Features {
 
 		public void Update() {
 			Check_LobbyUIToggle();
+			Memorize_BGMStatus();
 		}
 
 		private void Check_LobbyUIToggle() {
@@ -433,6 +454,17 @@ namespace Symphony.Features {
 
 				panel_lobby.OnBtnExtend();
 			}
+		}
+		private void Memorize_BGMStatus() {
+			if (!frameBGMMemorize.Valid()) return;
+			if (!Conf.SimpleTweaks.Use_ContinueBGM.Value) return;
+
+			var bgm = GameSoundManager.Instance.XGetFieldValue<GameObject>("_goBGM");
+			if (bgm == null) return;
+
+			if (!bgm.TryGetComponent<AudioSource>(out var audio)) return;
+
+			SimpleTweaks_Patch.lastBGMTime = audio.time;
 		}
 
 		public static int StoryViewerPatchKey() {

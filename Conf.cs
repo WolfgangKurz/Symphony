@@ -46,6 +46,8 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_QuickLogo = config.Bind("SimpleTweaks", "Use_SkipLogo", false, $"Make Logo screen passes quickly");
 			public static readonly ConfigEntry<bool> Use_QuickTitle = config.Bind("SimpleTweaks", "Use_QuickTitle", false, $"Make Title screen touchable quickly");
 			public static readonly ConfigEntry<bool> Use_AutoLogin = config.Bind("SimpleTweaks", "Use_AutoLogin", false, $"Do login automatically");
+
+			public static readonly ConfigEntry<bool> Use_ContinueBGM = config.Bind("SimpleTweaks", "Use_ContinueBGM", false, $"Continue BGM when any device changed and BGM has reset");
 		}
 		internal class SimpleUI {
 			public static readonly ConfigEntry<bool> Use_OfflineBattle_Bypass = config.Bind("SimpleUI", "Use_OfflineBattle_Bypass", false, "Enter Maps screen instead open Offline battle screen");

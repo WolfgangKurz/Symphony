@@ -15,6 +15,9 @@ You can configure the plugin's options on the game screen by pressing the `F12` 
 
 The following is a description of each feature within the plugin.
 
+### QuickSetting
+Simple Control-Panel to control some in-game settings.
+
 ### GracefulFPS
 A collection of FPS related features for the game.
 
@@ -31,6 +34,7 @@ A collection of various simple quality-of-life improvements for the game.
 - Provides a feature to reassign the story viewer skip key.
 - Provides a fast logo screen, immediate login-able, and an automatic login feature.
 - Provides feature to select all character or equip in disassemble screen.
+- Prevents BGM from resetting on audio device changes, ensuring continuous playback.
 
 The default key for toggling fullscreen/windowed mode is `F11`.
 
