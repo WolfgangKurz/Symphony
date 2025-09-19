@@ -1148,6 +1148,19 @@ namespace Symphony.UI.Panels {
 							offset += 20;
 							GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "위 내용을 충분히 숙지 후 사용해 주세요.", Color.yellow);
 							offset += 20 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.Experimental.Use_FastLoading.Value,
+									"빠른 게임 로딩 사용하기"
+								);
+								if (value != Conf.Experimental.Use_FastLoading.Value) {
+									Conf.Experimental.Use_FastLoading.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
 							#endregion
 							break;
 					}

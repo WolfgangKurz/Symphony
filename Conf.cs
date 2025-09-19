@@ -140,6 +140,7 @@ namespace Symphony {
 			public static readonly ConfigEntry<byte> OfflineBattle_Last_EquipDiscomp = config.Bind("Automation", "OfflineBattle_Last_EquipDiscomp", (byte)1);
 		}
 		internal class Experimental {
+			public static readonly ConfigEntry<bool> Use_FastLoading = config.Bind("Experimental", "Use_FastLoading", false, "Use Fast Initial Loading");
 		}
 
 		public static void Migrate() {
