@@ -1,6 +1,11 @@
-﻿using Symphony.Features;
+﻿using LOEventSystem;
+using LOEventSystem.Msg;
+
+using Symphony.Features;
 
 using UnityEngine;
+
+using static UnityEngine.UIElements.StylePropertyAnimationSystem;
 
 namespace Symphony.UI.Panels {
 	internal class ConfigPanel : UIPanelBase {
@@ -12,8 +17,18 @@ namespace Symphony.UI.Panels {
 		private Rect panelViewport = new Rect(0, 0, 248, 0);
 		private Vector2 panelScroll = Vector2.zero;
 
-		private readonly string[] PluginFeatures = ["GracefulFPS", "SimpleTweaks", "SimpleUI", "BattleHotkey", "LastBattle", "Notification", "Presets", "Automation"];
-		private string SelectedFeature = "GracefulFPS";
+		private readonly string[] PluginFeatures = [
+			"QuickConfig",
+			"GracefulFPS",
+			"SimpleTweaks",
+			"SimpleUI",
+			"BattleHotkey",
+			"LastBattle",
+			"Notification",
+			"Presets",
+			"Automation"
+		];
+		private string SelectedFeature = "QuickConfig";
 
 		public ConfigPanel(MonoBehaviour instance) : base(instance) { }
 
@@ -85,6 +100,112 @@ namespace Symphony.UI.Panels {
 			this.panelScroll = GUIX.ScrollView(panelRect, this.panelScroll, this.panelViewport, false, false, () => {
 				GUIX.Group(new Rect(4, 4, WIDTH_FILL, this.panelViewport.height - 4), () => {
 					switch (this.SelectedFeature) {
+						case "QuickConfig":
+							#region QuickConfig Section
+							{
+								GUIX.Label(new Rect(0, offset, 80, 20), "배경 음악");
+								var prev = GameOption.BgmVolume;
+								GameOption.BgmVolume = Mathf.Round(200f * GUIX.HorizontalSlider(
+									new Rect(80, offset, WIDTH_FILL - 80, 20),
+									GameOption.BgmVolume, 0f, 1f,
+									v => (v * 100f).ToString("0.0") + " %"
+								)) / 200f;
+								if (prev != GameOption.BgmVolume) {
+									GameSoundManager.Instance.ChangeVolumeBGM();
+									GameOption.SaveSetting();
+								}
+								offset += 20 + 4;
+							}
+
+							; {
+								GUIX.Label(new Rect(0, offset, 80, 20), "효과음");
+								var prev = GameOption.SfxVolume;
+								GameOption.SfxVolume = Mathf.Round(200f * GUIX.HorizontalSlider(
+									new Rect(80, offset, WIDTH_FILL - 80, 20),
+									GameOption.SfxVolume, 0f, 1f,
+									v => (v * 100f).ToString("0.0") + " %"
+								)) / 200f;
+								if (prev != GameOption.SfxVolume) {
+									GameSoundManager.Instance.ChangeVolumeEffect();
+									GameOption.SaveSetting();
+								}
+								offset += 20 + 4;
+							}
+
+							; {
+								GUIX.Label(new Rect(0, offset, 80, 20), "음성");
+								var prev = GameOption.VoiceVolume;
+								GameOption.VoiceVolume = Mathf.Round(200f * GUIX.HorizontalSlider(
+									new Rect(80, offset, WIDTH_FILL - 80, 20),
+									GameOption.VoiceVolume, 0f, 1f,
+									v => (v * 100f).ToString("0.0") + " %"
+								)) / 200f;
+								if (prev != GameOption.VoiceVolume) {
+									GameSoundManager.Instance.ChangeVolumeVoice();
+									GameOption.SaveSetting();
+								}
+								offset += 20 + 4;
+							}
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									GameOption.BackGroundSoundOn,
+									"백그라운드 재생"
+								);
+								if (value != GameOption.BackGroundSoundOn) {
+									GameOption.BackGroundSoundOn = value;
+									GameOption.SaveSetting();
+								}
+								offset += 20 + 4;
+							}
+
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									GameOption.SubwayMode,
+									"실루엣 모드"
+								);
+								if (value != GameOption.SubwayMode) {
+									GameOption.SubwayMode = value;
+									GameOption.SaveSetting();
+									Handler.Broadcast((Base)new SubwayMode());
+								}
+								offset += 20 + 4;
+							}
+
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
+								GUIX.Label(new Rect(0, offset, 80, 20), "말풍선");
+								var prev = GameOption.LobbyBubbleText;
+								GameOption.LobbyBubbleText = Mathf.Round(200f * GUIX.HorizontalSlider(
+									new Rect(80, offset, WIDTH_FILL - 110, 20),
+									GameOption.LobbyBubbleText, 0f, 1f,
+									v => (v * 100f).ToString("0.0") + " %"
+								)) / 200f;
+								if (prev != GameOption.LobbyBubbleText) {
+									GameOption.SaveSetting();
+								}
+
+								var value = GUIX.Toggle(new Rect(WIDTH_FILL - 20, offset, 20, 20), GameOption.LobbyBubbleText > 0f, "");
+								if (value != (GameOption.LobbyBubbleText > 0f)) {
+									GameOption.LobbyBubbleText = value ? 1f : 0f;
+									GameOption.SaveSetting();
+								}
+
+								offset += 20 + 4;
+							}
+							#endregion
+							break;
+
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
+
 						case "GracefulFPS":
 							#region GracefulFPS Section
 							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "GracefulFPS");
@@ -273,33 +394,6 @@ namespace Symphony.UI.Panels {
 								);
 								offset += 20 + 4;
 							}
-
-							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-							offset += 1 + 4;
-
-							GUIX.Label(new Rect(0, offset, 80, 20), "BGM");
-							SimpleTweaks.VolumeBGM = Mathf.Round(200f * GUIX.HorizontalSlider(
-								new Rect(80, offset, WIDTH_FILL - 80, 20),
-								SimpleTweaks.VolumeBGM, 0f, 1f,
-								v => (v * 100f).ToString("0.0") + " %"
-							)) / 200f;
-							offset += 20 + 4;
-
-							GUIX.Label(new Rect(0, offset, 80, 20), "SFX");
-							SimpleTweaks.VolumeSFX = Mathf.Round(200f * GUIX.HorizontalSlider(
-								new Rect(80, offset, WIDTH_FILL - 80, 20),
-								SimpleTweaks.VolumeSFX, 0f, 1f,
-								v => (v * 100f).ToString("0.0") + " %"
-							)) / 200f;
-							offset += 20 + 4;
-
-							GUIX.Label(new Rect(0, offset, 80, 20), "Voice");
-							SimpleTweaks.VolumeVoice = Mathf.Round(200f * GUIX.HorizontalSlider(
-								new Rect(80, offset, WIDTH_FILL - 80, 20),
-								SimpleTweaks.VolumeVoice, 0f, 1f,
-								v => (v * 100f).ToString("0.0") + " %"
-							)) / 200f;
-							offset += 20 + 4;
 
 							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
 							offset += 1 + 4;

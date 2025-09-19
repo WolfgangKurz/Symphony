@@ -332,37 +332,6 @@ namespace Symphony.Features {
 			}
 		}
 
-		internal static float VolumeBGM {
-			get => GameOption.BgmVolume;
-			set {
-				if (value != GameOption.BgmVolume) {
-					GameOption.BgmVolume = value;
-					GameSoundManager.Instance.ChangeVolumeBGM();
-					GameOption.SaveSetting();
-				}
-			}
-		}
-		internal static float VolumeSFX {
-			get => GameOption.SfxVolume;
-			set {
-				if (value != GameOption.SfxVolume) {
-					GameOption.SfxVolume = value;
-					GameSoundManager.Instance.ChangeVolumeEffect();
-					GameOption.SaveSetting();
-				}
-			}
-		}
-		internal static float VolumeVoice {
-			get => GameOption.VoiceVolume;
-			set {
-				if (value != GameOption.VoiceVolume) {
-					GameOption.VoiceVolume = value;
-					GameSoundManager.Instance.ChangeVolumeVoice();
-					GameOption.SaveSetting();
-				}
-			}
-		}
-
 		//////////////////////////////////////////////////////////////////////////////////////
 
 		public void Start() {
