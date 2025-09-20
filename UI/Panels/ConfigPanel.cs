@@ -5,8 +5,6 @@ using Symphony.Features;
 
 using UnityEngine;
 
-using static UnityEngine.UIElements.StylePropertyAnimationSystem;
-
 namespace Symphony.UI.Panels {
 	internal class ConfigPanel : UIPanelBase {
 		public override Rect rc { get; set; } = new Rect(10f, 30f, 422f, 500f);
