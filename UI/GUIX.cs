@@ -50,7 +50,9 @@ namespace Symphony.UI {
 		private static GUIStyle style_Empty = new GUIStyle();
 
 		private static RenderTexture tex_CheckMark;
-		private static RenderTexture tex_Circle;
+		private static RenderTexture tex_Circle30;
+		private static RenderTexture tex_Circle60;
+		private static RenderTexture tex_Circle90;
 
 		static GUIX() {
 			tex_Transparent.SetPixel(0, 0, Color.clear);
@@ -118,13 +120,12 @@ namespace Symphony.UI {
 			}
 			#endregion
 			#region Circle
-			{
-				var size = 30;
+			RenderTexture MakeCircle(int size) {
 				var half = (float)size / 2f;
-				tex_Circle = new RenderTexture(size, size, 0);
-				tex_Circle.antiAliasing = 4;
+				var ret = new RenderTexture(size, size, 0);
+				ret.antiAliasing = 4;
 
-				Graphics.SetRenderTarget(tex_Circle);
+				Graphics.SetRenderTarget(ret);
 
 				var shader = Shader.Find("Hidden/Internal-Colored");
 				var mat = new Material(shader);
@@ -162,7 +163,12 @@ namespace Symphony.UI {
 				GameObject.Destroy(mat);
 
 				Graphics.SetRenderTarget(null);
+
+				return ret;
 			}
+			tex_Circle30 = MakeCircle(30);
+			tex_Circle60 = MakeCircle(60);
+			tex_Circle90 = MakeCircle(90);
 			#endregion
 		}
 
@@ -208,7 +214,26 @@ namespace Symphony.UI {
 			var rc_circle = rc.Width(rc.height);
 
 			GUI.color = color;
-			GUI.DrawTexture(rc_circle, tex_Circle);
+			if (rc_circle.width <= 30)
+				GUI.DrawTexture(rc_circle, tex_Circle30);
+			else if (rc_circle.width <= 60)
+				GUI.DrawTexture(rc_circle, tex_Circle60);
+			else
+				GUI.DrawTexture(rc_circle, tex_Circle90);
+
+			GUI.color = c;
+		}
+		public static void Ellipse(Rect rc, Color color) {
+			var c = GUI.color;
+			var size = Mathf.Max(rc.width, rc.height);
+
+			GUI.color = color;
+			if (size <= 30)
+				GUI.DrawTexture(rc, tex_Circle30);
+			else if (size <= 60)
+				GUI.DrawTexture(rc, tex_Circle60);
+			else
+				GUI.DrawTexture(rc, tex_Circle90);
 
 			GUI.color = c;
 		}
@@ -402,10 +427,7 @@ namespace Symphony.UI {
 							: hover ?? Colors.ScrollThumbHover;
 
 					if (rcThumb.width < rcThumb.height) { // smaller then circle
-						var c = GUI.color; // just draw ellipse
-						GUI.color = color;
-						GUI.DrawTexture(rcThumb, tex_Circle);
-						GUI.color = c;
+						GUIX.Ellipse(rcThumb, color);
 					}
 					else {
 						GUI.BeginClip(rcThumb.Width(rcThumb.height / 2)); // Left side of thumb
@@ -488,10 +510,7 @@ namespace Symphony.UI {
 							: hover ?? Colors.ScrollThumbHover;
 
 					if (rcThumb.height < rcThumb.width) { // smaller then circle
-						var c = GUI.color; // just draw ellipse
-						GUI.color = color;
-						GUI.DrawTexture(rcThumb, tex_Circle);
-						GUI.color = c;
+						GUIX.Ellipse(rcThumb, color);
 					}
 					else {
 						GUI.BeginClip(rcThumb.Height(rcThumb.width / 2)); // Top side of thumb
@@ -604,12 +623,17 @@ namespace Symphony.UI {
 			return ret;
 		}
 
-		public static string TextField(Rect rc, string text, TextAnchor alignment = TextAnchor.MiddleLeft) {
+		public static string TextField(
+			Rect rc, string text,
+			int fontSize = 12, FontStyle fontStyle = FontStyle.Normal,
+			TextAnchor alignment = TextAnchor.MiddleLeft
+		) {
 			var style = new GUIStyle(GUIStyle.none) { alignment = alignment };
 			style.normal.textColor = Color.white;
 			style.hover.textColor = Color.white;
 			style.active.textColor = Color.white;
-			style.fontSize = 12;
+			style.fontSize = fontSize;
+			style.fontStyle = fontStyle;
 			style.padding = new RectOffset(4, 4, 4, 4);
 			GUIX.Fill(rc, Colors.FrameBG);
 
@@ -690,7 +714,7 @@ namespace Symphony.UI {
 					GUIX.Fill(rcThumb.Shrink(SLIDER_THUMB_PADDING), th_color);
 
 					var label = (template ?? (v => v.ToString()))?.Invoke(value) ?? "";
-					GUIX.Label(rc, label, Color.white, TextAnchor.MiddleCenter);
+					GUIX.Label(rc, label, Color.white, alignment: TextAnchor.MiddleCenter);
 					break;
 			}
 
@@ -767,14 +791,17 @@ namespace Symphony.UI {
 					GUIX.Fill(rcThumb.Shrink(SLIDER_THUMB_PADDING), th_color);
 
 					var label = (template ?? (v => v.ToString()))?.Invoke(value) ?? "";
-					GUIX.Label(rc, label, Color.white, TextAnchor.MiddleCenter);
+					GUIX.Label(rc, label, Color.white, alignment: TextAnchor.MiddleCenter);
 					break;
 			}
 
 			return value;
 		}
 
-		public static void KeyBinder(string id, Rect rc, string key, Action<KeyCode> onChange) {
+		public static void KeyBinder(
+			string id, Rect rc, string key, Action<KeyCode> onChange,
+			int fontSize = 12, FontStyle fontStyle = FontStyle.Normal
+		) {
 			var ec = Event.current;
 			GUI.SetNextControlName(id);
 			if (GUI.GetNameOfFocusedControl() == id) {
@@ -792,9 +819,12 @@ namespace Symphony.UI {
 						onChange.Invoke(ec.keyCode);
 				}
 			}
-			GUIX.TextField(rc, key, TextAnchor.MiddleCenter);
+			GUIX.TextField(rc, key, fontSize, fontStyle, TextAnchor.MiddleCenter);
 		}
-		public static void KeyBinder(string id, Rect rc, KeyCode key, Action<KeyCode> onChange) {
+		public static void KeyBinder(
+			string id, Rect rc, KeyCode key, Action<KeyCode> onChange,
+			int fontSize = 12, FontStyle fontStyle = FontStyle.Normal
+		) {
 			var ec = Event.current;
 			GUI.SetNextControlName(id);
 			if (GUI.GetNameOfFocusedControl() == id) {
@@ -812,7 +842,7 @@ namespace Symphony.UI {
 						onChange.Invoke(ec.keyCode);
 				}
 			}
-			GUIX.TextField(rc, key.ToString(), TextAnchor.MiddleCenter);
+			GUIX.TextField(rc, key.ToString(), fontSize, fontStyle, TextAnchor.MiddleCenter);
 		}
 
 		public static Vector2 Heading(Rect rc, string text, Color? color = null, TextAnchor alignment = TextAnchor.MiddleLeft) {
@@ -834,19 +864,27 @@ namespace Symphony.UI {
 			};
 			return style.CalcSize(content);
 		}
-		public static Vector2 Label(Rect rc, string text, Color? color = null, TextAnchor alignment = TextAnchor.MiddleLeft) {
+		public static Vector2 Label(
+			Rect rc, string text, Color? color = null,
+			int fontSize = 12, FontStyle fontStyle = FontStyle.Normal,
+			TextAnchor alignment = TextAnchor.MiddleLeft
+		) {
 			var content = new GUIContent(text);
 			var style = new GUIStyle {
 				alignment = alignment,
-				fontSize = 12,
+				fontStyle = fontStyle,
+				fontSize = fontSize,
 			};
 			style.normal.textColor = color ?? Color.white;
 			GUI.Label(rc, content, style);
 			return style.CalcSize(content);
 		}
-		public static Vector2 Label(string text) {
+		public static Vector2 Label(string text, int fontSize = 12, FontStyle fontStyle = FontStyle.Normal) {
 			var content = new GUIContent(text);
-			var style = new GUIStyle { fontSize = 12 };
+			var style = new GUIStyle {
+				fontSize = fontSize,
+				fontStyle = fontStyle,
+			};
 			return style.CalcSize(content);
 		}
 

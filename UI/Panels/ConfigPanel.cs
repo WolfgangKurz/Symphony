@@ -3,6 +3,8 @@ using LOEventSystem.Msg;
 
 using Symphony.Features;
 
+using System.Collections.Generic;
+
 using UnityEngine;
 
 namespace Symphony.UI.Panels {
@@ -15,32 +17,60 @@ namespace Symphony.UI.Panels {
 		private Rect panelViewport = new Rect(0, 0, 248, 0);
 		private Vector2 panelScroll = Vector2.zero;
 
-		private static Texture2D Icon_Robot = new Texture2D(1, 1, TextureFormat.ARGB32, false);
-		private static Texture2D Icon_Construction = new Texture2D(1, 1, TextureFormat.ARGB32, false);
+		private enum IconKey : int {
+			None,
+			Bell,
+			Brush,
+			Carrot,
+			Construction,
+			Gear,
+			Keyboard,
+			Presets,
+			Robot,
+			TrafficLight,
+			TV,
+		}
+		private static Dictionary<IconKey, Texture2D> Icons = new();
 
-		private readonly (string key, string disp)[] PluginFeatures = [
-			("QuickConfig", null),
-			("GracefulFPS", null),
-			("SimpleTweaks", null),
-			("SimpleUI", null),
-			("BattleHotkey", null),
-			("LastBattle", null),
-			("Notification", null),
-			("Presets", null),
-			("Automation", null),
-			("Experimental", null)
+		private readonly (IconKey icon, string key, string disp)[] PluginFeatures = [
+			(IconKey.Gear, "QuickConfig", null),
+			(IconKey.TV, "GracefulFPS", null),
+			(IconKey.Carrot, "SimpleTweaks", null),
+			(IconKey.Brush, "SimpleUI", null),
+			(IconKey.Keyboard, "BattleHotkey", null),
+			(IconKey.TrafficLight, "LastBattle", null),
+			(IconKey.Bell, "Notification", null),
+			(IconKey.Presets, "Presets", null),
+			(IconKey.Robot, "Automation", null),
+			(IconKey.Construction, "Experimental", null)
 		];
 		private string SelectedFeature = "QuickConfig";
 
+		public bool locked = false;
+
 		static ConfigPanel() {
-			Icon_Robot.LoadImage(Resource.icon_robot);
-			Icon_Construction.LoadImage(Resource.icon_construction);
+			void LoadIcon(IconKey key, byte[] data) {
+				Icons.Add(key, new Texture2D(1, 1, TextureFormat.ARGB32, false));
+				Icons[key].LoadImage(data);
+			}
+
+			LoadIcon(IconKey.Bell, Resource.icon_bell);
+			LoadIcon(IconKey.Brush, Resource.icon_brush);
+			LoadIcon(IconKey.Carrot, Resource.icon_carrot);
+			LoadIcon(IconKey.Construction, Resource.icon_construction);
+			LoadIcon(IconKey.Gear, Resource.icon_gear);
+			LoadIcon(IconKey.Keyboard, Resource.icon_keyboard);
+			LoadIcon(IconKey.Presets, Resource.icon_presets);
+			LoadIcon(IconKey.Robot, Resource.icon_robot);
+			LoadIcon(IconKey.TrafficLight, Resource.icon_traffic_light);
+			LoadIcon(IconKey.TV, Resource.icon_tv);
 		}
 
 		public ConfigPanel(MonoBehaviour instance) : base(instance) { }
 
 		public override void Update() { }
 		public override void OnGUI() {
+			if (this.locked) return; // skip if locked
 			rc = GUIX.ModalWindow(0, rc, this.PanelContent, "Symphony | LastOrigin QoL Plugin | F12", true);
 		}
 
@@ -98,16 +128,12 @@ namespace Symphony.UI.Panels {
 						this.SelectedFeature = feat.key;
 					}
 
-					if (feat.key == "Automation") {
-						GUI.DrawTexture(rc.Shrink(4).Width(14), Icon_Robot);
-						GUIX.Label(rc.Shrink(4).Shrink(18, 0, 0, 0), feat.disp ?? feat.key);
-					}
-					else if (feat.key == "Experimental") {
-						GUI.DrawTexture(rc.Shrink(4).Width(14), Icon_Construction);
-						GUIX.Label(rc.Shrink(4).Shrink(18, 0, 0, 0), feat.disp ?? feat.key);
-					}
-					else
+					if (feat.icon == IconKey.None) {
 						GUIX.Label(rc.Shrink(4), feat.disp ?? feat.key);
+					} else { 
+						GUI.DrawTexture(rc.Shrink(4).Width(14), Icons[feat.icon]);
+						GUIX.Label(rc.Shrink(4).Shrink(18, 0, 0, 0), feat.disp ?? feat.key);
+					}
 				}
 			});
 			#endregion
@@ -225,8 +251,9 @@ namespace Symphony.UI.Panels {
 
 						case "GracefulFPS":
 							#region GracefulFPS Section
-							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "GracefulFPS");
-							offset += 20 + 4;
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.TV]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "GracefulFPS");
+							offset += 20 + 8;
 
 							; {
 								var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), Conf.GracefulFPS.DisplayFPS.Value, "FPS 표시");
@@ -242,8 +269,8 @@ namespace Symphony.UI.Panels {
 								offset += 20 + 4;
 
 								var x = 0f;
-								var w = GUIX.Label("기본").x + 20f + 5f;
-								if (GUIX.Radio(new Rect(x, offset, w, 20), Conf.GracefulFPS.LimitFPS.Value == "None", "기본")) {
+								var w = GUIX.Label("바닐라").x + 20f + 5f;
+								if (GUIX.Radio(new Rect(x, offset, w, 20), Conf.GracefulFPS.LimitFPS.Value == "None", "바닐라")) {
 									Conf.GracefulFPS.LimitFPS.Value = "None";
 									GracefulFPS.ApplyFPS();
 									Conf.config.Save();
@@ -290,8 +317,8 @@ namespace Symphony.UI.Panels {
 								offset += 20 + 4;
 
 								var x = 0f;
-								var w = GUIX.Label("기본").x + 20f + 5f;
-								if (GUIX.Radio(new Rect(x, offset, w, 20), Conf.GracefulFPS.LimitBattleFPS.Value == "None", "기본")) {
+								var w = GUIX.Label("설정 안함").x + 20f + 5f;
+								if (GUIX.Radio(new Rect(x, offset, w, 20), Conf.GracefulFPS.LimitBattleFPS.Value == "None", "설정 안함")) {
 									Conf.GracefulFPS.LimitBattleFPS.Value = "None";
 									GracefulFPS.ApplyFPS();
 									Conf.config.Save();
@@ -341,8 +368,9 @@ namespace Symphony.UI.Panels {
 
 						case "SimpleTweaks":
 							#region SimpleTweaks Section
-							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "SimpleTweaks");
-							offset += 20 + 4;
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Carrot]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "SimpleTweaks");
+							offset += 20 + 8;
 
 							; {
 								var value = GUIX.Toggle(
@@ -535,8 +563,9 @@ namespace Symphony.UI.Panels {
 
 						case "SimpleUI":
 							#region SimpleUI Section
-							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "SimpleUI");
-							offset += 20 + 4;
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Brush]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "SimpleUI");
+							offset += 20 + 8;
 
 							; {
 								var value = GUIX.Toggle(
@@ -850,8 +879,9 @@ namespace Symphony.UI.Panels {
 
 						case "BattleHotkey":
 							#region BattleHotkey Section
-							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "BattleHotkey");
-							offset += 20 + 4;
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Keyboard]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "BattleHotkey");
+							offset += 20 + 8;
 
 							; {
 								var value = GUIX.Toggle(
@@ -1006,8 +1036,9 @@ namespace Symphony.UI.Panels {
 
 						case "LastBattle":
 							#region LastBattle Section
-							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "LastBattle");
-							offset += 20 + 4;
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.TrafficLight]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "LastBattle");
+							offset += 20 + 8;
 
 							; {
 								var value = GUIX.Toggle(
@@ -1029,8 +1060,9 @@ namespace Symphony.UI.Panels {
 
 						case "Notification":
 							#region Notification Section
-							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "Notification");
-							offset += 20 + 4;
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Bell]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "Notification");
+							offset += 20 + 8;
 
 							; {
 								var value = GUIX.Toggle(
@@ -1052,8 +1084,9 @@ namespace Symphony.UI.Panels {
 
 						case "Presets":
 							#region Presets Section
-							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "Presets");
-							offset += 20 + 4;
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Presets]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "Presets");
+							offset += 20 + 8;
 
 							; {
 								var value = GUIX.Toggle(
@@ -1087,9 +1120,9 @@ namespace Symphony.UI.Panels {
 
 						case "Automation":
 							#region Automation Section
-							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icon_Robot);
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Robot]);
 							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "Automation");
-							offset += 20 + 4;
+							offset += 20 + 8;
 
 							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "! 주의 !", Color.yellow);
 							offset += 20;
@@ -1133,9 +1166,9 @@ namespace Symphony.UI.Panels {
 
 						case "Experimental":
 							#region Experimental Section
-							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icon_Construction);
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Construction]);
 							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "Experimental");
-							offset += 20 + 4;
+							offset += 20 + 8;
 
 							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "! 주의 !", Color.yellow);
 							offset += 20;

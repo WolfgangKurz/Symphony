@@ -11,6 +11,9 @@ namespace Symphony.UI {
 			this.enabled = true;
 		}
 
+		public virtual void Start() { }
+		public virtual void OnDestroy() { }
+
 		public abstract void Update();
 		public abstract void OnGUI();
 	}

@@ -63,6 +63,36 @@ namespace Symphony {
         /// <summary>
         ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
         /// </summary>
+        internal static byte[] icon_bell {
+            get {
+                object obj = ResourceManager.GetObject("icon_bell", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
+        internal static byte[] icon_brush {
+            get {
+                object obj = ResourceManager.GetObject("icon_brush", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
+        internal static byte[] icon_carrot {
+            get {
+                object obj = ResourceManager.GetObject("icon_carrot", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
         internal static byte[] icon_construction {
             get {
                 object obj = ResourceManager.GetObject("icon_construction", resourceCulture);
@@ -73,9 +103,59 @@ namespace Symphony {
         /// <summary>
         ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
         /// </summary>
+        internal static byte[] icon_gear {
+            get {
+                object obj = ResourceManager.GetObject("icon_gear", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
+        internal static byte[] icon_keyboard {
+            get {
+                object obj = ResourceManager.GetObject("icon_keyboard", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
+        internal static byte[] icon_presets {
+            get {
+                object obj = ResourceManager.GetObject("icon_presets", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
         internal static byte[] icon_robot {
             get {
                 object obj = ResourceManager.GetObject("icon_robot", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
+        internal static byte[] icon_traffic_light {
+            get {
+                object obj = ResourceManager.GetObject("icon_traffic_light", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
+        internal static byte[] icon_tv {
+            get {
+                object obj = ResourceManager.GetObject("icon_tv", resourceCulture);
                 return ((byte[])(obj));
             }
         }

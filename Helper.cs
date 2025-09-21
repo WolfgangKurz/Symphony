@@ -12,6 +12,7 @@ using UnityEngine;
 
 namespace Symphony {
 	internal static class Helper {
+		#region STRUCTURES
 		[Serializable]
 		[StructLayout(LayoutKind.Sequential)]
 		public struct RECT {
@@ -45,6 +46,7 @@ namespace Symphony {
 			public int X;
 			public int Y;
 		}
+		#endregion
 
 		public static bool KeyCodeParse(string name, out KeyCode keyCode) => Enum.TryParse<KeyCode>(name, out keyCode);
 		public static bool IsReservedKey(KeyCode k) => new KeyCode[] {
@@ -62,6 +64,7 @@ namespace Symphony {
 			return LogLevel.None;
 		}
 
+		#region Windows
 		private class WindowHandleFinder {
 			private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
@@ -237,6 +240,7 @@ namespace Symphony {
 			}
 		}
 		public static void ChangeCursor(CursorType type) => CursorHelper.ChangeCursor(type);
+		#endregion
 
 		#region Rect
 		public static Rect Shrink(this Rect rc, float left, float top, float right, float bottom) => Rect.MinMaxRect(
@@ -314,6 +318,15 @@ namespace Symphony {
 		public static Func<P1, R> XGetMethod<P1, R>(this object obj, string name) {
 			var mi = obj.GetType().GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance);
 			return (P1 p1) => (R)mi.Invoke(obj, [p1]);
+		}
+		#endregion
+
+		#region Linq
+		public static bool Any<TSource>(this TSource[] source, Func<TSource, int, bool> predicate) {
+			for (int i = 0; i < source.Length; i++)
+				if (predicate(source[i], i))
+					return true;
+			return false;
 		}
 		#endregion
 
