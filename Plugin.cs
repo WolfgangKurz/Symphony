@@ -113,8 +113,9 @@ namespace Symphony {
 					UIManager.Instance.AddPanel(new ReleaseNotePanel(this, releases));
 			} catch (Exception e) {
 				Plugin.Logger.LogError($"[Symphony] Cannot fetch release data: {e.ToString()}");
-				yield break;
 			}
+
+			Conf.LastVersionTag.Value = Plugin.VersionTag;
 		}
 	}
 }
