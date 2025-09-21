@@ -867,25 +867,37 @@ namespace Symphony.UI {
 		public static Vector2 Label(
 			Rect rc, string text, Color? color = null,
 			int fontSize = 12, FontStyle fontStyle = FontStyle.Normal,
-			TextAnchor alignment = TextAnchor.MiddleLeft
+			TextAnchor alignment = TextAnchor.MiddleLeft,
+			bool wrap = false
 		) {
 			var content = new GUIContent(text);
 			var style = new GUIStyle {
 				alignment = alignment,
 				fontStyle = fontStyle,
 				fontSize = fontSize,
+				wordWrap = wrap,
 			};
 			style.normal.textColor = color ?? Color.white;
 			GUI.Label(rc, content, style);
 			return style.CalcSize(content);
 		}
-		public static Vector2 Label(string text, int fontSize = 12, FontStyle fontStyle = FontStyle.Normal) {
+		public static Vector2 Label(string text, int fontSize = 12, FontStyle fontStyle = FontStyle.Normal, bool wrap = false) {
 			var content = new GUIContent(text);
 			var style = new GUIStyle {
 				fontSize = fontSize,
 				fontStyle = fontStyle,
+				wordWrap = wrap,
 			};
 			return style.CalcSize(content);
+		}
+		public static Vector2 Label(string text, float width, int fontSize = 12, FontStyle fontStyle = FontStyle.Normal, bool wrap = false) {
+			var content = new GUIContent(text);
+			var style = new GUIStyle {
+				fontSize = fontSize,
+				fontStyle = fontStyle,
+				wordWrap = wrap,
+			};
+			return new Vector2(width, style.CalcHeight(content, width));
 		}
 
 		public static void HLine(Rect rc, Color? color = null) {

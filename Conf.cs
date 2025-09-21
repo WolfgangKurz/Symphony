@@ -9,6 +9,8 @@ namespace Symphony {
 	internal class Conf {
 		public static ConfigFile config = new ConfigFile(Path.Combine(Paths.ConfigPath, "Symphony.cfg"), true);
 
+		public static readonly ConfigEntry<string> LastVersionTag = config.Bind("Common", "LastVersionTag", "0.0.0");
+
 		internal class GracefulFPS {
 			public static readonly ConfigEntry<bool> DisplayFPS = config.Bind("GracefulFPS", "DisplayFPS", true, "Display FPS to screen");
 

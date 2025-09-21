@@ -11,6 +11,7 @@ using Symphony.UI.Panels;
 
 using System;
 using System.Collections;
+using System.Linq;
 using System.Reflection;
 
 using UnityEngine;
@@ -64,6 +65,7 @@ namespace Symphony {
 			this.configPanel.enabled = false;
 
 			StartCoroutine(this.CheckUpdate());
+			StartCoroutine(this.CheckReleaseNote());
 		}
 
 		public void Update() {
@@ -91,8 +93,28 @@ namespace Symphony {
 				Logger.LogError($"[Symphony] Cannot fetch update data: {e.ToString()}");
 				yield break;
 			}
+		}
+		private IEnumerator CheckReleaseNote() {
+			var req = UnityWebRequest.Get("https://api.github.com/repos/WolfgangKurz/Symphony/releases");
+			yield return req.SendWebRequest();
 
-			yield break;
+			if (req.result == UnityWebRequest.Result.ProtocolError || req.result == UnityWebRequest.Result.ConnectionError) {
+				Plugin.Logger.LogError($"[Symphony] Cannot fetch release data: {req.error}");
+				yield break;
+			}
+
+			try {
+				var json = req.downloadHandler.text;
+				var releases = JsonMapper.ToObject<GithubReleaseInfo[]>(json)
+					.Where(x => Helper.IsLesserVersion(Conf.LastVersionTag.Value, x.tag_name.Substring(1)))
+					.ToArray();
+
+				if (releases.Length > 0)
+					UIManager.Instance.AddPanel(new ReleaseNotePanel(this, releases));
+			} catch (Exception e) {
+				Plugin.Logger.LogError($"[Symphony] Cannot fetch release data: {e.ToString()}");
+				yield break;
+			}
 		}
 	}
 }

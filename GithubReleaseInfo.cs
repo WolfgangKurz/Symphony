@@ -8,5 +8,6 @@
 
 		public string tag_name { get; set; }
 		public GithubReleaseAsset[] assets { get; set; }
+		public string body { get; set; }
 	}
 }

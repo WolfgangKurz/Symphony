@@ -64,6 +64,25 @@ namespace Symphony {
 			return LogLevel.None;
 		}
 
+		public static bool IsLesserVersion(string v1, string v2) {
+			try {
+				var p1 = v1.Split(".").Select(int.Parse).ToArray();
+				var p2 = v2.Split(".").Select(int.Parse).ToArray();
+
+				var len = Math.Min(p1.Length, p2.Length);
+				for(var i=0; i<len; i++) {
+					if (p1[i] < p2[i])
+						return true;
+					else if (p1[i] > p2[i])
+						return false;
+				}
+
+				if (p1.Length < p2.Length) return true;
+			} catch { }
+			return false;
+		}
+		public static bool IsLesserOrEqualVersion(string v1, string v2) => v1 == v2 || IsLesserVersion(v1, v2);
+
 		#region Windows
 		private class WindowHandleFinder {
 			private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);

@@ -80,7 +80,10 @@ namespace Symphony.UI.Panels {
 
 			#region Plugin Name Section
 			GUIX.Heading(new Rect(4, 2, 72, 18), "Symphony", Color.yellow);
-			GUIX.Label(new Rect(76, 4, rc.width - 88, 16), Plugin.VersionTag);
+			GUIX.Label(new Rect(76, 4, rc.width - 84 - 120, 16), Plugin.VersionTag);
+
+			if (GUIX.Button(new Rect(4 + rc.width - 8 - 120, 1, 120, 20), "Release Note"))
+				UIManager.Instance.AddPanel(new ReleaseNotePanel(this.instance));
 			goffset += 20 + 4;
 			#endregion
 
