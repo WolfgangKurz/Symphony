@@ -71,18 +71,20 @@ namespace Symphony.Features {
 		}
 
 		public void Update() {
-			try {
-				foreach (var map in KeyMappingConf.KeyMaps) {
-					if (Helper.KeyCodeParse(map.Key, out var kc) && Input.GetKeyDown(kc))
-						StartCoroutine(KeyMapping_SimulateTouch(map.X, map.Y));
+			if (Conf.Experimental.Use_KeyMapping.Value) {
+				try {
+					foreach (var map in KeyMappingConf.KeyMaps) {
+						if (Helper.KeyCodeParse(map.Key, out var kc) && Input.GetKeyDown(kc))
+							StartCoroutine(KeyMapping_SimulateTouch(map.X, map.Y));
+					}
+				} catch (Exception e) {
+					Plugin.Logger.LogError(e);
 				}
-			} catch (Exception e) {
-				Plugin.Logger.LogError(e);
 			}
 		}
 
 		public void OnGUI() {
-			if (UIManager.Instance?.GetPanel<KeyMapPanel>() == null) {
+			if (UIManager.Instance?.GetPanel<KeyMapPanel>() == null && Conf.Experimental.Use_KeyMapping.Value) {
 				var KeyMap_Alpha = Conf.Experimental.KeyMapping_Opacity.Value;
 				if (KeyMap_Alpha > 0f) {
 					for (var i = 0; i < KeyMappingConf.KeyMaps.Length; i++) {
