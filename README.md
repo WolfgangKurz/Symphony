@@ -73,6 +73,11 @@ Please use with caution.
 - Provides a Get-All and Restart-All function for completed Facilities in the Base.
 - Provides a Restart function for completed Auto-Battles. (The Disassembling settings will use the settings from the last Auto-Battle run on PC.)
 
+### Experimental
+A collection of experimental features.
+
+- Key mapping
+
 ## Updates
 If the plugin requires an update, the following message will be displayed when the game starts.
 

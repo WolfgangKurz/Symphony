@@ -142,6 +142,8 @@ namespace Symphony {
 			public static readonly ConfigEntry<byte> OfflineBattle_Last_EquipDiscomp = config.Bind("Automation", "OfflineBattle_Last_EquipDiscomp", (byte)1);
 		}
 		internal class Experimental {
+			public static readonly ConfigEntry<bool> Use_KeyMapping = config.Bind("Experimental", "Use_KeyMapping", false, "Use KeyMapping feature");
+			public static readonly ConfigEntry<float> KeyMapping_Opacity = config.Bind("Experimental", "KeyMapping_Opacity", 0.25f);
 		}
 
 		public static void Migrate() {

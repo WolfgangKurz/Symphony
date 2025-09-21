@@ -1182,6 +1182,37 @@ namespace Symphony.UI.Panels {
 							offset += 20;
 							GUIX.Label(new Rect(0, offset, WIDTH_FILL, 20), "위 내용을 충분히 숙지 후 사용해 주세요.", Color.yellow);
 							offset += 20 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL - 90, 20),
+									Conf.Experimental.Use_KeyMapping.Value,
+									"키 맵핑 사용하기"
+								);
+								if (value != Conf.Experimental.Use_KeyMapping.Value) {
+									Conf.Experimental.Use_KeyMapping.Value = value;
+									Conf.config.Save();
+								}
+
+								if (GUIX.Button(new Rect(WIDTH_FILL - 80, offset, 80, 20), "편집하기")) {
+									UIManager.Instance.AddPanel(new KeyMapPanel(this.instance));
+								}
+								offset += 20 + 4;
+							}
+
+							; {
+								GUIX.Label(new Rect(0, offset, 80, 20), "키 맵 불투명도");
+								var v = Mathf.Round(200f * GUIX.HorizontalSlider(
+									new Rect(80, offset, WIDTH_FILL - 80, 20),
+									Conf.Experimental.KeyMapping_Opacity.Value, 0f, 1f,
+									v => (v * 100f).ToString("0.0") + " %"
+								)) / 200f;
+								if (v != Conf.Experimental.KeyMapping_Opacity.Value) {
+									Conf.Experimental.KeyMapping_Opacity.Value = v;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
 							#endregion
 							break;
 					}
