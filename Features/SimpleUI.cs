@@ -147,6 +147,7 @@ namespace Symphony.Features {
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Squad_Clear))
 			);
 			EventManager.StartListening(this, 12U, new Action<WebResponseState>(this.HandlePacketUnsetPcToSquad));
+EventManager.StartListening(this, 197U, new Action<WebResponseState>(this.HandlePacketInfiniteWarUnsetPcToSquad));
 			#endregion
 
 			#region Disassemble Select All Characters & Equips
@@ -737,10 +738,13 @@ namespace Symphony.Features {
 			_btn.onClick.Clear();
 			_btn.onClick.Add(new(() => {
 				IEnumerator Fn() {
-					var squad = SingleTon<DataManager>.Instance.GetCurrentSquad(SingleTon<GameManager>.Instance.SquadType);
+var squadType = SingleTon<GameManager>.Instance.SquadType;
+					var normalMasterSquad = SingleTon<DataManager>.Instance.GetUserInfo().MasterSquadIndex;
+
+					var squad = SingleTon<DataManager>.Instance.GetCurrentSquad(squadType);
 					var chars = squad.SquadSlotList // move leader to last of list
 						.Where(r => r.PCId != 0 && r.PCId != squad.LeaderPCID)
-						.Concat(SingleTon<DataManager>.Instance.GetUserInfo().MasterSquadIndex == squad.SquadIndex
+						.Concat(squadType == GlobalDefines.SQUAD_TYPE.NORMAL && normalMasterSquad == squad.SquadIndex
 							? [] // exclude leader for master squad
 							: squad.SquadSlotList.Where(r => r.PCId == squad.LeaderPCID)
 						)
@@ -751,13 +755,24 @@ namespace Symphony.Features {
 
 						// FormationCharacterPick.OnPick
 						MonoSingleton<SceneBase>.Instance.ShowWaitMessage(true);
+if (squadType == GlobalDefines.SQUAD_TYPE.NORMAL) {
 						C2WPacket.Send_C2W_UNSET_PC_TO_SQUAD(
 							SingleTon<DataManager>.Instance.AccessToken,
 							SingleTon<DataManager>.Instance.WID,
 							chr.PCId,
 							squad.SquadIndex,
-							SingleTon<DataManager>.Instance.GetSquadSlotNumber(chr.PCId)
+							SingleTon<DataManager>.Instance.GetSquadSlotNumber(chr.PCId, GlobalDefines.SQUAD_TYPE.NORMAL)
 						);
+						}
+						else {
+							C2WPacket.Send_C2W_INFINITEWAR_UNSET_PC_TO_SQUAD(
+								SingleTon<DataManager>.Instance.AccessToken,
+								SingleTon<DataManager>.Instance.WID,
+								chr.PCId,
+								squad.SquadIndex,
+								SingleTon<DataManager>.Instance.GetSquadSlotNumber(chr.PCId, GlobalDefines.SQUAD_TYPE.INFINITE_WAR)
+						);
+}
 
 						var waitFor = chr.PCId;
 						yield return new WaitUntil(() => SquadClear_LastUnsetPC == waitFor);
@@ -771,6 +786,12 @@ namespace Symphony.Features {
 		}
 		private void HandlePacketUnsetPcToSquad(WebResponseState obj) {
 			W2C_UNSET_PC_TO_SQUAD data = obj as W2C_UNSET_PC_TO_SQUAD;
+			if (data.result.ErrorCode != 0) return;
+
+			SquadClear_LastUnsetPC = data.result.PCID;
+		}
+		private void HandlePacketInfiniteWarUnsetPcToSquad(WebResponseState obj) {
+			W2C_INFINITEWAR_UNSET_PC_TO_SQUAD data = obj as W2C_INFINITEWAR_UNSET_PC_TO_SQUAD;
 			if (data.result.ErrorCode != 0) return;
 
 			SquadClear_LastUnsetPC = data.result.PCID;
