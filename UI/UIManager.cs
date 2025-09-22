@@ -35,6 +35,7 @@ namespace Symphony.UI {
 
 			var bPassThrough = true;
 			var pt = Input.mousePosition;
+			pt.y = Screen.height - pt.y; // Left-Top start space
 			foreach (var panel in panels) {
 				if (panel.enabled && panel.rc.Contains(pt)) {
 					bPassThrough = false;
