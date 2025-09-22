@@ -1511,7 +1511,6 @@ namespace Symphony.Features {
 				for (var btnIdx = 0; btnIdx < toggles.Length; btnIdx++) {
 					var _btnIdx = btnIdx;
 					var go_TabButton = toggles[btnIdx].gameObject;
-					Plugin.Logger.LogWarning("Before get UIButton of Tab");
 					var btn = go_TabButton.GetComponent<UIButton>();
 					btn.onClick.Clear();
 					btn.onClick.Add(new(() => {
@@ -1539,11 +1538,8 @@ namespace Symphony.Features {
 				clearCondition.localPosition = new Vector3(-120f, -595f, 0f);
 
 				// Make grid
-				Plugin.Logger.LogWarning("Before make grid");
 				var _gridMonsterInfo = TabInfos[0].GetComponentInChildren<UIGrid>(true);
 				var _uiCenterOnMonster = TabInfos[0].GetComponentInChildren<UICenterOnChild>(true);
-				Plugin.Logger.LogWarning($"_gridMonsterInfo {_gridMonsterInfo}");
-				Plugin.Logger.LogWarning($"_uiCenterOnMonster {_uiCenterOnMonster}");
 
 				{
 					var btnLeft = TabInfos[0].transform.Find("LeftArrow").GetComponent<UIButton>();
@@ -1556,7 +1552,6 @@ namespace Symphony.Features {
 					btnRight.onClick.Add(new(() => _uiCenterOnMonster.Next(false)));
 					btnRight.GetComponent<UISprite>().depth = 3;
 				}
-				Plugin.Logger.LogWarning($"After Button");
 
 				_gridMonsterInfo.transform.DestroyChildren();
 
