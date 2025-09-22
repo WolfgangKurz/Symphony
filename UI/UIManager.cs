@@ -53,7 +53,7 @@ namespace Symphony.UI {
 			});
 
 			if (this.displayWelcome) {
-				var description = "F12 키를 눌러 플러그인 설정을 할 수 있습니다";
+				var description = "F1 키를 눌러 플러그인 설정을 할 수 있습니다";
 				var cw = GUIX.Label(description).x + 4 + 4;
 
 				var w = Screen.width;

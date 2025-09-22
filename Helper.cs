@@ -50,7 +50,7 @@ namespace Symphony {
 
 		public static bool KeyCodeParse(string name, out KeyCode keyCode) => Enum.TryParse<KeyCode>(name, out keyCode);
 		public static bool IsReservedKey(KeyCode k) => new KeyCode[] {
-			KeyCode.Escape, KeyCode.F12
+			KeyCode.Escape, KeyCode.F1
 		}.Contains(k);
 
 		public static LogLevel ToLogLevel(this LogType t) {

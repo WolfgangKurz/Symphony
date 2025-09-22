@@ -69,7 +69,7 @@ namespace Symphony {
 		}
 
 		public void Update() {
-			if (Input.GetKeyDown(KeyCode.F12))
+			if (Input.GetKeyDown(KeyCode.F1))
 				this.configPanel.enabled = !this.configPanel.enabled;
 		}
 

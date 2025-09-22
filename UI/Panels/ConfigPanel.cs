@@ -71,7 +71,7 @@ namespace Symphony.UI.Panels {
 		public override void Update() { }
 		public override void OnGUI() {
 			if (this.locked) return; // skip if locked
-			rc = GUIX.ModalWindow(0, rc, this.PanelContent, "Symphony | LastOrigin QoL Plugin | F12", true);
+			rc = GUIX.ModalWindow(0, rc, this.PanelContent, "Symphony | LastOrigin QoL Plugin | F1", true);
 		}
 
 		private void PanelContent(int id) {
