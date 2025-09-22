@@ -319,23 +319,23 @@ namespace Symphony {
 
 		public static T XGetFieldValue<T>(this object obj, string name)
 			=> obj.GetType()
-				.GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)
+				.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
 				.GetValue<T>(obj);
 		public static void XSetFieldValue<T>(this object obj, string name, T value)
 			=> obj.GetType()
-				.GetField(name, BindingFlags.NonPublic | BindingFlags.Instance)?
+				.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?
 				.SetValue(obj, value);
 
 		public static Action XGetMethodVoid(this object obj, string name) {
-			var mi = obj.GetType().GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = obj.GetType().GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 			return () => mi.Invoke(obj, []);
 		}
 		public static Func<R> XGetMethod<R>(this object obj, string name) {
-			var mi = obj.GetType().GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = obj.GetType().GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 			return () => (R)mi.Invoke(obj, []);
 		}
 		public static Func<P1, R> XGetMethod<P1, R>(this object obj, string name) {
-			var mi = obj.GetType().GetMethod(name, BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = obj.GetType().GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 			return (P1 p1) => (R)mi.Invoke(obj, [p1]);
 		}
 		#endregion

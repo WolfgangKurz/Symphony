@@ -874,6 +874,22 @@ namespace Symphony.UI.Panels {
 								}
 								offset += 20 + 4;
 							}
+
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleUI.Use_MapEnemyPreview.Value,
+									"전투 적 미리보기"
+								);
+								if (value != Conf.SimpleUI.Use_MapEnemyPreview.Value) {
+									Conf.SimpleUI.Use_MapEnemyPreview.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
 							#endregion
 							break;
 

@@ -83,6 +83,8 @@ namespace Symphony {
 
 			public static readonly ConfigEntry<bool> Use_CharacterMakingPreview = config.Bind("SimpleUI", "Use_CharacterMakingPreview", false, "Displays available result for Character making");
 			public static readonly ConfigEntry<bool> Use_EquipMakingPreview = config.Bind("SimpleUI", "Use_EquipMakingPreview", false, "Displays available result for Equip making");
+
+			public static readonly ConfigEntry<bool> Use_MapEnemyPreview = config.Bind("SimpleUI", "Use_MapEnemyPreview", false, "Displays enemies to be encountered in battle on the Battle Map Information");
 		}
 		internal class BattleHotkey {
 			public static readonly ConfigEntry<bool> Use_SkillPanel = config.Bind("BattleHotkey", "Use_SkillPanel", true, "Use skill panel hotkeys");

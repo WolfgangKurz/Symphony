@@ -147,7 +147,7 @@ namespace Symphony.Features {
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Squad_Clear))
 			);
 			EventManager.StartListening(this, 12U, new Action<WebResponseState>(this.HandlePacketUnsetPcToSquad));
-EventManager.StartListening(this, 197U, new Action<WebResponseState>(this.HandlePacketInfiniteWarUnsetPcToSquad));
+			EventManager.StartListening(this, 197U, new Action<WebResponseState>(this.HandlePacketInfiniteWarUnsetPcToSquad));
 			#endregion
 
 			#region Disassemble Select All Characters & Equips
@@ -217,6 +217,13 @@ EventManager.StartListening(this, 197U, new Action<WebResponseState>(this.Handle
 			harmony.Patch(
 				AccessTools.Method(typeof(UIEquipMake), "SetReady"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Preview_EquipMaking_Display_Clear))
+			);
+			#endregion
+
+			#region Map Enemy Preview
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_StageDetail), nameof(Panel_StageDetail.SetMapStage)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_MapEnemyPreview_SetMapStage))
 			);
 			#endregion
 		}
@@ -738,7 +745,7 @@ EventManager.StartListening(this, 197U, new Action<WebResponseState>(this.Handle
 			_btn.onClick.Clear();
 			_btn.onClick.Add(new(() => {
 				IEnumerator Fn() {
-var squadType = SingleTon<GameManager>.Instance.SquadType;
+					var squadType = SingleTon<GameManager>.Instance.SquadType;
 					var normalMasterSquad = SingleTon<DataManager>.Instance.GetUserInfo().MasterSquadIndex;
 
 					var squad = SingleTon<DataManager>.Instance.GetCurrentSquad(squadType);
@@ -755,8 +762,8 @@ var squadType = SingleTon<GameManager>.Instance.SquadType;
 
 						// FormationCharacterPick.OnPick
 						MonoSingleton<SceneBase>.Instance.ShowWaitMessage(true);
-if (squadType == GlobalDefines.SQUAD_TYPE.NORMAL) {
-						C2WPacket.Send_C2W_UNSET_PC_TO_SQUAD(
+						if (squadType == GlobalDefines.SQUAD_TYPE.NORMAL) {
+							C2WPacket.Send_C2W_UNSET_PC_TO_SQUAD(
 							SingleTon<DataManager>.Instance.AccessToken,
 							SingleTon<DataManager>.Instance.WID,
 							chr.PCId,
@@ -771,8 +778,8 @@ if (squadType == GlobalDefines.SQUAD_TYPE.NORMAL) {
 								chr.PCId,
 								squad.SquadIndex,
 								SingleTon<DataManager>.Instance.GetSquadSlotNumber(chr.PCId, GlobalDefines.SQUAD_TYPE.INFINITE_WAR)
-						);
-}
+							);
+						}
 
 						var waitFor = chr.PCId;
 						yield return new WaitUntil(() => SquadClear_LastUnsetPC == waitFor);
@@ -1337,7 +1344,7 @@ if (squadType == GlobalDefines.SQUAD_TYPE.NORMAL) {
 		private static void Patch_Preview_UnitMaking_Display(UIUnitMake __instance, PCMakingIngInfo makingInfo) {
 			Patch_Preview_UnitMaking_Label(__instance);
 
-			if(!Conf.SimpleUI.Use_CharacterMakingPreview.Value) {
+			if (!Conf.SimpleUI.Use_CharacterMakingPreview.Value) {
 				Patch_Preview_UnitMaking_Display_Clear(__instance);
 				return;
 			}
@@ -1461,6 +1468,135 @@ if (squadType == GlobalDefines.SQUAD_TYPE.NORMAL) {
 
 			var label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
 			if (label != null) label.text = "";
+		}
+		#endregion
+
+		#region Map Enemy Preview
+		private static void Patch_MapEnemyPreview_SetMapStage(Panel_StageDetail __instance, Table_MapStage mapStage) {
+			if (!Conf.SimpleUI.Use_MapEnemyPreview.Value) return;
+
+			var goCommon = __instance.XGetFieldValue<GameObject>("_goCommonStage");
+			if (goCommon == null) return;
+
+			try {
+				var SquadSelectEW = SingleTon<ResourceManager>.Instance.LoadUIPrefab("Panel_SquadSelectEW");
+				var RightMenuParent = GameObject.Instantiate(
+					SquadSelectEW.transform.Find("rightmenu").gameObject,
+					goCommon.transform
+				);
+
+				Destroy(RightMenuParent.transform.Find("Battle_Title").gameObject);
+				Destroy(RightMenuParent.transform.Find("Battle_Option").gameObject);
+
+				var goTabs = RightMenuParent.transform.Find("Tabs").gameObject;
+				var goTabInfos = RightMenuParent.transform.Find("TabInfos").gameObject;
+
+				var TabInfos = new GameObject[] {
+					goTabInfos.transform.GetChild(0).gameObject,
+					goTabInfos.transform.GetChild(1).gameObject,
+				};
+				TabInfos[1].transform.DestroyChildren();
+				Destroy(goTabInfos.transform.GetChild(2).gameObject);
+
+				var toggles = new UIToggle[] {
+					goTabs.transform.GetChild(0).GetComponent<UIToggle>(),
+					goTabs.transform.GetChild(1).GetComponent<UIToggle>(),
+				};
+				Destroy(goTabs.transform.GetChild(2).gameObject);
+
+				RightMenuParent.transform.localPosition = new Vector3(-540f, 420f, 0f);
+				TabInfos[0].transform.localPosition += new Vector3(120f, -50f, 0f);
+				TabInfos[1].transform.localPosition = new Vector3(660f, 180f, 0f);
+
+				for (var btnIdx = 0; btnIdx < toggles.Length; btnIdx++) {
+					var _btnIdx = btnIdx;
+					var go_TabButton = toggles[btnIdx].gameObject;
+					Plugin.Logger.LogWarning("Before get UIButton of Tab");
+					var btn = go_TabButton.GetComponent<UIButton>();
+					btn.onClick.Clear();
+					btn.onClick.Add(new(() => {
+						for (var i = 0; i < TabInfos.Length; i++)
+							TabInfos[i].SetActive(i == _btnIdx);
+					}));
+				}
+
+				goCommon.transform.Find("DecoSp (1)").gameObject.SetActive(false);
+
+				var pcList = goCommon.transform.Find("MissingPCList");
+				pcList.SetParent(TabInfos[1].transform);
+				pcList.localPosition = Vector3.zero;
+
+				var itemList = goCommon.transform.Find("ItemList");
+				itemList.SetParent(TabInfos[1].transform);
+				itemList.localPosition = Vector3.zero;
+
+				var clearLb = goCommon.transform.Find("ClearLb");
+				clearLb.SetParent(TabInfos[1].transform);
+				clearLb.localPosition = new Vector3(-850f, -345f, 0f);
+
+				var clearCondition = goCommon.transform.Find("ClearCondition");
+				clearCondition.SetParent(TabInfos[1].transform);
+				clearCondition.localPosition = new Vector3(-120f, -595f, 0f);
+
+				// Make grid
+				Plugin.Logger.LogWarning("Before make grid");
+				var _gridMonsterInfo = TabInfos[0].GetComponentInChildren<UIGrid>(true);
+				var _uiCenterOnMonster = TabInfos[0].GetComponentInChildren<UICenterOnChild>(true);
+				Plugin.Logger.LogWarning($"_gridMonsterInfo {_gridMonsterInfo}");
+				Plugin.Logger.LogWarning($"_uiCenterOnMonster {_uiCenterOnMonster}");
+
+				{
+					var btnLeft = TabInfos[0].transform.Find("LeftArrow").GetComponent<UIButton>();
+					btnLeft.onClick.Clear();
+					btnLeft.onClick.Add(new(() => _uiCenterOnMonster.Previous(false)));
+					btnLeft.GetComponent<UISprite>().depth = 3;
+
+					var btnRight = TabInfos[0].transform.Find("RightArrow").GetComponent<UIButton>();
+					btnRight.onClick.Clear();
+					btnRight.onClick.Add(new(() => _uiCenterOnMonster.Next(false)));
+					btnRight.GetComponent<UISprite>().depth = 3;
+				}
+				Plugin.Logger.LogWarning($"After Button");
+
+				_gridMonsterInfo.transform.DestroyChildren();
+
+				void GridFn(List<string> grp, int id) {
+					Plugin.Logger.LogWarning($"{id} grp {grp}");
+
+					if (grp != null && grp.Count > 0) {
+						var tmg = SingleTon<DataManager>.Instance.GetTableMobGroup(grp[0]);
+						if (tmg != null)
+							_gridMonsterInfo.gameObject.AddChild(SingleTon<ResourceManager>.Instance.LoadUIPrefab("UIStageMonsterInfo"))
+								.GetComponent<UIStageMonsterInfo>()
+								.SetData(tmg, id);
+					}
+				}
+				GridFn(mapStage.WaveMobGroup1, 1);
+				GridFn(mapStage.WaveMobGroup2, 2);
+				GridFn(mapStage.WaveMobGroup3, 3);
+				GridFn(mapStage.WaveMobGroup4, 4);
+				GridFn(mapStage.WaveMobGroup5, 5);
+
+				_gridMonsterInfo.repositionNow = true;
+
+				toggles[0].GetComponent<UIWidget>().depth = 2;
+				toggles[1].GetComponent<UIWidget>().depth = 2;
+
+				foreach(var lbl in toggles[1].GetComponentsInChildren<UILabel>(true)) {
+					var loc = lbl.GetComponent<UILocalize>();
+					if (loc != null) Destroy(loc);
+					lbl.text = "스테이지 정보";
+				}
+
+				IEnumerator LazyStart() {
+					yield return null;
+					EventDelegate.Execute(toggles[1].GetComponent<UIButton>().onClick);
+					toggles[1].XGetMethodVoid("OnClick").Invoke();
+				}
+				__instance.StartCoroutine(LazyStart());
+			} catch (Exception e) {
+				Plugin.Logger.LogError(e);
+			}
 		}
 		#endregion
 	}
