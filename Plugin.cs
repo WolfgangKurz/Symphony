@@ -36,8 +36,7 @@ namespace Symphony {
 
 			try {
 				Enum.GetValues(typeof(ACTOR_CLASS)); // to test game assembly
-			}
-			catch {
+			} catch {
 				Logger.LogError("Failed to find ACTOR_CLASS, seems not installed on LastOrigin or binary changed!");
 				return;
 			}
@@ -88,8 +87,7 @@ namespace Symphony {
 				var tag = release.tag_name;
 				if (tag != Plugin.VersionTag && release.assets.Length > 0)
 					UIManager.Instance.AddPanel(new UpdateAvailablePanel(this, tag, release.assets));
-			}
-			catch (Exception e) {
+			} catch (Exception e) {
 				Logger.LogError($"[Symphony] Cannot fetch update data: {e.ToString()}");
 				yield break;
 			}
@@ -103,10 +101,17 @@ namespace Symphony {
 				yield break;
 			}
 
+			var lastVer = Conf.LastVersionTag.Value;
+			if (lastVer.StartsWith("v")) lastVer = lastVer.Substring(1);
+
 			try {
 				var json = req.downloadHandler.text;
 				var releases = JsonMapper.ToObject<GithubReleaseInfo[]>(json)
-					.Where(x => Helper.IsLesserVersion(Conf.LastVersionTag.Value, x.tag_name.Substring(1)))
+					.Where(x => {
+						var diff = Helper.IsLesserVersion(lastVer, x.tag_name.Substring(1));
+						Logger.LogDebug($"{lastVer}\t{x.tag_name.Substring(1)}\t{diff}");
+						return diff;
+					})
 					.ToArray();
 
 				if (releases.Length > 0)
@@ -115,7 +120,7 @@ namespace Symphony {
 				Plugin.Logger.LogError($"[Symphony] Cannot fetch release data: {e.ToString()}");
 			}
 
-			Conf.LastVersionTag.Value = Plugin.VersionTag;
+			Conf.LastVersionTag.Value = Plugin.VersionTag.Substring(1);
 		}
 	}
 }
