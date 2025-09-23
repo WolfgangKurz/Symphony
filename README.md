@@ -50,6 +50,7 @@ This modifies parts of the UI to make them easier to use.
 - Provides clearing all member in squad feature.
 - Provides Scrapbook improvement feature(`Scrapbook Must Be Fancy`).
 - Provides Enemy Preview for Battle Information.
+- Provides improvements for Exchange screen.
 
 ### BattleHotkey
 Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Standby`, `Select Enemy`, `Select Enemy Tile`, `Confirm (after selecting an enemy or tile)`, and `Start Action` buttons in battle.
