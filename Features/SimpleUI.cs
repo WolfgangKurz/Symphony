@@ -226,6 +226,17 @@ namespace Symphony.Features {
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_MapEnemyPreview_SetMapStage))
 			);
 			#endregion
+
+			#region Exchange: No messy hand
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_ExShop), nameof(Panel_ExShop.Start)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Exchange_HideSoldOut))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_ExShop), "RefreshConsumableView"),
+				transpiler: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Exchange_ConsumableList))
+			);
+			#endregion
 		}
 
 		private static void LazyInit() {
@@ -1575,7 +1586,7 @@ namespace Symphony.Features {
 				toggles[0].GetComponent<UIWidget>().depth = 2;
 				toggles[1].GetComponent<UIWidget>().depth = 2;
 
-				foreach(var lbl in toggles[1].GetComponentsInChildren<UILabel>(true)) {
+				foreach (var lbl in toggles[1].GetComponentsInChildren<UILabel>(true)) {
 					var loc = lbl.GetComponent<UILocalize>();
 					if (loc != null) Destroy(loc);
 					lbl.text = "스테이지 정보";
@@ -1590,6 +1601,62 @@ namespace Symphony.Features {
 			} catch (Exception e) {
 				Plugin.Logger.LogError(e);
 			}
+		}
+		#endregion
+
+		#region Exchange: No messy hand
+		private static void Patch_Exchange_HideSoldOut(Panel_ExShop __instance) {
+			if (!Conf.SimpleUI.Use_Exchange_NoMessyHand.Value) return;
+
+			__instance.XGetFieldValue<UIToggle>("_toggleSoldOutHide").value = true;
+		}
+		private static IEnumerable<CodeInstruction> Patch_Exchange_ConsumableList(MethodBase original, IEnumerable<CodeInstruction> instructions) {
+			Plugin.Logger.LogInfo("[Symphony::SimpleUI] Start to patch Panel_ExShop.RefreshConsumableView");
+
+			var matcher = new CodeMatcher(instructions);
+			matcher.MatchForward(false,
+				/* for (int index = 0; */
+				new CodeMatch(OpCodes.Ldc_I4_0), // 0
+				new CodeMatch(OpCodes.Stloc_S), // index =
+
+				new CodeMatch(OpCodes.Br), // start of loop
+
+				new CodeMatch(OpCodes.Ldloc_0), // start of body of loop
+				new CodeMatch(OpCodes.Ldloc_S)
+			);
+
+			if (matcher.IsInvalid) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to patch Panel_ExShop.RefreshConsumableView, target instructions not found");
+				return instructions;
+			}
+
+			matcher.Insert(
+				new CodeInstruction(OpCodes.Ldarg_0), // this
+				new CodeInstruction(OpCodes.Ldloc_0), // clientItemInfoList
+				new CodeInstruction(
+					OpCodes.Call,
+					AccessTools.Method(typeof(SimpleUI), nameof(SimpleUI.Patch_Exchange_ConsumableList_Filter))
+				),
+				new CodeInstruction(OpCodes.Stloc_0) // clientItemInfoList = [return of call]
+			);
+
+			return matcher.InstructionEnumeration();
+		}
+		private static List<ClientItemInfo> Patch_Exchange_ConsumableList_Filter(Panel_ExShop __instance, List<ClientItemInfo> list) {
+			if (!Conf.SimpleUI.Use_Exchange_NoMessyHand.Value) return list;
+
+			var IsEnableConsume = __instance.XGetMethod<Table_ExShop, bool>("IsEnableConsume");
+			var IsHideSoldOut = __instance.XGetMethod<Table_ExShop, bool>("IsHideSoldOut");
+			var shopItems = SingleTon<DataManager>.Instance.GetExShopData(
+				__instance.XGetFieldValue<EXSHOP_CATEGORY>("_curCategory")
+			)
+				.Where(x => x.IsSale == 1 && IsEnableConsume.Invoke(x) && !IsHideSoldOut.Invoke(x))
+				.SelectMany(x => x.NeedItem)
+				.ToHashSet();
+
+			var ret = new List<ClientItemInfo>();
+			ret.AddRange(list.Where(x => shopItems.Contains(x.ItemKeyString)));
+			return ret.ToList();
 		}
 		#endregion
 	}

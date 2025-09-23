@@ -890,6 +890,22 @@ namespace Symphony.UI.Panels {
 								}
 								offset += 20 + 4;
 							}
+
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleUI.Use_Exchange_NoMessyHand.Value,
+									"교환소: 손도 깔끔"
+								);
+								if (value != Conf.SimpleUI.Use_Exchange_NoMessyHand.Value) {
+									Conf.SimpleUI.Use_Exchange_NoMessyHand.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
 							#endregion
 							break;
 
