@@ -114,7 +114,7 @@ namespace Symphony.Features {
 				return matcher.InstructionEnumeration();
 			}
 
-			public static bool IsIgnoreWindowRest(ref IEnumerator __result) {
+			public static bool IsIgnoreWindowReset(ref IEnumerator __result) {
 				if (Conf.SimpleTweaks.Use_IgnoreWindowReset.Value) {
 					__result = Enumerable.Empty<YieldInstruction>().GetEnumerator();
 					return false;
@@ -361,7 +361,7 @@ namespace Symphony.Features {
 			// Window resize fix
 			harmony.Patch( // prevent minimum window size & forcing aspect ratio
 				AccessTools.Method(typeof(WindowsGameManager), "ApplyAspectRatioNextFrame"),
-				prefix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.IsIgnoreWindowRest))
+				prefix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.IsIgnoreWindowReset))
 			);
 			harmony.Patch( // prevent resetting window size & position after back from fullscreen
 				AccessTools.Method(typeof(Screen), nameof(Screen.SetResolution), [typeof(int), typeof(int), typeof(FullScreenMode), typeof(int)]),
