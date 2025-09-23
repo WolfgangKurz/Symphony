@@ -1556,8 +1556,6 @@ namespace Symphony.Features {
 				_gridMonsterInfo.transform.DestroyChildren();
 
 				void GridFn(List<string> grp, int id) {
-					Plugin.Logger.LogWarning($"{id} grp {grp}");
-
 					if (grp != null && grp.Count > 0) {
 						var tmg = SingleTon<DataManager>.Instance.GetTableMobGroup(grp[0]);
 						if (tmg != null)
