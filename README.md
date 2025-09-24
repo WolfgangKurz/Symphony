@@ -58,6 +58,9 @@ Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Standby`, `Sel
 `Confirm (after selecting an enemy or tile)` works by pressing the key corresponding to the selected enemy or tile a second time.
 The numbering for enemies and tiles corresponds to the numpad layout (Enemy `1` is located at the bottom left).
 
+### LastBattle
+A button will be added to the World Menu to quickly move to the last visited Battle Map.
+
 ### Notification
 This handles in-game push-notification as Windows Notification.
 
@@ -79,6 +82,7 @@ Please use with caution.
 A collection of experimental features.
 
 - Key mapping
+- Fix a Freezing issue in certain situations during Battle
 
 ## Updates
 If the plugin requires an update, the following message will be displayed when the game starts.
