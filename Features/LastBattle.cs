@@ -179,11 +179,7 @@ namespace Symphony.Features {
 
 		private static void Update_MapStage() {
 			var map = SingleTon<GameManager>.Instance.MapStage;
-			if (map == null) {
-				Plugin.Logger.LogDebug("[Symphony::LastBattle] GameManager.MapStage has reset");
-				Conf.LastBattle.LastBattleMapKey.Value = "";
-				return;
-			}
+			if (map == null) return;
 
 			if (map.GameModeType == (int)GAME_MODE.STORY || map.GameModeType == (int)GAME_MODE.EVENT) {
 				if (Conf.LastBattle.Use_LastBattleMap.Value)
