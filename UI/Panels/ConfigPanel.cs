@@ -1245,6 +1245,22 @@ namespace Symphony.UI.Panels {
 								}
 								offset += 20 + 4;
 							}
+
+							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+							offset += 1 + 4;
+
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.Experimental.Fix_BattleFreezing.Value,
+									"전투 프리징 수정"
+								);
+								if (value != Conf.Experimental.Fix_BattleFreezing.Value) {
+									Conf.Experimental.Fix_BattleFreezing.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
 							#endregion
 							break;
 					}
