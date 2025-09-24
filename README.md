@@ -11,7 +11,7 @@ At this point, the `winhttp.dll` file and the `LastOrigin.exe` file must be in t
 3. Place `Symphony.dll` inside the `plugins` folder, which is within the `BepInEx` folder.
 
 ## How to Use
-You can configure the plugin's options on the game screen by pressing the `F12` key.
+You can configure the plugin's options on the game screen by pressing the `F1` key.
 
 The following is a description of each feature within the plugin.
 
