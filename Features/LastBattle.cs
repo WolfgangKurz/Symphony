@@ -137,7 +137,9 @@ namespace Symphony.Features {
 				sp.height = 280;
 
 				var chapterName = !string.IsNullOrEmpty(chapter?.Event_Category)
-					? $"EventName_{chapter.Event_Category}".Localize()
+					? SingleTon<DataManager>.Instance.GetTableEventChapterByCategory()
+						.Find(x => x.Event_Category == chapter.Event_Category)
+						.Event_CategoryName.Localize()
 					: chapter?.ChapterString ?? "";
 
 				var lb_Title = btn.transform.Find("ChapterTitleLb");
