@@ -11,7 +11,7 @@ using System.Text;
 using UnityEngine;
 
 namespace Symphony {
-	internal static class Helper {
+	internal static partial class Helper {
 		#region STRUCTURES
 		[Serializable]
 		[StructLayout(LayoutKind.Sequential)]
@@ -317,27 +317,35 @@ namespace Symphony {
 		#region Reflection
 		public static T GetValue<T>(this FieldInfo fi, object obj) => (T)fi.GetValue(obj);
 
-		public static T XGetFieldValue<T>(this object obj, string name)
-			=> obj.GetType()
-				.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue<T>(obj);
-		public static void XSetFieldValue<T>(this object obj, string name, T value)
-			=> obj.GetType()
-				.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance)?
-				.SetValue(obj, value);
+		private static T XGetFieldValue<T>(Type type, object obj, string name) {
+			var f = type.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			if (f == null) {
+				if (type.BaseType == null) return default;
+				return XGetFieldValue<T>(type.BaseType, obj, name);
+			}
+			return f.GetValue<T>(obj);
+		}
+		public static T XGetFieldValue<T>(this object obj, string name) => XGetFieldValue<T>(obj.GetType(), obj, name);
 
-		public static Action XGetMethodVoid(this object obj, string name) {
-			var mi = obj.GetType().GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+		private static void XSetFieldValue<T>(Type type, object obj, string name, T value) {
+			var f = type.GetField(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			if (f == null) {
+				if (type.BaseType == null) return;
+				XSetFieldValue<T>(type.BaseType, obj, name, value);
+			}
+			f.SetValue(obj, value);
+		}
+		public static void XSetFieldValue<T>(this object obj, string name, T value) => XSetFieldValue<T>(obj.GetType(), obj, name, value);
+
+		public static Action XGetMethodVoid(Type type, object obj, string name) {
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			if (mi == null) {
+				if (type.BaseType == null) return null;
+				return XGetMethodVoid(type.BaseType, obj, name);
+			}
 			return () => mi.Invoke(obj, []);
 		}
-		public static Func<R> XGetMethod<R>(this object obj, string name) {
-			var mi = obj.GetType().GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-			return () => (R)mi.Invoke(obj, []);
-		}
-		public static Func<P1, R> XGetMethod<P1, R>(this object obj, string name) {
-			var mi = obj.GetType().GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-			return (P1 p1) => (R)mi.Invoke(obj, [p1]);
-		}
+		public static Action XGetMethodVoid(this object obj, string name) => XGetMethodVoid(obj.GetType(), obj, name);
 		#endregion
 
 		#region Linq
