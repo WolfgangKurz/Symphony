@@ -148,6 +148,8 @@ namespace Symphony {
 		internal class Experimental {
 			public static readonly ConfigEntry<bool> Use_KeyMapping = config.Bind("Experimental", "Use_KeyMapping", false, "Use KeyMapping feature");
 			public static readonly ConfigEntry<float> KeyMapping_Opacity = config.Bind("Experimental", "KeyMapping_Opacity", 0.25f);
+
+			public static readonly ConfigEntry<bool> Fix_BattleFreezing = config.Bind("Experimental", "Fix_BattleFreezing", true, "Fix a Freezing issue in certain situations during Battle");
 		}
 
 		public static void Migrate() {

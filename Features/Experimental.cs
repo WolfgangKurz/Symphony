@@ -2,6 +2,8 @@
 
 using HarmonyLib;
 
+using LO_ClientNetwork;
+
 using Symphony.Features.KeyMapping;
 using Symphony.UI;
 using Symphony.UI.Panels;
@@ -16,10 +18,15 @@ namespace Symphony.Features {
 	internal class Experimental : MonoBehaviour {
 		public void Start() {
 			var harmony = new Harmony("Symphony.Experimental");
+			harmony.Patch(
+				AccessTools.Method(typeof(Creature), nameof(Creature.DisappearBuffEffectParticleAll)),
+				prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.EXP_Creature_DisappearBuffEffectParticleAll))
+			);
 
 			KeyMappingConf.Load();
 		}
 
+		#region Key Mapping
 		private const float KEY_MAP_CIRCLE = 13f;
 		private static Queue<int> KeyMapping_SimulatingTouchQueue = new();
 		IEnumerator KeyMapping_SimulateTouch(float rX, float rY) {
@@ -69,8 +76,10 @@ namespace Symphony.Features {
 
 			KeyMapping_SimulatingTouchQueue.Dequeue();
 		}
+		#endregion
 
 		public void Update() {
+			#region KeyMapping
 			if (Conf.Experimental.Use_KeyMapping.Value) {
 				try {
 					foreach (var map in KeyMappingConf.KeyMaps) {
@@ -81,9 +90,11 @@ namespace Symphony.Features {
 					Plugin.Logger.LogError(e);
 				}
 			}
+			#endregion
 		}
 
 		public void OnGUI() {
+			#region KeyMapping
 			if (UIManager.Instance?.GetPanel<KeyMapPanel>() == null && Conf.Experimental.Use_KeyMapping.Value) {
 				var KeyMap_Alpha = Conf.Experimental.KeyMapping_Opacity.Value;
 				if (KeyMap_Alpha > 0f) {
@@ -103,6 +114,19 @@ namespace Symphony.Features {
 					}
 				}
 			}
+			#endregion
+		}
+
+		private static bool EXP_Creature_DisappearBuffEffectParticleAll(Creature __instance) {
+			if (!Conf.Experimental.Fix_BattleFreezing.Value) return true;
+
+			// Make copy to prevent collection changed exception
+			var lst = __instance.XGetFieldValue<List<ulong>>("_ListDisappearDelayParticle").ToArray();
+			foreach (ulong item in lst)
+				__instance.DestroyAttachBuffEffectParticle(item);
+
+			Plugin.Logger.LogDebug("[Symphony::Experimental] Freezing Patched (DisappearBuffEffectParticleAll)");
+			return false;
 		}
 	}
 }
