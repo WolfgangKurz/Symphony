@@ -8,7 +8,7 @@ Its goal is to provide various quality-of-life (QoL) features for users.
 1. Download the **BepInEx-Unity.Mono-win-x64** version of [BepInEx](https://github.com/BepInEx/BepInEx) 6 from the [download page](https://github.com/BepInEx/BepInEx/releases/tag/v6.0.0-pre.2).
 2. Unzip the downloaded file and paste its contents into the installation folder where `LastOrigin.exe` is located.\
 At this point, the `winhttp.dll` file and the `LastOrigin.exe` file must be in the same folder.
-3. Place `Symphony.dll` inside the `plugins` folder, which is within the `BepInEx` folder.
+3. Place downloaded `Symphony.dll` from [Releases page](https://github.com/WolfgangKurz/Symphony/releases) inside the `plugins` folder, which is within the `BepInEx` folder.
 
 ## How to Use
 You can configure the plugin's options on the game screen by pressing the `F1` key.

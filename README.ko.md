@@ -8,7 +8,7 @@
 1. [BepInEx](https://github.com/BepInEx/BepInEx) 6의 **BepInEx-Unity.Mono-win-x64** 버전을  [다운로드 페이지](https://github.com/BepInEx/BepInEx/releases/tag/v6.0.0-pre.2)에서 다운로드합니다.
 2. 압축 파일을 풀어 `LastOrigin.exe` 파일이 존재하는 설치 폴더에 붙여넣기 합니다.\
 이 때, `winhttp.dll` 파일과 `LastOrigin.exe` 파일이 같은 폴더에 존재해야합니다.
-3. `BepInEx` 폴더 내의 `plugins` 안에 `Symphony.dll` 을 넣습니다.
+3. `BepInEx` 폴더 내의 `plugins` 안에 [Releases 페이지](https://github.com/WolfgangKurz/Symphony/releases)에서 다운로드한 `Symphony.dll` 을 넣습니다.
 
 ## 사용 방법
 `F1` 키를 누르는 것으로 게임 화면에서 플러그인의 옵션들을 설정할 수 있습니다.
