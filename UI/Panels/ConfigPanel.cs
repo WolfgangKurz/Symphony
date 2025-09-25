@@ -776,6 +776,18 @@ namespace Symphony.UI.Panels {
 							; {
 								var value = GUIX.Toggle(
 									new Rect(0, offset, WIDTH_FILL, 20),
+									Conf.SimpleUI.Use_SortByGroup.Value,
+									"전투원 소속 부대 정렬 추가"
+								);
+								if (value != Conf.SimpleUI.Use_SortByGroup.Value) {
+									Conf.SimpleUI.Use_SortByGroup.Value = value;
+									Conf.config.Save();
+								}
+								offset += 20 + 4;
+							}
+							; {
+								var value = GUIX.Toggle(
+									new Rect(0, offset, WIDTH_FILL, 20),
 									Conf.SimpleUI.Default_CharacterCost_Off.Value,
 									"전투원 소모 자원 표기 기본 끄기"
 								);

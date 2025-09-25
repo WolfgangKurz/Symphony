@@ -32,7 +32,7 @@ namespace Symphony.UI.Panels {
 			sz = Mathf.Max(sz, 60 + GUIX.Label(Plugin.VersionTag).x);
 			sz = Mathf.Max(sz, 60 + GUIX.Label(this.newVersion).x);
 
-			var rc = new Rect(Screen.width / 2f - sz / 2f, Screen.height - h - 4f - 4f, sz, h);
+			this.rc = new Rect(Screen.width / 2f - sz / 2f, Screen.height - h - 4f - 4f, sz, h);
 			GUIX.Fill(rc.Expand(8, 4), GUIX.Colors.WindowBG);
 
 			GUIX.Group(rc, () => {

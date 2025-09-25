@@ -40,6 +40,11 @@ namespace Symphony.Features {
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_PCWarehouse_Start_post))
 			);
 			harmony.Patch(
+				AccessTools.Method(typeof(Panel_AideInventory), "Start"),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_AideInventory_Start_pre)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_AideInventory_Start_post))
+			);
+			harmony.Patch(
 				AccessTools.Method(typeof(Panel_AndroidInventory), "Start"),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_AndroidInventory_Start_pre)),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_AndroidInventory_Start_post))
@@ -95,7 +100,7 @@ namespace Symphony.Features {
 			);
 			#endregion
 
-			#region Sort by Name
+			#region Sort by Name, Group
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_PcWarehouse), "Awake"),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByName))
@@ -254,7 +259,7 @@ namespace Symphony.Features {
 		}
 		#endregion
 
-		#region Smaller Consumable List Items
+		#region Smaller List Items
 		private const float SMALL_ORIGINAL6_RATIO = (1f / 8f * 6f); // 6 -> 8
 		private const float SMALL_ORIGINAL5_RATIO = (1f / 7f * 5f); // 5 -> 7
 		private const float SMALL_CONSUMABLE_RATIO = (1f / 7f * 6f); // 6 -> 7
@@ -287,6 +292,49 @@ namespace Symphony.Features {
 			}
 
 			if (Conf.SimpleUI.EnterToSearch_CharWarehouse.Value) {
+				var _inputSearch = (UIInput)__instance.GetType()
+					.GetField("_inputSearch", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(__instance);
+				_inputSearch.onReturnKey = UIInput.OnReturnKey.Submit;
+				_inputSearch.onSubmit.Add(new(() => {
+					if (string.IsNullOrEmpty(_inputSearch.value)) {
+						var ev = _inputSearch.transform.Find("BtnReset")?.gameObject.GetComponent<UIButton>()?.onClick;
+						if (ev != null) EventDelegate.Execute(ev);
+					}
+					else {
+						var ev = _inputSearch.transform.Find("BtnSearch")?.gameObject.GetComponent<UIButton>()?.onClick;
+						if (ev != null) EventDelegate.Execute(ev);
+					}
+				}));
+			}
+		}
+		private static void GridItemsPatch_AideInventory_Start_pre(Panel_AideInventory __instance) {
+			if (!Conf.SimpleUI.Small_CharSelection.Value) return;
+
+			var _reUseGrid = (UIReuseGrid)__instance.GetType()
+				.GetField("_reUseGrid", BindingFlags.NonPublic | BindingFlags.Instance)
+				.GetValue(__instance);
+
+			_reUseGrid.m_Column = 8;
+			_reUseGrid.m_cellWidth = (int)(_reUseGrid.m_cellWidth * SMALL_ORIGINAL6_RATIO);
+			_reUseGrid.m_cellHeight = (int)(_reUseGrid.m_cellHeight * SMALL_ORIGINAL6_RATIO);
+		}
+		private static void GridItemsPatch_AideInventory_Start_post(Panel_AideInventory __instance) {
+			if (Conf.SimpleUI.Small_CharSelection.Value) {
+				var _reUseGrid = (UIReuseGrid)__instance.GetType()
+					.GetField("_reUseGrid", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(__instance);
+
+				var m_cellList = (UIReuseScrollViewCell[])_reUseGrid.GetType()
+					.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
+					.GetValue(_reUseGrid);
+
+				foreach (var cell in m_cellList) {
+					cell.transform.localScale = new Vector3(SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO);
+				}
+			}
+
+			if (Conf.SimpleUI.EnterToSearch_CharSelection.Value) {
 				var _inputSearch = (UIInput)__instance.GetType()
 					.GetField("_inputSearch", BindingFlags.NonPublic | BindingFlags.Instance)
 					.GetValue(__instance);
@@ -616,9 +664,9 @@ namespace Symphony.Features {
 		}
 		#endregion
 
-		#region Sort by Name
+		#region Sort by Name, Group
 		private static void Inject_SortByName(Panel_Base __instance) {
-			if (!Conf.SimpleUI.Use_SortByName.Value) return;
+			if (!Conf.SimpleUI.Use_SortByName.Value && !Conf.SimpleUI.Use_SortByGroup.Value) return;
 
 			var goSortPanel = (GameObject)__instance.GetType()
 				.GetField("_goSortPanel", BindingFlags.Instance | BindingFlags.NonPublic)?
@@ -637,7 +685,7 @@ namespace Symphony.Features {
 			var elCount = menu.childCount;
 			for (var i = 0; i < elCount; i++) {
 				var e = menu.GetChild(i);
-				e.localPosition = e.localPosition - new Vector3(0, -74, 0);
+				e.localPosition = e.localPosition - new Vector3(0, -111, 0);
 			}
 
 			var els = menu.GetComponentsInChildren<Transform>(true);
@@ -653,71 +701,170 @@ namespace Symphony.Features {
 				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Marriage button on SortPanel Menu");
 				return;
 			}
+			var buttonOffset = Vector3.zero;
 
-			var sep = GameObject.Instantiate(_sep.gameObject);
-			sep.name = "DecoSp_Name";
-			sep.transform.SetParent(_sep.parent);
-			sep.transform.localPosition = _sep.localPosition - new Vector3(0, 74, 0);
-			sep.transform.localScale = Vector3.one;
+			if (Conf.SimpleUI.Use_SortByName.Value) {
+				buttonOffset += new Vector3(0, 74, 0);
 
-			var btn = GameObject.Instantiate(_btn.gameObject);
-			btn.name = "Name";
-			btn.transform.SetParent(_btn.parent);
-			btn.transform.localPosition = _btn.localPosition - new Vector3(0, 74, 0);
-			btn.transform.localScale = Vector3.one;
+				var sep = GameObject.Instantiate(_sep.gameObject);
+				sep.name = "DecoSp_Name";
+				sep.transform.SetParent(_sep.parent);
+				sep.transform.localPosition = _sep.localPosition - buttonOffset;
+				sep.transform.localScale = Vector3.one;
 
-			btn.GetComponentsInChildren<UILocalize>(true).ToList().ForEach(DestroyImmediate);
+				var btn = GameObject.Instantiate(_btn.gameObject);
+				btn.name = "Name";
+				btn.transform.SetParent(_btn.parent);
+				btn.transform.localPosition = _btn.localPosition - buttonOffset;
+				btn.transform.localScale = Vector3.one;
 
-			var lbl = btn.GetComponentsInChildren<UILabel>(true);
-			foreach (var lb in lbl) lb.text = "이름";
+				btn.GetComponentsInChildren<UILocalize>(true).ToList().ForEach(DestroyImmediate);
 
-			var btnOff = btn.GetComponentsInChildren<Transform>(true).FirstOrDefault(x => x.name == "btn_OFF");
-			var uiButton = btnOff.GetComponent<UIButton>();
-			uiButton.onClick.Clear();
-			uiButton.onClick.Add(new(() => {
-				void OnSortName(Panel_Base instance, UILabel lbl) {
-					if (instance == null) {
-						Plugin.Logger.LogWarning("[Symphony::SimpleUI] instance is null");
-						return;
+				var lbl = btn.GetComponentsInChildren<UILabel>(true);
+				foreach (var lb in lbl) lb.text = "이름";
+
+				var btnOff = btn.GetComponentsInChildren<Transform>(true).FirstOrDefault(x => x.name == "btn_OFF");
+				var uiButton = btnOff.GetComponent<UIButton>();
+				uiButton.onClick.Clear();
+				uiButton.onClick.Add(new(() => {
+					void OnSortName(Panel_Base instance, UILabel lbl) {
+						if (instance == null) {
+							Plugin.Logger.LogWarning("[Symphony::SimpleUI] instance is null");
+							return;
+						}
+
+						var Sorting = instance.GetType()
+							.GetMethod("Sorting", BindingFlags.Instance | BindingFlags.NonPublic);
+						if (Sorting == null) {
+							Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Sorting method");
+							return;
+						}
+
+						int SortName_Comparer(IReuseCellData a, IReuseCellData b) {
+							if (a.IsFirst() && !b.IsFirst()) return -1;
+							if (!a.IsFirst() && b.IsFirst()) return 1;
+							if (a.IsLast() && !b.IsLast()) return 1;
+							if (!a.IsLast() && b.IsLast()) return -1;
+
+							if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
+								return -SingleTon<GameManager>.Instance.InvertSort;
+
+							if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
+								return SingleTon<GameManager>.Instance.InvertSort;
+
+							return a.GetPCID().CompareTo(b.GetPCID());
+						}
+						Sorting.Invoke(instance, [new Comparison<IReuseCellData>(SortName_Comparer)]);
+
+						var label = (UILabel)instance.GetType()
+							.GetField("_lblSort", BindingFlags.Instance | BindingFlags.NonPublic)
+							.GetValue(instance);
+						if (label != null)
+							label.text = lbl?.text ?? "이름";
 					}
 
-					var Sorting = instance.GetType()
-						.GetMethod("Sorting", BindingFlags.Instance | BindingFlags.NonPublic);
-					if (Sorting == null) {
-						Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Sorting method");
-						return;
+					try {
+						var lbl = btnOff.GetComponentInChildren<UILabel>(true);
+						OnSortName(__instance, lbl);
+					} catch (Exception e) {
+						Plugin.Logger.LogError(e);
+					}
+				}));
+			}
+			if (Conf.SimpleUI.Use_SortByGroup.Value) {
+				buttonOffset += new Vector3(0, 74, 0);
+
+				var sep = GameObject.Instantiate(_sep.gameObject);
+				sep.name = "DecoSp_Group";
+				sep.transform.SetParent(_sep.parent);
+				sep.transform.localPosition = _sep.localPosition - buttonOffset;
+				sep.transform.localScale = Vector3.one;
+
+				var btn = GameObject.Instantiate(_btn.gameObject);
+				btn.name = "Group";
+				btn.transform.SetParent(_btn.parent);
+				btn.transform.localPosition = _btn.localPosition - buttonOffset;
+				btn.transform.localScale = Vector3.one;
+
+				btn.GetComponentsInChildren<UILocalize>(true).ToList().ForEach(DestroyImmediate);
+
+				var lbl = btn.GetComponentsInChildren<UILabel>(true);
+				foreach (var lb in lbl) lb.text = "소속 부대";
+
+				var btnOff = btn.GetComponentsInChildren<Transform>(true).FirstOrDefault(x => x.name == "btn_OFF");
+				var uiButton = btnOff.GetComponent<UIButton>();
+				uiButton.onClick.Clear();
+				uiButton.onClick.Add(new(() => {
+					void OnSortName(Panel_Base instance, UILabel lbl) {
+						if (instance == null) {
+							Plugin.Logger.LogWarning("[Symphony::SimpleUI] instance is null");
+							return;
+						}
+
+						var Sorting = instance.GetType()
+							.GetMethod("Sorting", BindingFlags.Instance | BindingFlags.NonPublic);
+						if (Sorting == null) {
+							Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Sorting method");
+							return;
+						}
+
+						int SortName_Comparer(IReuseCellData a, IReuseCellData b) {
+							if (a.IsFirst() && !b.IsFirst()) return -1;
+							if (!a.IsFirst() && b.IsFirst()) return 1;
+							if (a.IsLast() && !b.IsLast()) return 1;
+							if (!a.IsLast() && b.IsLast()) return -1;
+
+							var _a = SingleTon<DataManager>.Instance.GetTableCharCollection(
+								SingleTon<DataManager>.Instance.GetMyPCClient(
+									a.GetPCID()
+								).GetTablePC().Key
+							);
+							var _b = SingleTon<DataManager>.Instance.GetTableCharCollection(
+								SingleTon<DataManager>.Instance.GetMyPCClient(
+									b.GetPCID()
+								).GetTablePC().Key
+							);
+							if (_a != null && _b != null) {
+								var __a = SingleTon<DataManager>.Instance.GetTableTroopCategory(_a.Troop_Category).Squad_Name.Localize();
+								var __b = SingleTon<DataManager>.Instance.GetTableTroopCategory(_b.Troop_Category).Squad_Name.Localize();
+
+								if (string.Compare(__a, __b, Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
+									return -SingleTon<GameManager>.Instance.InvertSort;
+								if (string.Compare(__a, __b, Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
+									return SingleTon<GameManager>.Instance.InvertSort;
+							}
+							else if (_a == null && _b == null) {
+								// pass through
+							}
+							else if (_a == null)
+								return 1; // module should be last (even inverted)
+							else if (_b == null)
+								return -1;
+
+							if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
+								return -SingleTon<GameManager>.Instance.InvertSort;
+							if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
+								return SingleTon<GameManager>.Instance.InvertSort;
+
+							return a.GetPCID().CompareTo(b.GetPCID());
+						}
+						Sorting.Invoke(instance, [new Comparison<IReuseCellData>(SortName_Comparer)]);
+
+						var label = (UILabel)instance.GetType()
+							.GetField("_lblSort", BindingFlags.Instance | BindingFlags.NonPublic)
+							.GetValue(instance);
+						if (label != null)
+							label.text = lbl?.text ?? "소속 부대";
 					}
 
-					int SortName_Comparer(IReuseCellData a, IReuseCellData b) {
-						if (a.IsFirst() && !b.IsFirst()) return -1;
-						if (!a.IsFirst() && b.IsFirst()) return 1;
-						if (a.IsLast() && !b.IsLast()) return 1;
-						if (!a.IsLast() && b.IsLast()) return -1;
-
-						if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
-							return -SingleTon<GameManager>.Instance.InvertSort;
-
-						if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
-							return SingleTon<GameManager>.Instance.InvertSort;
-
-						return a.GetPCID().CompareTo(b.GetPCID());
+					try {
+						var lbl = btnOff.GetComponentInChildren<UILabel>(true);
+						OnSortName(__instance, lbl);
+					} catch (Exception e) {
+						Plugin.Logger.LogError(e);
 					}
-					Sorting.Invoke(instance, [new Comparison<IReuseCellData>(SortName_Comparer)]);
-
-					var label = (UILabel)instance.GetType()
-						.GetField("_lblSort", BindingFlags.Instance | BindingFlags.NonPublic)
-						.GetValue(instance);
-					if (label != null)
-						label.text = lbl?.text ?? "이름";
-				}
-
-				try {
-					var lbl = btnOff.GetComponentInChildren<UILabel>(true);
-					OnSortName(__instance, lbl);
-				} catch (Exception e) {
-					Plugin.Logger.LogError(e);
-				}
-			}));
+				}));
+			}
 		}
 		#endregion
 
