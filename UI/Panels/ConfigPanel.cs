@@ -418,7 +418,7 @@ namespace Symphony.UI.Panels {
 
 							DrawToggle(ref offset, "로비 UI 숨기기/보이기 단축키 사용", Conf.SimpleTweaks.UseLobbyHide);
 							if (Conf.SimpleTweaks.UseLobbyHide.Value)
-								DrawKeyBinder(ref offset, "로비 UI 숨기기/보이기 단축키", Conf.SimpleTweaks.LobbyUIHideKey);
+								DrawKeyBinder(ref offset, "단축키", Conf.SimpleTweaks.LobbyUIHideKey, leftMargin: 10);
 
 							DrawSeparator(ref offset);
 
@@ -443,7 +443,7 @@ namespace Symphony.UI.Panels {
 
 							DrawToggle(ref offset, "스토리 뷰어 스킵 키 변경", Conf.SimpleTweaks.UsePatchStorySkip);
 							if (Conf.SimpleTweaks.UsePatchStorySkip.Value)
-								DrawKeyBinder(ref offset, "스킵 키", Conf.SimpleTweaks.PatchStorySkipKey);
+								DrawKeyBinder(ref offset, "스킵 키", Conf.SimpleTweaks.PatchStorySkipKey, leftMargin: 10);
 
 							DrawSeparator(ref offset);
 
