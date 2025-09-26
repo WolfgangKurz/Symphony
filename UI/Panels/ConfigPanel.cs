@@ -1,4 +1,6 @@
-﻿using LOEventSystem;
+﻿using BepInEx.Configuration;
+
+using LOEventSystem;
 using LOEventSystem.Msg;
 
 using Symphony.Features;
@@ -8,7 +10,9 @@ using System.Collections.Generic;
 using UnityEngine;
 
 namespace Symphony.UI.Panels {
-	internal class ConfigPanel : UIPanelBase {
+	internal partial class ConfigPanel : UIPanelBase {
+		private delegate void OnClickDelegate();
+
 		public override Rect rc { get; set; } = new Rect(10f, 30f, 422f, 500f);
 
 		private const float WIDTH_FILL = 408f - 120f - 8f;
@@ -73,6 +77,32 @@ namespace Symphony.UI.Panels {
 			if (this.locked) return; // skip if locked
 			rc = GUIX.ModalWindow(0, rc, this.PanelContent, "Symphony | LastOrigin QoL Plugin | F1", true);
 		}
+
+		#region Config Element Shorthand
+		private void DrawToggle(ref float offset, string name, ConfigEntry<bool> config, float leftMargin = 0f, float rightMargin = 0f) {
+			var value = GUIX.Toggle(
+					new Rect(leftMargin, offset, WIDTH_FILL - leftMargin - rightMargin, 20),
+					config.Value,
+					name
+				);
+			if (value != config.Value) {
+				config.Value = value;
+				Conf.config.Save();
+			}
+			offset += 20 + 4;
+		}
+		private void DrawSeparator(ref float offset) {
+			GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+			offset += 1 + 4;
+		}
+		private void DrawLineButton(ref float offset, string text, OnClickDelegate onClick, float leftMargin = 0f, float rightMargin = 0f) {
+			if(GUIX.Button(
+				new Rect(leftMargin, offset, WIDTH_FILL - leftMargin - rightMargin, 20),
+				text
+			)) onClick?.Invoke();
+			offset += 20 + 4;
+		}
+		#endregion
 
 		private void PanelContent(int id) {
 			var ec = Event.current;
@@ -570,366 +600,7 @@ namespace Symphony.UI.Panels {
 							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "SimpleUI");
 							offset += 20 + 8;
 
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Use_OfflineBattle_Bypass.Value,
-									"자율 전투 확인 대신 맵으로"
-								);
-								if (value != Conf.SimpleUI.Use_OfflineBattle_Bypass.Value) {
-									Conf.SimpleUI.Use_OfflineBattle_Bypass.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-
-							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-							offset += 1 + 4;
-
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Small_CharWarehouse.Value,
-									"더 작은 전투원 목록 항목"
-								);
-								if (value != Conf.SimpleUI.Small_CharWarehouse.Value) {
-									Conf.SimpleUI.Small_CharWarehouse.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Small_CharSelection.Value,
-									"더 작은 전투원 선택 항목"
-								);
-								if (value != Conf.SimpleUI.Small_CharSelection.Value) {
-									Conf.SimpleUI.Small_CharSelection.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Small_CharScrapbook.Value,
-									"더 작은 전투원 도감 항목"
-								);
-								if (value != Conf.SimpleUI.Small_CharScrapbook.Value) {
-									Conf.SimpleUI.Small_CharScrapbook.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Small_ItemWarehouse.Value,
-									"더 작은 장비 목록 항목"
-								);
-								if (value != Conf.SimpleUI.Small_ItemWarehouse.Value) {
-									Conf.SimpleUI.Small_ItemWarehouse.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Small_ItemSelection.Value,
-									"더 작은 장비 선택 항목"
-								);
-								if (value != Conf.SimpleUI.Small_ItemSelection.Value) {
-									Conf.SimpleUI.Small_ItemSelection.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Small_TempInventory.Value,
-									"더 작은 임시 창고 항목"
-								);
-								if (value != Conf.SimpleUI.Small_TempInventory.Value) {
-									Conf.SimpleUI.Small_TempInventory.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-
-							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-							offset += 1 + 4;
-
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Small_Consumables.Value,
-									"더 작은 소모품 목록 항목"
-								);
-								if (value != Conf.SimpleUI.Small_Consumables.Value) {
-									Conf.SimpleUI.Small_Consumables.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Sort_Consumables.Value,
-									"소모품 목록 정렬"
-								);
-								if (value != Conf.SimpleUI.Sort_Consumables.Value) {
-									Conf.SimpleUI.Sort_Consumables.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							;
-
-							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-							offset += 1 + 4;
-
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.EnterToSearch_CharWarehouse.Value,
-									"전투원 목록에서 Enter로 검색"
-								);
-								if (value != Conf.SimpleUI.EnterToSearch_CharWarehouse.Value) {
-									Conf.SimpleUI.EnterToSearch_CharWarehouse.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.EnterToSearch_CharSelection.Value,
-									"전투원 선택에서 Enter로 검색"
-								);
-								if (value != Conf.SimpleUI.EnterToSearch_CharSelection.Value) {
-									Conf.SimpleUI.EnterToSearch_CharSelection.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.EnterToSearch_ItemWarehouse.Value,
-									"장비 목록에서 Enter로 검색"
-								);
-								if (value != Conf.SimpleUI.EnterToSearch_ItemWarehouse.Value) {
-									Conf.SimpleUI.EnterToSearch_ItemWarehouse.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.EnterToSearch_ItemSelection.Value,
-									"장비 선택에서 Enter로 검색"
-								);
-								if (value != Conf.SimpleUI.EnterToSearch_ItemSelection.Value) {
-									Conf.SimpleUI.EnterToSearch_ItemSelection.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							;
-
-							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-							offset += 1 + 4;
-
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Use_AccelerateScrollDelta.Value,
-									"스크롤/패닝 가속, 줌 반전하기"
-								);
-								if (value != Conf.SimpleUI.Use_AccelerateScrollDelta.Value) {
-									Conf.SimpleUI.Use_AccelerateScrollDelta.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							;
-
-							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-							offset += 1 + 4;
-
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Use_SortByName.Value,
-									"전투원 이름 정렬 추가"
-								);
-								if (value != Conf.SimpleUI.Use_SortByName.Value) {
-									Conf.SimpleUI.Use_SortByName.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Use_SortByGroup.Value,
-									"전투원 소속 부대 정렬 추가"
-								);
-								if (value != Conf.SimpleUI.Use_SortByGroup.Value) {
-									Conf.SimpleUI.Use_SortByGroup.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Use_SortByLinks.Value,
-									"전투원 링크 수 정렬 추가"
-								);
-								if (value != Conf.SimpleUI.Use_SortByLinks.Value) {
-									Conf.SimpleUI.Use_SortByLinks.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Default_CharacterCost_Off.Value,
-									"전투원 소모 자원 표기 기본 끄기"
-								);
-								if (value != Conf.SimpleUI.Default_CharacterCost_Off.Value) {
-									Conf.SimpleUI.Default_CharacterCost_Off.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							;
-
-							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-							offset += 1 + 4;
-
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Use_Squad_Clear.Value,
-									"편성에 전체 해제 추가"
-								);
-								if (value != Conf.SimpleUI.Use_Squad_Clear.Value) {
-									Conf.SimpleUI.Use_Squad_Clear.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-
-							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-							offset += 1 + 4;
-
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Use_Disassemble_SelectAll_Character.Value,
-									"분해에 모든 전투원 선택 추가"
-								);
-								if (value != Conf.SimpleUI.Use_Disassemble_SelectAll_Character.Value) {
-									Conf.SimpleUI.Use_Disassemble_SelectAll_Character.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Use_Disassemble_SelectAll_Equip.Value,
-									"분해에 모든 장비 선택 추가"
-								);
-								if (value != Conf.SimpleUI.Use_Disassemble_SelectAll_Equip.Value) {
-									Conf.SimpleUI.Use_Disassemble_SelectAll_Equip.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-
-							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-							offset += 1 + 4;
-
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Use_ScrapbookMustBeFancy.Value,
-									"도감은 멋져야 한다"
-								);
-								if (value != Conf.SimpleUI.Use_ScrapbookMustBeFancy.Value) {
-									Conf.SimpleUI.Use_ScrapbookMustBeFancy.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-
-							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-							offset += 1 + 4;
-
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Use_CharacterMakingPreview.Value,
-									"전투원 제조 결과 미리보기"
-								);
-								if (value != Conf.SimpleUI.Use_CharacterMakingPreview.Value) {
-									Conf.SimpleUI.Use_CharacterMakingPreview.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Use_EquipMakingPreview.Value,
-									"장비 제조 결과 미리보기"
-								);
-								if (value != Conf.SimpleUI.Use_EquipMakingPreview.Value) {
-									Conf.SimpleUI.Use_EquipMakingPreview.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-
-							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-							offset += 1 + 4;
-
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Use_MapEnemyPreview.Value,
-									"전투 적 미리보기"
-								);
-								if (value != Conf.SimpleUI.Use_MapEnemyPreview.Value) {
-									Conf.SimpleUI.Use_MapEnemyPreview.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
-
-							GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-							offset += 1 + 4;
-
-							; {
-								var value = GUIX.Toggle(
-									new Rect(0, offset, WIDTH_FILL, 20),
-									Conf.SimpleUI.Use_Exchange_NoMessyHand.Value,
-									"교환소: 손도 깔끔"
-								);
-								if (value != Conf.SimpleUI.Use_Exchange_NoMessyHand.Value) {
-									Conf.SimpleUI.Use_Exchange_NoMessyHand.Value = value;
-									Conf.config.Save();
-								}
-								offset += 20 + 4;
-							}
+							this.Conf_SimpleUI(ref offset);
 							#endregion
 							break;
 
