@@ -615,7 +615,10 @@ namespace Symphony.Features {
 				var m_listData = _grid.XGetFieldValue<List<IReuseCellData>>("m_listData");
 				foreach (var _cell in m_listData) {
 					var cell = _cell as ItemCellInvenCharacter;
-					cell.callbackDoubleClick = () => __instance.OnBtnDetailGo();
+					cell.callbackDoubleClick = () => {
+						var _selected = __instance.XGetFieldValue<ClientPcInfo>("_SelectPCInfo");
+						if (!_selected.IsModulePc()) __instance.OnBtnDetailGo();
+};
 				}
 			}
 		}
