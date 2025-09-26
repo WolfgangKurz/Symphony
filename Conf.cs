@@ -85,9 +85,7 @@ namespace Symphony {
 			#region ListSorting
 			public static readonly ConfigEntry<bool> Sort_Consumables = config.Bind("SimpleUI", "Sort_Consumables", false, "Sort consumable items");
 
-			public static readonly ConfigEntry<bool> Use_SortByName = config.Bind("SimpleUI", "Use_SortByName", false, "Add name sorting filter to Character list");
-			public static readonly ConfigEntry<bool> Use_SortByGroup = config.Bind("SimpleUI", "Use_SortByGroup", false, "Add group sorting filter to Character list");
-			public static readonly ConfigEntry<bool> Use_SortByLinks = config.Bind("SimpleUI", "Use_SortByLinks", false, "Add links sorting filter to Character list");
+			public static readonly ConfigEntry<bool> Use_SortBy_Extra = config.Bind("SimpleUI", "Use_SortBy_Extra", false, "Add extra sorting filter to Character list");
 			#endregion
 
 			#region Workbench
@@ -148,7 +146,7 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Handle_Notification = config.Bind("Notification", "Handle_Notification", true, "Handle in-game push notification as windows notification.");
 		}
 		internal class Presets {
-			public static readonly ConfigEntry<bool> Use_CharMaking_Preset= config.Bind("Presets", "Use_CharMakingPreset", false, "Use Preset for Character making screen");
+			public static readonly ConfigEntry<bool> Use_CharMaking_Preset = config.Bind("Presets", "Use_CharMakingPreset", false, "Use Preset for Character making screen");
 			public static readonly ConfigEntry<bool> Use_Last_CharMakingData = config.Bind("Presets", "Use_Last_CharMakingData", false, "Load last character making data automatically");
 
 			public static readonly ConfigEntry<string> Last_CharMaking_Data = config.Bind("Presets", "Last_CharMaking_Data", "0,0,0,0,0,0");
@@ -173,7 +171,7 @@ namespace Symphony {
 			{ // from MaximumFrame
 				var path = Path.Combine(Paths.ConfigPath, "Symphony.MaximumFrame.cfg");
 				if (File.Exists(path)) {
-					Plugin.Logger.LogMessage("[Symphony] MaximumFrame configuration detected, migration it.");
+					Plugin.Logger.LogMessage("[Symphony] MaximumFrame configuration detected, migrate it.");
 					var _old = new ConfigFile(path, false);
 					var frame = _old.Bind("MaximumFrame", "maximumFrame", -1).Value;
 
@@ -187,7 +185,7 @@ namespace Symphony {
 			{ // from LobbyHide
 				var path = Path.Combine(Paths.ConfigPath, "Symphony.LobbyHide.cfg");
 				if (File.Exists(path)) {
-					Plugin.Logger.LogMessage("[Symphony] LobbyHide configuration detected, migration it.");
+					Plugin.Logger.LogMessage("[Symphony] LobbyHide configuration detected, migrate it.");
 					var _old = new ConfigFile(path, false);
 					var keyCodeName = _old.Bind("LobbyHide", "Toggle", "Tab").Value;
 
@@ -205,7 +203,7 @@ namespace Symphony {
 			{ // from WindowedResize
 				var path = Path.Combine(Paths.ConfigPath, "Symphony.WindowedResize.cfg");
 				if (File.Exists(path)) {
-					Plugin.Logger.LogMessage("[Symphony] WindowedResize configuration detected, migration it.");
+					Plugin.Logger.LogMessage("[Symphony] WindowedResize configuration detected, migrate it.");
 					var _old = new ConfigFile(path, false);
 
 					var useFullScreenKey = _old.Bind("WindowedResize", "Use_FullScreenKey", true).Value;
@@ -253,7 +251,7 @@ namespace Symphony {
 			{ // SimpleTweaks -> ConfigManager.SimpleTweaks
 				var path = Path.Combine(Paths.ConfigPath, "Symphony.SimpleTweaks.cfg");
 				if (File.Exists(path)) {
-					Plugin.Logger.LogMessage("[Symphony] SimpleTweaks old configuration detected, migration it.");
+					Plugin.Logger.LogMessage("[Symphony] SimpleTweaks old configuration detected, migrate it.");
 					var prev = new ConfigFile(Path.Combine(Paths.ConfigPath, "Symphony.SimpleTweaks.cfg"), true);
 
 					SimpleTweaks.UseLobbyHide.Value = prev.Bind("SimpleTweaks", "UseLobbyHide", true).Value;
@@ -275,7 +273,7 @@ namespace Symphony {
 			{ // SimpleTweaks -> ConfigManager.SimpleUI
 				var path = Path.Combine(Paths.ConfigPath, "Symphony.SimpleUI.cfg");
 				if (File.Exists(path)) {
-					Plugin.Logger.LogMessage("[Symphony] SimpleUI old configuration detected, migration it.");
+					Plugin.Logger.LogMessage("[Symphony] SimpleUI old configuration detected, migrate it.");
 					var prev = new ConfigFile(Path.Combine(Paths.ConfigPath, "Symphony.SimpleUI.cfg"), true);
 
 					SimpleUI.Small_CharWarehouse.Value = prev.Bind("SimpleUI", "Small_CharWarehouse", false).Value;
@@ -299,7 +297,7 @@ namespace Symphony {
 			{ // SimpleTweaks -> ConfigManager.BattleHotkey
 				var path = Path.Combine(Paths.ConfigPath, "Symphony.BattleHotKey.cfg");
 				if (File.Exists(path)) {
-					Plugin.Logger.LogMessage("[Symphony] BattleHotKey old configuration detected, migration it.");
+					Plugin.Logger.LogMessage("[Symphony] BattleHotKey old configuration detected, migrate it.");
 					var prev = new ConfigFile(Path.Combine(Paths.ConfigPath, "Symphony.BattleHotKey.cfg"), true);
 
 					BattleHotkey.Use_SkillPanel.Value = prev.Bind("BattleHotKey", "Use_SkillPanel", true).Value;
@@ -343,7 +341,7 @@ namespace Symphony {
 				bool value_bool;
 
 				if (config.TryGetOrphanedEntry("HelpfulBase", "Use_GetAll", out value_bool)) {
-					Plugin.Logger.LogMessage("[Symphony] HelpfulBase configuration detected, migration it.");
+					Plugin.Logger.LogMessage("[Symphony] HelpfulBase configuration detected, migrate it.");
 					Automation.Use_Base_GetAll.Value = value_bool;
 					config.RemoveAll(new ConfigDefinition("HelpfulBase", "Use_GetAll"));
 				}
@@ -353,7 +351,7 @@ namespace Symphony {
 				bool value_bool;
 
 				if (config.TryGetOrphanedEntry("LastBattle", "Handle_Notification", out value_bool)) {
-					Plugin.Logger.LogMessage("[Symphony] LastBattle configuration detected, migration it.");
+					Plugin.Logger.LogMessage("[Symphony] LastBattle configuration detected, migrate it.");
 					Notification.Handle_Notification.Value = value_bool;
 					config.RemoveAll(new ConfigDefinition("LastBattle", "Handle_Notification"));
 				}
@@ -364,14 +362,40 @@ namespace Symphony {
 				string value_str;
 
 				if (config.TryGetOrphanedEntry("LastBattle", "Use_LastBattleMap", out value_bool)) {
-					Plugin.Logger.LogMessage("[Symphony] LastBattle configuration detected, migration it.");
+					Plugin.Logger.LogMessage("[Symphony] LastBattle configuration detected, migrate it.");
 					SimpleUI.Use_LastBattleMap.Value = value_bool;
 					config.RemoveAll(new ConfigDefinition("LastBattle", "Use_LastBattleMap"));
 				}
 				if (config.TryGetOrphanedEntry("LastBattle", "LastBattleMapKey", out value_str)) {
-					Plugin.Logger.LogMessage("[Symphony] LastBattle configuration detected, migration it.");
+					Plugin.Logger.LogMessage("[Symphony] LastBattle configuration detected, migrate it.");
 					SimpleUI.LastBattleMapKey.Value = value_str;
 					config.RemoveAll(new ConfigDefinition("LastBattle", "LastBattleMapKey"));
+				}
+			}
+
+			{ // SimpleUI.Use_SortByXXX -> SimpleUI.Use_SortBy_Extra
+				bool value_bool;
+
+				if (config.TryGetOrphanedEntry("SimpleUI", "Use_SortByName", out value_bool)) {
+					Plugin.Logger.LogMessage("[Symphony] SimpleUI.Use_SortByXXX configuration detected, migrate it.");
+					SimpleUI.Use_SortBy_Extra.Value = value_bool;
+					config.RemoveAll(new ConfigDefinition("SimpleUI", "Use_SortByName"));
+					config.RemoveAll(new ConfigDefinition("SimpleUI", "Use_SortByGroup"));
+					config.RemoveAll(new ConfigDefinition("SimpleUI", "Use_SortByLinks"));
+				}
+				if (config.TryGetOrphanedEntry("SimpleUI", "Use_SortByGroup", out value_bool)) {
+					Plugin.Logger.LogMessage("[Symphony] SimpleUI.Use_SortByXXX configuration detected, migrate it.");
+					SimpleUI.Use_SortBy_Extra.Value = value_bool;
+					config.RemoveAll(new ConfigDefinition("SimpleUI", "Use_SortByName"));
+					config.RemoveAll(new ConfigDefinition("SimpleUI", "Use_SortByGroup"));
+					config.RemoveAll(new ConfigDefinition("SimpleUI", "Use_SortByLinks"));
+				}
+				if (config.TryGetOrphanedEntry("SimpleUI", "Use_SortByLinks", out value_bool)) {
+					Plugin.Logger.LogMessage("[Symphony] SimpleUI.Use_SortByXXX configuration detected, migrate it.");
+					SimpleUI.Use_SortBy_Extra.Value = value_bool;
+					config.RemoveAll(new ConfigDefinition("SimpleUI", "Use_SortByName"));
+					config.RemoveAll(new ConfigDefinition("SimpleUI", "Use_SortByGroup"));
+					config.RemoveAll(new ConfigDefinition("SimpleUI", "Use_SortByLinks"));
 				}
 			}
 			#endregion

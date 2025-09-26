@@ -15,7 +15,7 @@ namespace Symphony {
 	internal static partial class Helper {
 		#region Reflection
 		public static Func<RetType> XGetMethod<RetType>(Type type, object obj, string name) {
-			var mi = obj.GetType().GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = obj.GetType().GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethod<RetType>(type.BaseType, obj, name);
@@ -25,7 +25,7 @@ namespace Symphony {
 		public static Func<RetType> XGetMethod<RetType>(this object obj, string name) => XGetMethod<RetType>(obj.GetType(), obj, name);
 
 		public static Action<P1> XGetMethodVoid<P1>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethodVoid<P1>(type.BaseType, obj, name);
@@ -36,7 +36,7 @@ namespace Symphony {
 			=> XGetMethodVoid<P1>(obj.GetType(), obj, name);
 
 		public static Func<P1, RetType> XGetMethod<P1, RetType>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethod<P1, RetType>(type.BaseType, obj, name);
@@ -46,7 +46,7 @@ namespace Symphony {
 		public static Func<P1, RetType> XGetMethod<P1, RetType>(this object obj, string name)
 			=> XGetMethod<P1, RetType>(obj.GetType(), obj, name);
 		public static Action<P1, P2> XGetMethodVoid<P1, P2>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1), typeof(P2)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethodVoid<P1, P2>(type.BaseType, obj, name);
@@ -57,7 +57,7 @@ namespace Symphony {
 			=> XGetMethodVoid<P1, P2>(obj.GetType(), obj, name);
 
 		public static Func<P1, P2, RetType> XGetMethod<P1, P2, RetType>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1), typeof(P2)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethod<P1, P2, RetType>(type.BaseType, obj, name);
@@ -67,7 +67,7 @@ namespace Symphony {
 		public static Func<P1, P2, RetType> XGetMethod<P1, P2, RetType>(this object obj, string name)
 			=> XGetMethod<P1, P2, RetType>(obj.GetType(), obj, name);
 		public static Action<P1, P2, P3> XGetMethodVoid<P1, P2, P3>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1), typeof(P2), typeof(P3)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethodVoid<P1, P2, P3>(type.BaseType, obj, name);
@@ -78,7 +78,7 @@ namespace Symphony {
 			=> XGetMethodVoid<P1, P2, P3>(obj.GetType(), obj, name);
 
 		public static Func<P1, P2, P3, RetType> XGetMethod<P1, P2, P3, RetType>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1), typeof(P2), typeof(P3)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethod<P1, P2, P3, RetType>(type.BaseType, obj, name);
@@ -88,7 +88,7 @@ namespace Symphony {
 		public static Func<P1, P2, P3, RetType> XGetMethod<P1, P2, P3, RetType>(this object obj, string name)
 			=> XGetMethod<P1, P2, P3, RetType>(obj.GetType(), obj, name);
 		public static Action<P1, P2, P3, P4> XGetMethodVoid<P1, P2, P3, P4>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1), typeof(P2), typeof(P3), typeof(P4)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethodVoid<P1, P2, P3, P4>(type.BaseType, obj, name);
@@ -99,7 +99,7 @@ namespace Symphony {
 			=> XGetMethodVoid<P1, P2, P3, P4>(obj.GetType(), obj, name);
 
 		public static Func<P1, P2, P3, P4, RetType> XGetMethod<P1, P2, P3, P4, RetType>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1), typeof(P2), typeof(P3), typeof(P4)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethod<P1, P2, P3, P4, RetType>(type.BaseType, obj, name);
@@ -109,7 +109,7 @@ namespace Symphony {
 		public static Func<P1, P2, P3, P4, RetType> XGetMethod<P1, P2, P3, P4, RetType>(this object obj, string name)
 			=> XGetMethod<P1, P2, P3, P4, RetType>(obj.GetType(), obj, name);
 		public static Action<P1, P2, P3, P4, P5> XGetMethodVoid<P1, P2, P3, P4, P5>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1), typeof(P2), typeof(P3), typeof(P4), typeof(P5)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethodVoid<P1, P2, P3, P4, P5>(type.BaseType, obj, name);
@@ -120,7 +120,7 @@ namespace Symphony {
 			=> XGetMethodVoid<P1, P2, P3, P4, P5>(obj.GetType(), obj, name);
 
 		public static Func<P1, P2, P3, P4, P5, RetType> XGetMethod<P1, P2, P3, P4, P5, RetType>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1), typeof(P2), typeof(P3), typeof(P4), typeof(P5)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethod<P1, P2, P3, P4, P5, RetType>(type.BaseType, obj, name);
@@ -130,7 +130,7 @@ namespace Symphony {
 		public static Func<P1, P2, P3, P4, P5, RetType> XGetMethod<P1, P2, P3, P4, P5, RetType>(this object obj, string name)
 			=> XGetMethod<P1, P2, P3, P4, P5, RetType>(obj.GetType(), obj, name);
 		public static Action<P1, P2, P3, P4, P5, P6> XGetMethodVoid<P1, P2, P3, P4, P5, P6>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1), typeof(P2), typeof(P3), typeof(P4), typeof(P5), typeof(P6)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethodVoid<P1, P2, P3, P4, P5, P6>(type.BaseType, obj, name);
@@ -141,7 +141,7 @@ namespace Symphony {
 			=> XGetMethodVoid<P1, P2, P3, P4, P5, P6>(obj.GetType(), obj, name);
 
 		public static Func<P1, P2, P3, P4, P5, P6, RetType> XGetMethod<P1, P2, P3, P4, P5, P6, RetType>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1), typeof(P2), typeof(P3), typeof(P4), typeof(P5), typeof(P6)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethod<P1, P2, P3, P4, P5, P6, RetType>(type.BaseType, obj, name);
@@ -151,7 +151,7 @@ namespace Symphony {
 		public static Func<P1, P2, P3, P4, P5, P6, RetType> XGetMethod<P1, P2, P3, P4, P5, P6, RetType>(this object obj, string name)
 			=> XGetMethod<P1, P2, P3, P4, P5, P6, RetType>(obj.GetType(), obj, name);
 		public static Action<P1, P2, P3, P4, P5, P6, P7> XGetMethodVoid<P1, P2, P3, P4, P5, P6, P7>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1), typeof(P2), typeof(P3), typeof(P4), typeof(P5), typeof(P6), typeof(P7)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethodVoid<P1, P2, P3, P4, P5, P6, P7>(type.BaseType, obj, name);
@@ -162,7 +162,7 @@ namespace Symphony {
 			=> XGetMethodVoid<P1, P2, P3, P4, P5, P6, P7>(obj.GetType(), obj, name);
 
 		public static Func<P1, P2, P3, P4, P5, P6, P7, RetType> XGetMethod<P1, P2, P3, P4, P5, P6, P7, RetType>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1), typeof(P2), typeof(P3), typeof(P4), typeof(P5), typeof(P6), typeof(P7)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethod<P1, P2, P3, P4, P5, P6, P7, RetType>(type.BaseType, obj, name);
@@ -172,7 +172,7 @@ namespace Symphony {
 		public static Func<P1, P2, P3, P4, P5, P6, P7, RetType> XGetMethod<P1, P2, P3, P4, P5, P6, P7, RetType>(this object obj, string name)
 			=> XGetMethod<P1, P2, P3, P4, P5, P6, P7, RetType>(obj.GetType(), obj, name);
 		public static Action<P1, P2, P3, P4, P5, P6, P7, P8> XGetMethodVoid<P1, P2, P3, P4, P5, P6, P7, P8>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1), typeof(P2), typeof(P3), typeof(P4), typeof(P5), typeof(P6), typeof(P7), typeof(P8)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethodVoid<P1, P2, P3, P4, P5, P6, P7, P8>(type.BaseType, obj, name);
@@ -183,7 +183,7 @@ namespace Symphony {
 			=> XGetMethodVoid<P1, P2, P3, P4, P5, P6, P7, P8>(obj.GetType(), obj, name);
 
 		public static Func<P1, P2, P3, P4, P5, P6, P7, P8, RetType> XGetMethod<P1, P2, P3, P4, P5, P6, P7, P8, RetType>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [typeof(P1), typeof(P2), typeof(P3), typeof(P4), typeof(P5), typeof(P6), typeof(P7), typeof(P8)], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethod<P1, P2, P3, P4, P5, P6, P7, P8, RetType>(type.BaseType, obj, name);

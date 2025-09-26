@@ -43,9 +43,7 @@ namespace Symphony.UI.Panels {
 			void Subpage_ListSorting(ref float offset) {
 				DrawToggle(ref offset, "소모품 목록 정렬", Conf.SimpleUI.Sort_Consumables);
 				offset += 10f;
-				DrawToggle(ref offset, "전투원 이름 정렬 추가", Conf.SimpleUI.Use_SortByName);
-				DrawToggle(ref offset, "전투원 소속 부대 정렬 추가", Conf.SimpleUI.Use_SortByGroup);
-				DrawToggle(ref offset, "전투원 링크 수 정렬 추가", Conf.SimpleUI.Use_SortByLinks);
+				DrawToggle(ref offset, "정렬 기준 추가", Conf.SimpleUI.Use_SortBy_Extra);
 			}
 			void Subpage_Workbench(ref float offset) {
 				DrawToggle(ref offset, "전투원 제조 결과 미리보기", Conf.SimpleUI.Use_CharacterMakingPreview);

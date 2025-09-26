@@ -17,7 +17,7 @@ namespace Symphony {
 	internal static partial class Helper {
 		#region Reflection
 		public static Func<RetType> XGetMethod<RetType>(Type type, object obj, string name) {
-			var mi = obj.GetType().GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = obj.GetType().GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethod<RetType>(type.BaseType, obj, name);
@@ -31,14 +31,16 @@ for (int i = 1; i <= 8; i++) {
 	var genericMember = "";
 	var methodMember = "";
 	var parameterMember = "";
+	var parameterTypes = "";
 	for (int j = 1; j <= i; j++) {
 		genericMember += (j > 1 ? ", " : "") + $"P{j}";
 		methodMember += (j > 1 ? ", " : "") + $"P{j} p{j}";
 		parameterMember += (j > 1 ? ", " : "") + $"p{j}";
+		parameterTypes += (j > 1 ? ", " : "") + $"typeof(P{j})";
 	}
 #>
 		public static Action<<#= genericMember #>> XGetMethodVoid<<#= genericMember #>>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [<#= parameterTypes #>], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethodVoid<<#= genericMember #>>(type.BaseType, obj, name);
@@ -49,7 +51,7 @@ for (int i = 1; i <= 8; i++) {
 			=> XGetMethodVoid<<#= genericMember #>>(obj.GetType(), obj, name);
 
 		public static Func<<#= genericMember #>, RetType> XGetMethod<<#= genericMember #>, RetType>(Type type, object obj, string name) {
-			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance, null, [<#= parameterTypes #>], null);
 			if (mi == null) {
 				if (type.BaseType == null) return null;
 				return XGetMethod<<#= genericMember #>, RetType>(type.BaseType, obj, name);

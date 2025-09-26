@@ -152,11 +152,15 @@ namespace Symphony.Features {
 			#region Sort by XXX
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_PcWarehouse), "Awake"),
-				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByXXX))
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByXXX_pre))
 			);
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_AndroidInventory), "Awake"),
-				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByXXX))
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByXXX_pre))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_BasePc), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByXXX_post))
 			);
 			#endregion
 			#endregion
@@ -618,7 +622,7 @@ namespace Symphony.Features {
 					cell.callbackDoubleClick = () => {
 						var _selected = __instance.XGetFieldValue<ClientPcInfo>("_SelectPCInfo");
 						if (!_selected.IsModulePc()) __instance.OnBtnDetailGo();
-};
+					};
 				}
 			}
 		}
@@ -924,12 +928,14 @@ namespace Symphony.Features {
 		#endregion
 
 		#region Sort by XXX
-		private static void Inject_SortByXXX(Panel_Base __instance) {
-			if (
-				!Conf.SimpleUI.Use_SortByName.Value &&
-				!Conf.SimpleUI.Use_SortByGroup.Value &&
-				!Conf.SimpleUI.Use_SortByLinks.Value
-			) return;
+		private static readonly (string id, string name, Comparison<IReuseCellData> fn)[] Patch_SortBy_Extra_List = [
+			("Name",  "이름",      Patch_SortBy_Name),
+			("Group", "소속 부대", Patch_SortBy_Group),
+			("Links", "링크 수",   Patch_SortBy_Links),
+		];
+
+		private static void Inject_SortByXXX_pre(Panel_BasePc __instance) {
+			if (!Conf.SimpleUI.Use_SortBy_Extra.Value) return;
 
 			var goSortPanel = (GameObject)__instance.GetType()
 				.GetField("_goSortPanel", BindingFlags.Instance | BindingFlags.NonPublic)?
@@ -980,15 +986,16 @@ namespace Symphony.Features {
 				0f
 			);
 
-			if (Conf.SimpleUI.Use_SortByName.Value) {
+			var _toggleSort = __instance.XGetFieldValue<UIToggle[]>("_toggleSort").ToList();
+			foreach (var ex in Patch_SortBy_Extra_List) { 
 				var sep = GameObject.Instantiate(_sep.gameObject);
-				sep.name = "DecoSp_Name";
+				sep.name = $"DecoSp_{ex.id}";
 				sep.transform.SetParent(_sep.parent);
 				sep.transform.localPosition = _sep.localPosition - buttonOffset;
 				sep.transform.localScale = Vector3.one;
 
 				var btn = GameObject.Instantiate(_btn.gameObject);
-				btn.name = "Name";
+				btn.name = ex.id;
 				btn.transform.SetParent(_btn.parent);
 				btn.transform.localPosition = _btn.localPosition - buttonOffset;
 				btn.transform.localScale = Vector3.one;
@@ -996,7 +1003,7 @@ namespace Symphony.Features {
 				btn.GetComponentsInChildren<UILocalize>(true).ToList().ForEach(DestroyImmediate);
 
 				var lbl = btn.GetComponentsInChildren<UILabel>(true);
-				foreach (var lb in lbl) lb.text = "이름";
+				foreach (var lb in lbl) lb.text = ex.name;
 
 				var btnOff = btn.GetComponentsInChildren<Transform>(true).FirstOrDefault(x => x.name == "btn_OFF");
 				var uiButton = btnOff.GetComponent<UIButton>();
@@ -1008,34 +1015,15 @@ namespace Symphony.Features {
 							return;
 						}
 
-						var Sorting = instance.GetType()
-							.GetMethod("Sorting", BindingFlags.Instance | BindingFlags.NonPublic);
+						var Sorting = instance.XGetMethodVoid<Comparison<IReuseCellData>>("Sorting");
 						if (Sorting == null) {
 							Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Sorting method");
 							return;
 						}
+						Sorting(ex.fn);
 
-						int Sort_Comparer(IReuseCellData a, IReuseCellData b) {
-							if (a.IsFirst() && !b.IsFirst()) return -1;
-							if (!a.IsFirst() && b.IsFirst()) return 1;
-							if (a.IsLast() && !b.IsLast()) return 1;
-							if (!a.IsLast() && b.IsLast()) return -1;
-
-							if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
-								return -SingleTon<GameManager>.Instance.InvertSort;
-
-							if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
-								return SingleTon<GameManager>.Instance.InvertSort;
-
-							return a.GetPCID().CompareTo(b.GetPCID());
-						}
-						Sorting.Invoke(instance, [new Comparison<IReuseCellData>(Sort_Comparer)]);
-
-						var label = (UILabel)instance.GetType()
-							.GetField("_lblSort", BindingFlags.Instance | BindingFlags.NonPublic)
-							.GetValue(instance);
-						if (label != null)
-							label.text = lbl?.text ?? "이름";
+						var label = instance.XGetFieldValue<UILabel>("_lblSort");
+						if (label != null) label.text = lbl?.text ?? ex.name;
 					}
 
 					try {
@@ -1046,177 +1034,98 @@ namespace Symphony.Features {
 					}
 				}));
 
-				buttonOffset += new Vector3(0, 72, 0);
-			}
-			if (Conf.SimpleUI.Use_SortByGroup.Value) {
-				var sep = GameObject.Instantiate(_sep.gameObject);
-				sep.name = "DecoSp_Group";
-				sep.transform.SetParent(_sep.parent);
-				sep.transform.localPosition = _sep.localPosition - buttonOffset;
-				sep.transform.localScale = Vector3.one;
-
-				var btn = GameObject.Instantiate(_btn.gameObject);
-				btn.name = "Group";
-				btn.transform.SetParent(_btn.parent);
-				btn.transform.localPosition = _btn.localPosition - buttonOffset;
-				btn.transform.localScale = Vector3.one;
-
-				btn.GetComponentsInChildren<UILocalize>(true).ToList().ForEach(DestroyImmediate);
-
-				var lbl = btn.GetComponentsInChildren<UILabel>(true);
-				foreach (var lb in lbl) lb.text = "소속 부대";
-
-				var btnOff = btn.GetComponentsInChildren<Transform>(true).FirstOrDefault(x => x.name == "btn_OFF");
-				var uiButton = btnOff.GetComponent<UIButton>();
-				uiButton.onClick.Clear();
-				uiButton.onClick.Add(new(() => {
-					void OnSort(Panel_Base instance, UILabel lbl) {
-						if (instance == null) {
-							Plugin.Logger.LogWarning("[Symphony::SimpleUI] instance is null");
-							return;
-						}
-
-						var Sorting = instance.GetType()
-							.GetMethod("Sorting", BindingFlags.Instance | BindingFlags.NonPublic);
-						if (Sorting == null) {
-							Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Sorting method");
-							return;
-						}
-
-						int Sort_Comparer(IReuseCellData a, IReuseCellData b) {
-							if (a.IsFirst() && !b.IsFirst()) return -1;
-							if (!a.IsFirst() && b.IsFirst()) return 1;
-							if (a.IsLast() && !b.IsLast()) return 1;
-							if (!a.IsLast() && b.IsLast()) return -1;
-
-							var _a = SingleTon<DataManager>.Instance.GetTableCharCollection(
-								SingleTon<DataManager>.Instance.GetMyPCClient(
-									a.GetPCID()
-								).GetTablePC().Key
-							);
-							var _b = SingleTon<DataManager>.Instance.GetTableCharCollection(
-								SingleTon<DataManager>.Instance.GetMyPCClient(
-									b.GetPCID()
-								).GetTablePC().Key
-							);
-							if (_a != null && _b != null) {
-								var __a = SingleTon<DataManager>.Instance.GetTableTroopCategory(_a.Troop_Category).Squad_Name.Localize();
-								var __b = SingleTon<DataManager>.Instance.GetTableTroopCategory(_b.Troop_Category).Squad_Name.Localize();
-
-								if (string.Compare(__a, __b, Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
-									return -SingleTon<GameManager>.Instance.InvertSort;
-								if (string.Compare(__a, __b, Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
-									return SingleTon<GameManager>.Instance.InvertSort;
-							}
-							else if (_a == null && _b == null) {
-								// pass through
-							}
-							else if (_a == null)
-								return 1; // module should be last (even inverted)
-							else if (_b == null)
-								return -1;
-
-							if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
-								return -SingleTon<GameManager>.Instance.InvertSort;
-							if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
-								return SingleTon<GameManager>.Instance.InvertSort;
-
-							return a.GetPCID().CompareTo(b.GetPCID());
-						}
-						Sorting.Invoke(instance, [new Comparison<IReuseCellData>(Sort_Comparer)]);
-
-						var label = (UILabel)instance.GetType()
-							.GetField("_lblSort", BindingFlags.Instance | BindingFlags.NonPublic)
-							.GetValue(instance);
-						if (label != null)
-							label.text = lbl?.text ?? "소속 부대";
-					}
-
-					try {
-						var lbl = btnOff.GetComponentInChildren<UILabel>(true);
-						OnSort(__instance, lbl);
-					} catch (Exception e) {
-						Plugin.Logger.LogError(e);
-					}
-				}));
+				_toggleSort.Add(btn.GetComponentInChildren<UIToggle>(true));
 
 				buttonOffset += new Vector3(0, 72, 0);
 			}
-			if (Conf.SimpleUI.Use_SortByLinks.Value) {
-				var sep = GameObject.Instantiate(_sep.gameObject);
-				sep.name = "DecoSp_Links";
-				sep.transform.SetParent(_sep.parent);
-				sep.transform.localPosition = _sep.localPosition - buttonOffset;
-				sep.transform.localScale = Vector3.one;
+			__instance.XSetFieldValue("_toggleSort", _toggleSort.ToArray());
+		}
+		private static void Inject_SortByXXX_post(Panel_BasePc __instance) {
+			if (!Conf.SimpleUI.Use_SortBy_Extra.Value) return;
 
-				var btn = GameObject.Instantiate(_btn.gameObject);
-				btn.name = "Links";
-				btn.transform.SetParent(_btn.parent);
-				btn.transform.localPosition = _btn.localPosition - buttonOffset;
-				btn.transform.localScale = Vector3.one;
-
-				btn.GetComponentsInChildren<UILocalize>(true).ToList().ForEach(DestroyImmediate);
-
-				var lbl = btn.GetComponentsInChildren<UILabel>(true);
-				foreach (var lb in lbl) lb.text = "링크 수";
-
-				var btnOff = btn.GetComponentsInChildren<Transform>(true).FirstOrDefault(x => x.name == "btn_OFF");
-				var uiButton = btnOff.GetComponent<UIButton>();
-				uiButton.onClick.Clear();
-				uiButton.onClick.Add(new(() => {
-					void OnSort(Panel_Base instance, UILabel lbl) {
-						if (instance == null) {
-							Plugin.Logger.LogWarning("[Symphony::SimpleUI] instance is null");
-							return;
-						}
-
-						var Sorting = instance.GetType()
-							.GetMethod("Sorting", BindingFlags.Instance | BindingFlags.NonPublic);
-						if (Sorting == null) {
-							Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Sorting method");
-							return;
-						}
-
-						int Sort_Comparer(IReuseCellData a, IReuseCellData b) {
-							if (a.IsFirst() && !b.IsFirst()) return -1;
-							if (!a.IsFirst() && b.IsFirst()) return 1;
-							if (a.IsLast() && !b.IsLast()) return 1;
-							if (!a.IsLast() && b.IsLast()) return -1;
-
-							var _a = SingleTon<DataManager>.Instance.GetMyPCClient(a.GetPCID()).CoreState.Sum();
-							var _b = SingleTon<DataManager>.Instance.GetMyPCClient(b.GetPCID()).CoreState.Sum();
-
-							if (_a < _b)
-								return -SingleTon<GameManager>.Instance.InvertSort;
-							else if (_a > _b)
-								return SingleTon<GameManager>.Instance.InvertSort;
-
-							if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
-								return -SingleTon<GameManager>.Instance.InvertSort;
-							if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
-								return SingleTon<GameManager>.Instance.InvertSort;
-
-							return a.GetPCID().CompareTo(b.GetPCID());
-						}
-						Sorting.Invoke(instance, [new Comparison<IReuseCellData>(Sort_Comparer)]);
-
-						var label = (UILabel)instance.GetType()
-							.GetField("_lblSort", BindingFlags.Instance | BindingFlags.NonPublic)
-							.GetValue(instance);
-						if (label != null)
-							label.text = lbl?.text ?? "링크 수";
-					}
-
-					try {
-						var lbl = btnOff.GetComponentInChildren<UILabel>(true);
-						OnSort(__instance, lbl);
-					} catch (Exception e) {
-						Plugin.Logger.LogError(e);
-					}
-				}));
-
-				buttonOffset += new Vector3(0, 72, 0);
+			var _charSortFunc = __instance.XGetFieldValue<Comparison<IReuseCellData>[]>("_charSortFunc");
+			if (_charSortFunc != null) {
+				var charSortFunc = _charSortFunc.ToList();
+				foreach (var ex in Patch_SortBy_Extra_List)
+					charSortFunc.Add(ex.fn);
+				__instance.XSetFieldValue("_charSortFunc", charSortFunc.ToArray());
 			}
+		}
+
+		static int Patch_SortBy_Name(IReuseCellData a, IReuseCellData b) {
+			if (a.IsFirst() && !b.IsFirst()) return -1;
+			if (!a.IsFirst() && b.IsFirst()) return 1;
+			if (a.IsLast() && !b.IsLast()) return 1;
+			if (!a.IsLast() && b.IsLast()) return -1;
+
+			if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
+				return -SingleTon<GameManager>.Instance.InvertSort;
+
+			if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
+				return SingleTon<GameManager>.Instance.InvertSort;
+
+			return a.GetPCID().CompareTo(b.GetPCID());
+		}
+		static int Patch_SortBy_Group(IReuseCellData a, IReuseCellData b) {
+			if (a.IsFirst() && !b.IsFirst()) return -1;
+			if (!a.IsFirst() && b.IsFirst()) return 1;
+			if (a.IsLast() && !b.IsLast()) return 1;
+			if (!a.IsLast() && b.IsLast()) return -1;
+
+			var _a = SingleTon<DataManager>.Instance.GetTableCharCollection(
+				SingleTon<DataManager>.Instance.GetMyPCClient(
+					a.GetPCID()
+				).GetTablePC().Key
+			);
+			var _b = SingleTon<DataManager>.Instance.GetTableCharCollection(
+				SingleTon<DataManager>.Instance.GetMyPCClient(
+					b.GetPCID()
+				).GetTablePC().Key
+			);
+			if (_a != null && _b != null) {
+				var __a = SingleTon<DataManager>.Instance.GetTableTroopCategory(_a.Troop_Category).Squad_Name.Localize();
+				var __b = SingleTon<DataManager>.Instance.GetTableTroopCategory(_b.Troop_Category).Squad_Name.Localize();
+
+				if (string.Compare(__a, __b, Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
+					return -SingleTon<GameManager>.Instance.InvertSort;
+				if (string.Compare(__a, __b, Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
+					return SingleTon<GameManager>.Instance.InvertSort;
+			}
+			else if (_a == null && _b == null) {
+				// pass through
+			}
+			else if (_a == null)
+				return 1; // module should be last (even inverted)
+			else if (_b == null)
+				return -1;
+
+			if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
+				return -SingleTon<GameManager>.Instance.InvertSort;
+			if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
+				return SingleTon<GameManager>.Instance.InvertSort;
+
+			return a.GetPCID().CompareTo(b.GetPCID());
+		}
+		static int Patch_SortBy_Links(IReuseCellData a, IReuseCellData b) {
+			if (a.IsFirst() && !b.IsFirst()) return -1;
+			if (!a.IsFirst() && b.IsFirst()) return 1;
+			if (a.IsLast() && !b.IsLast()) return 1;
+			if (!a.IsLast() && b.IsLast()) return -1;
+
+			var _a = SingleTon<DataManager>.Instance.GetMyPCClient(a.GetPCID()).CoreState.Sum();
+			var _b = SingleTon<DataManager>.Instance.GetMyPCClient(b.GetPCID()).CoreState.Sum();
+
+			if (_a < _b)
+				return -SingleTon<GameManager>.Instance.InvertSort;
+			else if (_a > _b)
+				return SingleTon<GameManager>.Instance.InvertSort;
+
+			if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
+				return -SingleTon<GameManager>.Instance.InvertSort;
+			if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
+				return SingleTon<GameManager>.Instance.InvertSort;
+
+			return a.GetPCID().CompareTo(b.GetPCID());
 		}
 		#endregion
 		#endregion
