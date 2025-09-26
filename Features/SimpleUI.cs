@@ -100,14 +100,21 @@ namespace Symphony.Features {
 			);
 			#endregion
 
-			#region Sort by Name, Group
+			#region Character List DoubleClick
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_PcWarehouse), nameof(Panel_PcWarehouse.ToogleChange)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_PCWarehouse_DoubleClick))
+			);
+			#endregion
+
+			#region Sort by XXX
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_PcWarehouse), "Awake"),
-				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByName))
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByXXX))
 			);
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_AndroidInventory), "Awake"),
-				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByName))
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByXXX))
 			);
 			#endregion
 
@@ -266,9 +273,7 @@ namespace Symphony.Features {
 		private static void GridItemsPatch_PCWarehouse_Start_pre(Panel_PcWarehouse __instance) {
 			if (!Conf.SimpleUI.Small_CharWarehouse.Value) return;
 
-			var _reUseGrid = (UIReuseGrid)__instance.GetType()
-				.GetField("_reUseGrid", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
+			var _reUseGrid = __instance.XGetFieldValue<UIReuseGrid>("_reUseGrid");
 
 			_reUseGrid.m_Column = 8;
 			_reUseGrid.m_cellWidth = (int)(_reUseGrid.m_cellWidth * SMALL_ORIGINAL6_RATIO);
@@ -278,13 +283,8 @@ namespace Symphony.Features {
 		}
 		private static void GridItemsPatch_PCWarehouse_Start_post(Panel_PcWarehouse __instance) {
 			if (Conf.SimpleUI.Small_CharWarehouse.Value) {
-				var _reUseGrid = (UIReuseGrid)__instance.GetType()
-					.GetField("_reUseGrid", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(__instance);
-
-				var m_cellList = (UIReuseScrollViewCell[])_reUseGrid.GetType()
-					.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(_reUseGrid);
+				var _reUseGrid = __instance.XGetFieldValue<UIReuseGrid>("_reUseGrid");
+				var m_cellList = _reUseGrid.XGetFieldValue<UIReuseScrollViewCell[]>("m_cellList");
 
 				foreach (var cell in m_cellList) {
 					cell.transform.localScale = new Vector3(SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO);
@@ -292,9 +292,7 @@ namespace Symphony.Features {
 			}
 
 			if (Conf.SimpleUI.EnterToSearch_CharWarehouse.Value) {
-				var _inputSearch = (UIInput)__instance.GetType()
-					.GetField("_inputSearch", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(__instance);
+				var _inputSearch = __instance.XGetFieldValue<UIInput>("_inputSearch");
 				_inputSearch.onReturnKey = UIInput.OnReturnKey.Submit;
 				_inputSearch.onSubmit.Add(new(() => {
 					if (string.IsNullOrEmpty(_inputSearch.value)) {
@@ -311,9 +309,7 @@ namespace Symphony.Features {
 		private static void GridItemsPatch_AideInventory_Start_pre(Panel_AideInventory __instance) {
 			if (!Conf.SimpleUI.Small_CharSelection.Value) return;
 
-			var _reUseGrid = (UIReuseGrid)__instance.GetType()
-				.GetField("_reUseGrid", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
+			var _reUseGrid = __instance.XGetFieldValue<UIReuseGrid>("_reUseGrid");
 
 			_reUseGrid.m_Column = 8;
 			_reUseGrid.m_cellWidth = (int)(_reUseGrid.m_cellWidth * SMALL_ORIGINAL6_RATIO);
@@ -321,13 +317,8 @@ namespace Symphony.Features {
 		}
 		private static void GridItemsPatch_AideInventory_Start_post(Panel_AideInventory __instance) {
 			if (Conf.SimpleUI.Small_CharSelection.Value) {
-				var _reUseGrid = (UIReuseGrid)__instance.GetType()
-					.GetField("_reUseGrid", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(__instance);
-
-				var m_cellList = (UIReuseScrollViewCell[])_reUseGrid.GetType()
-					.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(_reUseGrid);
+				var _reUseGrid = __instance.XGetFieldValue<UIReuseGrid>("_reUseGrid");
+				var m_cellList = _reUseGrid.XGetFieldValue<UIReuseScrollViewCell[]>("m_cellList");
 
 				foreach (var cell in m_cellList) {
 					cell.transform.localScale = new Vector3(SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO);
@@ -335,9 +326,7 @@ namespace Symphony.Features {
 			}
 
 			if (Conf.SimpleUI.EnterToSearch_CharSelection.Value) {
-				var _inputSearch = (UIInput)__instance.GetType()
-					.GetField("_inputSearch", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(__instance);
+				var _inputSearch = __instance.XGetFieldValue<UIInput>("_inputSearch");
 				_inputSearch.onReturnKey = UIInput.OnReturnKey.Submit;
 				_inputSearch.onSubmit.Add(new(() => {
 					if (string.IsNullOrEmpty(_inputSearch.value)) {
@@ -354,10 +343,7 @@ namespace Symphony.Features {
 		private static void GridItemsPatch_AndroidInventory_Start_pre(Panel_AndroidInventory __instance) {
 			if (!Conf.SimpleUI.Small_CharSelection.Value) return;
 
-			var _reUseGrid = (UIReuseGrid[])__instance.GetType()
-				.GetField("_reUseGrid", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
-
+			var _reUseGrid = __instance.XGetFieldValue<UIReuseGrid[]>("_reUseGrid");
 			foreach (var grid in _reUseGrid) {
 				grid.m_Column = 8;
 				grid.m_cellWidth = (int)(grid.m_cellWidth * SMALL_ORIGINAL6_RATIO);
@@ -366,15 +352,9 @@ namespace Symphony.Features {
 		}
 		private static void GridItemsPatch_AndroidInventory_Start_post(Panel_AndroidInventory __instance) {
 			if (Conf.SimpleUI.Small_CharSelection.Value) {
-				var _reUseGrid = (UIReuseGrid[])__instance.GetType()
-					.GetField("_reUseGrid", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(__instance);
-
+				var _reUseGrid = __instance.XGetFieldValue<UIReuseGrid[]>("_reUseGrid");
 				foreach (var grid in _reUseGrid) {
-					var m_cellList = (UIReuseScrollViewCell[])grid.GetType()
-					.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(grid);
-
+					var m_cellList = grid.XGetFieldValue<UIReuseScrollViewCell[]>("m_cellList");
 					foreach (var cell in m_cellList) {
 						cell.transform.localScale = new Vector3(SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO);
 					}
@@ -382,9 +362,7 @@ namespace Symphony.Features {
 			}
 
 			if (Conf.SimpleUI.EnterToSearch_CharSelection.Value) {
-				var _inputSearch = (UIInput)__instance.GetType()
-					.GetField("_inputSearch", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(__instance);
+				var _inputSearch = __instance.XGetFieldValue<UIInput>("_inputSearch");
 				_inputSearch.onReturnKey = UIInput.OnReturnKey.Submit;
 				_inputSearch.onSubmit.Add(new(() => {
 					if (string.IsNullOrEmpty(_inputSearch.value)) {
@@ -401,10 +379,7 @@ namespace Symphony.Features {
 		private static void GridItemsPatch_CharacterBook_Start_pre(Panel_CharacterBook __instance) {
 			if (!Conf.SimpleUI.Small_ItemWarehouse.Value) return;
 
-			var _grid = (UIReuseGrid)__instance.GetType()
-				.GetField("_grid", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
-
+			var _grid = __instance.XGetFieldValue<UIReuseGrid>("_grid");
 			_grid.m_Column = 8;
 			_grid.m_cellWidth = (int)(_grid.m_cellWidth * SMALL_ORIGINAL6_RATIO);
 			_grid.m_cellHeight = (int)(_grid.m_cellHeight * SMALL_ORIGINAL6_RATIO);
@@ -412,14 +387,8 @@ namespace Symphony.Features {
 		private static void GridItemsPatch_CharacterBook_Start_post(Panel_CharacterBook __instance) {
 			if (!Conf.SimpleUI.Small_ItemWarehouse.Value) return;
 
-			var _grid = (UIReuseGrid)__instance.GetType()
-				.GetField("_grid", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
-
-			var m_cellList = (UIReuseScrollViewCell[])_grid.GetType()
-				.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(_grid);
-
+			var _grid = __instance.XGetFieldValue<UIReuseGrid>("_grid");
+			var m_cellList = _grid.XGetFieldValue<UIReuseScrollViewCell[]>("m_cellList");
 			foreach (var cell in m_cellList) {
 				cell.transform.localScale = new Vector3(SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO);
 			}
@@ -427,33 +396,22 @@ namespace Symphony.Features {
 		private static void GridItemsPatch_ItemInventory_Start_pre(Panel_ItemInventory __instance) {
 			if (!Conf.SimpleUI.Small_ItemWarehouse.Value) return;
 
-			var _gridItemList = (UIReuseGrid)__instance.GetType()
-				.GetField("_gridItemList", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
-
+			var _gridItemList = __instance.XGetFieldValue<UIReuseGrid>("_gridItemList");
 			_gridItemList.m_Column = 7;
 			_gridItemList.m_cellWidth = (int)(_gridItemList.m_cellWidth * SMALL_ORIGINAL5_RATIO);
 			_gridItemList.m_cellHeight = (int)(_gridItemList.m_cellHeight * SMALL_ORIGINAL5_RATIO);
 		}
 		private static void GridItemsPatch_ItemInventory_Start_post(Panel_ItemInventory __instance) {
 			if (Conf.SimpleUI.Small_ItemWarehouse.Value) {
-				var _gridItemList = (UIReuseGrid)__instance.GetType()
-					.GetField("_gridItemList", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(__instance);
-
-				var m_cellList = (UIReuseScrollViewCell[])_gridItemList.GetType()
-					.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(_gridItemList);
-
+				var _gridItemList = __instance.XGetFieldValue<UIReuseGrid>("_gridItemList");
+				var m_cellList = _gridItemList.XGetFieldValue<UIReuseScrollViewCell[]>("m_cellList");
 				foreach (var cell in m_cellList) {
 					cell.transform.localScale = new Vector3(SMALL_ORIGINAL5_RATIO, SMALL_ORIGINAL5_RATIO, SMALL_ORIGINAL5_RATIO);
 				}
 			}
 
 			if (Conf.SimpleUI.EnterToSearch_ItemWarehouse.Value) {
-				var _inputSearch = (UIInput)__instance.GetType()
-					.GetField("_inputSearch", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(__instance);
+				var _inputSearch = __instance.XGetFieldValue<UIInput>("_inputSearch");
 				_inputSearch.onReturnKey = UIInput.OnReturnKey.Submit;
 				_inputSearch.onSubmit.Add(new(() => {
 					if (string.IsNullOrEmpty(_inputSearch.value)) {
@@ -470,33 +428,22 @@ namespace Symphony.Features {
 		private static void GridItemsPatch_ItemEquipInventory_Start_pre(Panel_ItemEquipInventory __instance) {
 			if (!Conf.SimpleUI.Small_ItemSelection.Value) return;
 
-			var _gridItemList = (UIReuseGrid)__instance.GetType()
-				.GetField("_gridItemList", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
-
+			var _gridItemList = __instance.XGetFieldValue<UIReuseGrid>("_gridItemList");
 			_gridItemList.m_Column = 7;
 			_gridItemList.m_cellWidth = (int)(_gridItemList.m_cellWidth * SMALL_ORIGINAL5_RATIO);
 			_gridItemList.m_cellHeight = (int)(_gridItemList.m_cellHeight * SMALL_ORIGINAL5_RATIO);
 		}
 		private static void GridItemsPatch_ItemEquipInventory_Start_post(Panel_ItemEquipInventory __instance) {
 			if (Conf.SimpleUI.Small_ItemSelection.Value) {
-				var _gridItemList = (UIReuseGrid)__instance.GetType()
-					.GetField("_gridItemList", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(__instance);
-
-				var m_cellList = (UIReuseScrollViewCell[])_gridItemList.GetType()
-					.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(_gridItemList);
-
+				var _gridItemList = __instance.XGetFieldValue<UIReuseGrid>("_gridItemList");
+				var m_cellList = _gridItemList.XGetFieldValue<UIReuseScrollViewCell[]>("m_cellList");
 				foreach (var cell in m_cellList) {
 					cell.transform.localScale = new Vector3(SMALL_ORIGINAL5_RATIO, SMALL_ORIGINAL5_RATIO, SMALL_ORIGINAL5_RATIO);
 				}
 			}
 
 			if (Conf.SimpleUI.EnterToSearch_ItemSelection.Value) {
-				var _inputSearch = (UIInput)__instance.GetType()
-					.GetField("_inputSearch", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(__instance);
+				var _inputSearch = __instance.XGetFieldValue<UIInput>("_inputSearch");
 				_inputSearch.onReturnKey = UIInput.OnReturnKey.Submit;
 				_inputSearch.onSubmit.Add(new(() => {
 					if (string.IsNullOrEmpty(_inputSearch.value)) {
@@ -513,33 +460,22 @@ namespace Symphony.Features {
 		private static void GridItemsPatch_ItemSelectInventory_Start_pre(Panel_ItemSelectInventory __instance) {
 			if (!Conf.SimpleUI.Small_ItemSelection.Value) return;
 
-			var _gridItemList = (UIReuseGrid)__instance.GetType()
-				.GetField("_gridItemList", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
-
+			var _gridItemList = __instance.XGetFieldValue<UIReuseGrid>("_gridItemList");
 			_gridItemList.m_Column = 8;
 			_gridItemList.m_cellWidth = (int)(_gridItemList.m_cellWidth * SMALL_ORIGINAL6_RATIO);
 			_gridItemList.m_cellHeight = (int)(_gridItemList.m_cellHeight * SMALL_ORIGINAL6_RATIO);
 		}
 		private static void GridItemsPatch_ItemSelectInventory_Start_post(Panel_ItemSelectInventory __instance) {
 			if (Conf.SimpleUI.Small_ItemSelection.Value) {
-				var _gridItemList = (UIReuseGrid)__instance.GetType()
-					.GetField("_gridItemList", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(__instance);
-
-				var m_cellList = (UIReuseScrollViewCell[])_gridItemList.GetType()
-					.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(_gridItemList);
-
+				var _gridItemList = __instance.XGetFieldValue<UIReuseGrid>("_gridItemList");
+				var m_cellList = _gridItemList.XGetFieldValue<UIReuseScrollViewCell[]>("m_cellList");
 				foreach (var cell in m_cellList) {
 					cell.transform.localScale = new Vector3(SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO);
 				}
 			}
 
 			if (Conf.SimpleUI.EnterToSearch_ItemSelection.Value) {
-				var _inputSearch = (UIInput)__instance.GetType()
-					.GetField("_inputSearch", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(__instance);
+				var _inputSearch = __instance.XGetFieldValue<UIInput>("_inputSearch");
 				_inputSearch.onReturnKey = UIInput.OnReturnKey.Submit;
 				_inputSearch.onSubmit.Add(new(() => {
 					if (string.IsNullOrEmpty(_inputSearch.value)) {
@@ -556,18 +492,12 @@ namespace Symphony.Features {
 		private static void GridItemsPatch_TempInventory_Start_pre(Panel_TempInventory __instance) {
 			if (!Conf.SimpleUI.Small_TempInventory.Value) return;
 
-			var _reUseGridPc = (UIReuseGrid)__instance.GetType()
-				.GetField("_reUseGridPc", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
-
+			var _reUseGridPc = __instance.XGetFieldValue<UIReuseGrid>("_reUseGridPc");
 			_reUseGridPc.m_Column = 8;
 			_reUseGridPc.m_cellWidth = (int)(_reUseGridPc.m_cellWidth * SMALL_ORIGINAL6_RATIO);
 			_reUseGridPc.m_cellHeight = (int)(_reUseGridPc.m_cellHeight * SMALL_ORIGINAL6_RATIO);
 
-			var _reUseGridEquip = (UIReuseGrid)__instance.GetType()
-				.GetField("_reUseGridEquip", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
-
+			var _reUseGridEquip = __instance.XGetFieldValue<UIReuseGrid>("_reUseGridEquip");
 			_reUseGridEquip.m_Column = 8;
 			_reUseGridEquip.m_cellWidth = (int)(_reUseGridEquip.m_cellWidth * SMALL_ORIGINAL6_RATIO);
 			_reUseGridEquip.m_cellHeight = (int)(_reUseGridEquip.m_cellHeight * SMALL_ORIGINAL6_RATIO);
@@ -576,27 +506,15 @@ namespace Symphony.Features {
 			if (!Conf.SimpleUI.Small_TempInventory.Value) return;
 
 			{
-				var _reUseGridPc = (UIReuseGrid)__instance.GetType()
-					.GetField("_reUseGridPc", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(__instance);
-
-				var m_cellList = (UIReuseScrollViewCell[])_reUseGridPc.GetType()
-					.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(_reUseGridPc);
-
+				var _reUseGridPc = __instance.XGetFieldValue<UIReuseGrid>("_reUseGridPc");
+				var m_cellList = _reUseGridPc.XGetFieldValue<UIReuseScrollViewCell[]>("m_cellList");
 				foreach (var cell in m_cellList) {
 					cell.transform.localScale = new Vector3(SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO);
 				}
 			}
 			{
-				var _reUseGridEquip = (UIReuseGrid)__instance.GetType()
-					.GetField("_reUseGridEquip", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(__instance);
-
-				var m_cellList = (UIReuseScrollViewCell[])_reUseGridEquip.GetType()
-					.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
-					.GetValue(_reUseGridEquip);
-
+				var _reUseGridEquip = __instance.XGetFieldValue<UIReuseGrid>("_reUseGridEquip");
+				var m_cellList = _reUseGridEquip.XGetFieldValue<UIReuseScrollViewCell[]>("m_cellList");
 				foreach (var cell in m_cellList) {
 					cell.transform.localScale = new Vector3(SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO, SMALL_ORIGINAL6_RATIO);
 				}
@@ -608,9 +526,7 @@ namespace Symphony.Features {
 		private static void GridItemsPatch_Consumable_Start_pre(Panel_MaterialWarehouse __instance) {
 			if (!Conf.SimpleUI.Small_Consumables.Value) return;
 
-			var _reGrid = (UIReuseGrid)__instance.GetType()
-				.GetField("_reGrid", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
+			var _reGrid = __instance.XGetFieldValue<UIReuseGrid>("_reGrid");
 
 			_reGrid.m_Column = 7;
 			_reGrid.m_cellWidth = (int)(_reGrid.m_cellWidth * SMALL_CONSUMABLE_RATIO);
@@ -619,9 +535,7 @@ namespace Symphony.Features {
 		private static void GridItemsPatch_Consumable_Start_post(Panel_MaterialWarehouse __instance) {
 			if (!Conf.SimpleUI.Small_Consumables.Value) return;
 
-			var _reGrid = (UIReuseGrid)__instance.GetType()
-				.GetField("_reGrid", BindingFlags.NonPublic | BindingFlags.Instance)
-				.GetValue(__instance);
+			var _reGrid = __instance.XGetFieldValue<UIReuseGrid>("_reGrid");
 
 			var m_cellList = (UIReuseScrollViewCell[])_reGrid.GetType()
 				.GetField("m_cellList", BindingFlags.NonPublic | BindingFlags.Instance)
@@ -649,6 +563,23 @@ namespace Symphony.Features {
 		}
 		#endregion
 
+		#region Character List DoubleClick
+		private static void Patch_PCWarehouse_DoubleClick(Panel_PcWarehouse __instance) {
+			// Transpiling make broken IL codes
+			if (!Conf.SimpleUI.DblClick_CharWarehouse.Value) return;
+
+			// 2 = Panel_PcWarehouse.WAREHOUSETYPE.INVENTYPE_WAREHOUSE
+			if (__instance.XGetFieldValue<byte>("_invenType") == 2) {
+				var _grid = __instance.XGetFieldValue<UIReuseGrid>("_reUseGrid");
+				var m_listData = _grid.XGetFieldValue<List<IReuseCellData>>("m_listData");
+				foreach (var _cell in m_listData) {
+					var cell = _cell as ItemCellInvenCharacter;
+					cell.callbackDoubleClick = () => __instance.OnBtnDetailGo();
+				}
+			}
+		}
+		#endregion
+
 		#region Scroll Acceleration
 		private static void Accelerate_ScrollDelta(ref float delta) {
 			if (Conf.SimpleUI.Use_AccelerateScrollDelta.Value)
@@ -664,9 +595,13 @@ namespace Symphony.Features {
 		}
 		#endregion
 
-		#region Sort by Name, Group
-		private static void Inject_SortByName(Panel_Base __instance) {
-			if (!Conf.SimpleUI.Use_SortByName.Value && !Conf.SimpleUI.Use_SortByGroup.Value) return;
+		#region Sort by XXX
+		private static void Inject_SortByXXX(Panel_Base __instance) {
+			if (
+				!Conf.SimpleUI.Use_SortByName.Value &&
+				!Conf.SimpleUI.Use_SortByGroup.Value &&
+				!Conf.SimpleUI.Use_SortByLinks.Value
+			) return;
 
 			var goSortPanel = (GameObject)__instance.GetType()
 				.GetField("_goSortPanel", BindingFlags.Instance | BindingFlags.NonPublic)?
@@ -685,27 +620,39 @@ namespace Symphony.Features {
 			var elCount = menu.childCount;
 			for (var i = 0; i < elCount; i++) {
 				var e = menu.GetChild(i);
-				e.localPosition = e.localPosition - new Vector3(0, -111, 0);
+				//e.localPosition = e.localPosition - new Vector3(0, -111, 0);
+				var c1 = e.GetComponentsInChildren<UIWidget>(true);
+				foreach (var c in c1) c.width -= 80;
+
+				var c2 = e.GetComponentsInChildren<BoxCollider>(true);
+				foreach (var c in c2) c.size -= new Vector3(80f, 0f);
+
+				var c3 = e.GetComponentsInChildren<UILabel>(true);
+				foreach (var c in c3) c.width += 20;
+
+				e.transform.localPosition += new Vector3(40f, 0f);
 			}
 
 			var els = menu.GetComponentsInChildren<Transform>(true);
 
-			var _sep = els.FirstOrDefault(x => x.name == "DecoSp12");
+			var _sep = els.FirstOrDefault(x => x.name == "DecoSp01");
 			if (_sep == null) {
 				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Separator on SortPanel Menu");
 				return;
 			}
 
-			var _btn = els.FirstOrDefault(x => x.name == "Marriage");
+			var _btn = els.FirstOrDefault(x => x.name == "Grade");
 			if (_btn == null) {
-				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Marriage button on SortPanel Menu");
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Grade button on SortPanel Menu");
 				return;
 			}
-			var buttonOffset = Vector3.zero;
+
+			var buttonOffset = new Vector3(
+				_btn.GetComponentInChildren<UISprite>(true).width + 10f,
+				0f
+			);
 
 			if (Conf.SimpleUI.Use_SortByName.Value) {
-				buttonOffset += new Vector3(0, 74, 0);
-
 				var sep = GameObject.Instantiate(_sep.gameObject);
 				sep.name = "DecoSp_Name";
 				sep.transform.SetParent(_sep.parent);
@@ -727,7 +674,7 @@ namespace Symphony.Features {
 				var uiButton = btnOff.GetComponent<UIButton>();
 				uiButton.onClick.Clear();
 				uiButton.onClick.Add(new(() => {
-					void OnSortName(Panel_Base instance, UILabel lbl) {
+					void OnSort(Panel_Base instance, UILabel lbl) {
 						if (instance == null) {
 							Plugin.Logger.LogWarning("[Symphony::SimpleUI] instance is null");
 							return;
@@ -740,7 +687,7 @@ namespace Symphony.Features {
 							return;
 						}
 
-						int SortName_Comparer(IReuseCellData a, IReuseCellData b) {
+						int Sort_Comparer(IReuseCellData a, IReuseCellData b) {
 							if (a.IsFirst() && !b.IsFirst()) return -1;
 							if (!a.IsFirst() && b.IsFirst()) return 1;
 							if (a.IsLast() && !b.IsLast()) return 1;
@@ -754,7 +701,7 @@ namespace Symphony.Features {
 
 							return a.GetPCID().CompareTo(b.GetPCID());
 						}
-						Sorting.Invoke(instance, [new Comparison<IReuseCellData>(SortName_Comparer)]);
+						Sorting.Invoke(instance, [new Comparison<IReuseCellData>(Sort_Comparer)]);
 
 						var label = (UILabel)instance.GetType()
 							.GetField("_lblSort", BindingFlags.Instance | BindingFlags.NonPublic)
@@ -765,15 +712,15 @@ namespace Symphony.Features {
 
 					try {
 						var lbl = btnOff.GetComponentInChildren<UILabel>(true);
-						OnSortName(__instance, lbl);
+						OnSort(__instance, lbl);
 					} catch (Exception e) {
 						Plugin.Logger.LogError(e);
 					}
 				}));
+
+				buttonOffset += new Vector3(0, 72, 0);
 			}
 			if (Conf.SimpleUI.Use_SortByGroup.Value) {
-				buttonOffset += new Vector3(0, 74, 0);
-
 				var sep = GameObject.Instantiate(_sep.gameObject);
 				sep.name = "DecoSp_Group";
 				sep.transform.SetParent(_sep.parent);
@@ -795,7 +742,7 @@ namespace Symphony.Features {
 				var uiButton = btnOff.GetComponent<UIButton>();
 				uiButton.onClick.Clear();
 				uiButton.onClick.Add(new(() => {
-					void OnSortName(Panel_Base instance, UILabel lbl) {
+					void OnSort(Panel_Base instance, UILabel lbl) {
 						if (instance == null) {
 							Plugin.Logger.LogWarning("[Symphony::SimpleUI] instance is null");
 							return;
@@ -808,7 +755,7 @@ namespace Symphony.Features {
 							return;
 						}
 
-						int SortName_Comparer(IReuseCellData a, IReuseCellData b) {
+						int Sort_Comparer(IReuseCellData a, IReuseCellData b) {
 							if (a.IsFirst() && !b.IsFirst()) return -1;
 							if (!a.IsFirst() && b.IsFirst()) return 1;
 							if (a.IsLast() && !b.IsLast()) return 1;
@@ -848,7 +795,7 @@ namespace Symphony.Features {
 
 							return a.GetPCID().CompareTo(b.GetPCID());
 						}
-						Sorting.Invoke(instance, [new Comparison<IReuseCellData>(SortName_Comparer)]);
+						Sorting.Invoke(instance, [new Comparison<IReuseCellData>(Sort_Comparer)]);
 
 						var label = (UILabel)instance.GetType()
 							.GetField("_lblSort", BindingFlags.Instance | BindingFlags.NonPublic)
@@ -859,11 +806,88 @@ namespace Symphony.Features {
 
 					try {
 						var lbl = btnOff.GetComponentInChildren<UILabel>(true);
-						OnSortName(__instance, lbl);
+						OnSort(__instance, lbl);
 					} catch (Exception e) {
 						Plugin.Logger.LogError(e);
 					}
 				}));
+
+				buttonOffset += new Vector3(0, 72, 0);
+			}
+			if (Conf.SimpleUI.Use_SortByLinks.Value) {
+				var sep = GameObject.Instantiate(_sep.gameObject);
+				sep.name = "DecoSp_Links";
+				sep.transform.SetParent(_sep.parent);
+				sep.transform.localPosition = _sep.localPosition - buttonOffset;
+				sep.transform.localScale = Vector3.one;
+
+				var btn = GameObject.Instantiate(_btn.gameObject);
+				btn.name = "Links";
+				btn.transform.SetParent(_btn.parent);
+				btn.transform.localPosition = _btn.localPosition - buttonOffset;
+				btn.transform.localScale = Vector3.one;
+
+				btn.GetComponentsInChildren<UILocalize>(true).ToList().ForEach(DestroyImmediate);
+
+				var lbl = btn.GetComponentsInChildren<UILabel>(true);
+				foreach (var lb in lbl) lb.text = "링크 수";
+
+				var btnOff = btn.GetComponentsInChildren<Transform>(true).FirstOrDefault(x => x.name == "btn_OFF");
+				var uiButton = btnOff.GetComponent<UIButton>();
+				uiButton.onClick.Clear();
+				uiButton.onClick.Add(new(() => {
+					void OnSort(Panel_Base instance, UILabel lbl) {
+						if (instance == null) {
+							Plugin.Logger.LogWarning("[Symphony::SimpleUI] instance is null");
+							return;
+						}
+
+						var Sorting = instance.GetType()
+							.GetMethod("Sorting", BindingFlags.Instance | BindingFlags.NonPublic);
+						if (Sorting == null) {
+							Plugin.Logger.LogWarning("[Symphony::SimpleUI] Failed to find Sorting method");
+							return;
+						}
+
+						int Sort_Comparer(IReuseCellData a, IReuseCellData b) {
+							if (a.IsFirst() && !b.IsFirst()) return -1;
+							if (!a.IsFirst() && b.IsFirst()) return 1;
+							if (a.IsLast() && !b.IsLast()) return 1;
+							if (!a.IsLast() && b.IsLast()) return -1;
+
+							var _a = SingleTon<DataManager>.Instance.GetMyPCClient(a.GetPCID()).CoreState.Sum();
+							var _b = SingleTon<DataManager>.Instance.GetMyPCClient(b.GetPCID()).CoreState.Sum();
+
+							if (_a < _b)
+								return -SingleTon<GameManager>.Instance.InvertSort;
+							else if (_a > _b)
+								return SingleTon<GameManager>.Instance.InvertSort;
+
+							if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) > 0)
+								return -SingleTon<GameManager>.Instance.InvertSort;
+							if (string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort) < 0)
+								return SingleTon<GameManager>.Instance.InvertSort;
+
+							return a.GetPCID().CompareTo(b.GetPCID());
+						}
+						Sorting.Invoke(instance, [new Comparison<IReuseCellData>(Sort_Comparer)]);
+
+						var label = (UILabel)instance.GetType()
+							.GetField("_lblSort", BindingFlags.Instance | BindingFlags.NonPublic)
+							.GetValue(instance);
+						if (label != null)
+							label.text = lbl?.text ?? "링크 수";
+					}
+
+					try {
+						var lbl = btnOff.GetComponentInChildren<UILabel>(true);
+						OnSort(__instance, lbl);
+					} catch (Exception e) {
+						Plugin.Logger.LogError(e);
+					}
+				}));
+
+				buttonOffset += new Vector3(0, 72, 0);
 			}
 		}
 		#endregion

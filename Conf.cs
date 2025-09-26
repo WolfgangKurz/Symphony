@@ -64,6 +64,8 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Small_Consumables = config.Bind("SimpleUI", "Small_Consumables", false, "Display more items for Consumables");
 			public static readonly ConfigEntry<bool> Sort_Consumables = config.Bind("SimpleUI", "Sort_Consumables", false, "Sort consumable items");
 
+			public static readonly ConfigEntry<bool> DblClick_CharWarehouse = config.Bind("SimpleUI", "DblClick_CharWarehouse", true, "Double-Click Character to go in Detail");
+
 			public static readonly ConfigEntry<bool> EnterToSearch_CharWarehouse = config.Bind("SimpleUI", "EnterToSearch_CharWarehouse", false, "Press enter to search for Character Warehouse");
 			public static readonly ConfigEntry<bool> EnterToSearch_CharSelection = config.Bind("SimpleUI", "EnterToSearch_CharSelection", false, "Press enter to search for Character Selection");
 			public static readonly ConfigEntry<bool> EnterToSearch_ItemWarehouse = config.Bind("SimpleUI", "EnterToSearch_ItemWarehouse", false, "Press enter to search for Item Warehouse");
@@ -73,6 +75,7 @@ namespace Symphony {
 
 			public static readonly ConfigEntry<bool> Use_SortByName = config.Bind("SimpleUI", "Use_SortByName", false, "Add name sorting filter to Character list");
 			public static readonly ConfigEntry<bool> Use_SortByGroup = config.Bind("SimpleUI", "Use_SortByGroup", false, "Add group sorting filter to Character list");
+			public static readonly ConfigEntry<bool> Use_SortByLinks = config.Bind("SimpleUI", "Use_SortByLinks", false, "Add links sorting filter to Character list");
 			public static readonly ConfigEntry<bool> Default_CharacterCost_Off = config.Bind("SimpleUI", "Default_CharacterCost_Off", false, "Set Character's resource cost display default to Off");
 
 			public static readonly ConfigEntry<bool> Use_Squad_Clear = config.Bind("SimpleUI", "Use_Squad_Clear", false, "Add clear button to squad screen");
