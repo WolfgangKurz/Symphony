@@ -345,7 +345,7 @@ namespace Symphony {
 				if (config.TryGetOrphanedEntry("HelpfulBase", "Use_GetAll", out value_bool)) {
 					Plugin.Logger.LogMessage("[Symphony] HelpfulBase configuration detected, migration it.");
 					Automation.Use_Base_GetAll.Value = value_bool;
-					config.RemoveAll(new ConfigDefinition("HelpfulBase", "Use_Base_GetAll"));
+					config.RemoveAll(new ConfigDefinition("HelpfulBase", "Use_GetAll"));
 				}
 			}
 
