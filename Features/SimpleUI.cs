@@ -1,8 +1,14 @@
 ﻿using Com.LuisPedroFonseca.ProCamera2D;
 
+using GlobalDefines;
+
 using HarmonyLib;
 
 using LO_ClientNetwork;
+
+using LOEventSystem;
+
+using LOEventSystem.Msg;
 
 using System;
 using System.Collections;
@@ -16,6 +22,8 @@ using UnityEngine;
 
 namespace Symphony.Features {
 	internal class SimpleUI : MonoBehaviour {
+		private static NGUIAtlas atlas_LastBattleMap;
+
 		private static ulong SquadClear_LastUnsetPC = 0;
 
 		private static ButtonChangeSupport Disassemble_Char_All_Buttons = null;
@@ -26,6 +34,18 @@ namespace Symphony.Features {
 		public void Start() {
 			var harmony = new Harmony("Symphony.SimpleUI");
 
+			#region Battle
+			#region Last Battle Map
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_GameModeMenu), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.LastBattleMap_Panel_GameModeMenu_Start))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(SceneStageBattle), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Memorize_MapStage))
+			);
+			#endregion
+
 			#region Bypass World Button while Offline Battle
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_GameModeMenu), nameof(Panel_GameModeMenu.OnBtnOfflineBattleCheck)),
@@ -33,7 +53,34 @@ namespace Symphony.Features {
 			);
 			#endregion
 
-			#region Smaller List Items
+			#region Map Enemy Preview
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_StageDetail), nameof(Panel_StageDetail.SetMapStage)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_MapEnemyPreview_SetMapStage))
+			);
+			#endregion
+			#endregion
+
+			#region ListItemDisplay + ListSearch
+			#region Character Cost Display Defaultly Off on Character List
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_PcWarehouse), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterCostOff))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_AndroidInventory), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterCostOff))
+			);
+			#endregion
+
+			#region Character List DoubleClick
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_PcWarehouse), nameof(Panel_PcWarehouse.ToogleChange)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_PCWarehouse_DoubleClick))
+			);
+			#endregion
+
+			#region Smaller List Items + Enter To Search (in XXX_post)
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_PcWarehouse), "Start"),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_PCWarehouse_Start_pre)),
@@ -74,14 +121,16 @@ namespace Symphony.Features {
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_TempInventory_Start_pre)),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_TempInventory_Start_post))
 			);
-			#endregion
-
-			#region Smaller Consumable List Items & Sorting
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_MaterialWarehouse), "Start"),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_Consumable_Start_pre)),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GridItemsPatch_Consumable_Start_post))
 			);
+			#endregion
+			#endregion
+
+			#region ListSorting
+			#region Consumable List Sorting
 			harmony.Patch(
 				AccessTools.Method(typeof(DataManager), "GetItemConsumableEnchantCreate"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.DataSortPatch_DataManager_List))
@@ -100,13 +149,6 @@ namespace Symphony.Features {
 			);
 			#endregion
 
-			#region Character List DoubleClick
-			harmony.Patch(
-				AccessTools.Method(typeof(Panel_PcWarehouse), nameof(Panel_PcWarehouse.ToogleChange)),
-				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_PCWarehouse_DoubleClick))
-			);
-			#endregion
-
 			#region Sort by XXX
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_PcWarehouse), "Awake"),
@@ -117,93 +159,9 @@ namespace Symphony.Features {
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByXXX))
 			);
 			#endregion
-
-			#region Scroll Acceleration
-			harmony.Patch(
-				AccessTools.Method(typeof(UIReuseScrollView), nameof(UIReuseScrollView.Scroll)),
-				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_ScrollDelta))
-			);
-			harmony.Patch(
-				AccessTools.Method(typeof(UIScrollView), nameof(UIScrollView.Scroll)),
-				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_ScrollDelta))
-			);
-			harmony.Patch(
-				AccessTools.Method(typeof(UIScrollView2), nameof(UIScrollView2.Scroll)),
-				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_ScrollDelta))
-			);
-
-			harmony.Patch(
-				AccessTools.Method(typeof(ProCamera2DPanAndZoom), "Pan"),
-				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_CameraPanDelta))
-			);
-			harmony.Patch(
-				AccessTools.Method(typeof(ProCamera2DPanAndZoom), "Zoom"),
-				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_CameraZoomDelta))
-			);
 			#endregion
 
-			#region Character Cost Display Defaultly Off on Character List
-			harmony.Patch(
-				AccessTools.Method(typeof(Panel_PcWarehouse), "Start"),
-				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterCostOff))
-			);
-			harmony.Patch(
-				AccessTools.Method(typeof(Panel_AndroidInventory), "Start"),
-				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterCostOff))
-			);
-			#endregion
-
-			#region Squad Clear Button
-			harmony.Patch(
-				AccessTools.Method(typeof(Panel_SquadInfo), "Start"),
-				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Squad_Clear))
-			);
-			EventManager.StartListening(this, 12U, new Action<WebResponseState>(this.HandlePacketUnsetPcToSquad));
-			EventManager.StartListening(this, 197U, new Action<WebResponseState>(this.HandlePacketInfiniteWarUnsetPcToSquad));
-			#endregion
-
-			#region Disassemble Select All Characters & Equips
-			harmony.Patch(
-				AccessTools.Method(typeof(Panel_PcWarehouse), "Start"),
-				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Disassemble_AllSelect_Char))
-			);
-			harmony.Patch(
-				AccessTools.Method(typeof(Panel_ItemSelectInventory), "Start"),
-				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Disassemble_AllSelect_Equip))
-			);
-			harmony.Patch(
-				AccessTools.Method(typeof(Panel_PcWarehouse), "RefreshTotalSelectBtn"),
-				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Disassemble_Char_RefreshTotalSelectBtn))
-			);
-			harmony.Patch(
-				AccessTools.Method(typeof(Panel_ItemSelectInventory), "RefreshTotalSelectBtn"),
-				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Disassemble_Equip_RefreshTotalSelectBtn))
-			);
-			#endregion
-
-			#region Scrapbook Must Be Fancy
-			harmony.Patch(
-				AccessTools.Method(typeof(Panel_CharacterBookDetail), nameof(Panel_CharacterBookDetail.OnBtnView)),
-				transpiler: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_ScrapbookMBF_NoRotate))
-			);
-			harmony.Patch(
-				AccessTools.Method(typeof(Panel_CharacterBookDetail), "change"),
-				transpiler: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_ScrapbookMBF_NoRotate_final))
-			);
-			harmony.Patch(
-				AccessTools.Method(typeof(Panel_CharacterBookDetail), "OnBtnView"),
-				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.ScrapbookMBF_ChangeButton))
-			);
-			harmony.Patch(
-				AccessTools.Method(typeof(Panel_CharacterBookDetail), "coModeLoad"),
-				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.ScrapbookMBF_Model_BGOnLoad))
-			);
-			harmony.Patch(
-				AccessTools.Method(typeof(Panel_CharacterBookDetail), "RefreshSkinAndWound"),
-				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.ScrapbookMBF_Skin_BGOnLoad))
-			);
-			#endregion
-
+			#region Workbench
 			#region Preview Making
 			harmony.Patch(
 				AccessTools.Method(typeof(UIUnitMake), "SetMaking"),
@@ -232,10 +190,47 @@ namespace Symphony.Features {
 			);
 			#endregion
 
-			#region Map Enemy Preview
+			#region Disassemble Select All Characters & Equips
 			harmony.Patch(
-				AccessTools.Method(typeof(Panel_StageDetail), nameof(Panel_StageDetail.SetMapStage)),
-				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_MapEnemyPreview_SetMapStage))
+				AccessTools.Method(typeof(Panel_PcWarehouse), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Disassemble_AllSelect_Char))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_ItemSelectInventory), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Disassemble_AllSelect_Equip))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_PcWarehouse), "RefreshTotalSelectBtn"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Disassemble_Char_RefreshTotalSelectBtn))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_ItemSelectInventory), "RefreshTotalSelectBtn"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Disassemble_Equip_RefreshTotalSelectBtn))
+			);
+			#endregion
+			#endregion
+
+			#region Composite
+			#region Scrapbook Must Be Fancy
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_CharacterBookDetail), nameof(Panel_CharacterBookDetail.OnBtnView)),
+				transpiler: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_ScrapbookMBF_NoRotate))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_CharacterBookDetail), "change"),
+				transpiler: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_ScrapbookMBF_NoRotate_final))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_CharacterBookDetail), "OnBtnView"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.ScrapbookMBF_ChangeButton))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_CharacterBookDetail), "coModeLoad"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.ScrapbookMBF_Model_BGOnLoad))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_CharacterBookDetail), "RefreshSkinAndWound"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.ScrapbookMBF_Skin_BGOnLoad))
 			);
 			#endregion
 
@@ -249,6 +244,40 @@ namespace Symphony.Features {
 				transpiler: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Exchange_ConsumableList))
 			);
 			#endregion
+			#endregion
+
+			#region Squad Clear Button
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_SquadInfo), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Squad_Clear))
+			);
+			EventManager.StartListening(this, 12U, new Action<WebResponseState>(this.HandlePacketUnsetPcToSquad));
+			EventManager.StartListening(this, 197U, new Action<WebResponseState>(this.HandlePacketInfiniteWarUnsetPcToSquad));
+			#endregion
+
+			#region Scroll Acceleration
+			harmony.Patch(
+				AccessTools.Method(typeof(UIReuseScrollView), nameof(UIReuseScrollView.Scroll)),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_ScrollDelta))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(UIScrollView), nameof(UIScrollView.Scroll)),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_ScrollDelta))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(UIScrollView2), nameof(UIScrollView2.Scroll)),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_ScrollDelta))
+			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(ProCamera2DPanAndZoom), "Pan"),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_CameraPanDelta))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(ProCamera2DPanAndZoom), "Zoom"),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_CameraZoomDelta))
+			);
+			#endregion
 		}
 
 		private static void LazyInit() {
@@ -257,12 +286,338 @@ namespace Symphony.Features {
 			}
 		}
 
+		#region Battle
+		#region Last Battle Map 
+		private static void LastBattleMap_Panel_GameModeMenu_Start(Panel_GameModeMenu __instance) {
+			if (!Conf.SimpleUI.Use_LastBattleMap.Value) return;
+
+			var map = SingleTon<DataManager>.Instance.GetTableChapterStage(Conf.SimpleUI.LastBattleMapKey.Value);
+			var chapter = map != null
+				? SingleTon<DataManager>.Instance.GetTableMapChapter(map?.ChapterIndex)
+				: null;
+
+			if (!string.IsNullOrEmpty(chapter?.Event_Category)) {
+				var evChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
+				if (evChapter.Event_OpenType == 0) { // Closed event
+					Plugin.Logger.LogWarning("[Symphony::LastBattle] Last visited map was event and closed, reset to none");
+					Conf.SimpleUI.LastBattleMapKey.Value = "";
+					map = null;
+					chapter = null;
+				}
+			}
+
+			var goMain = (GameObject)__instance.GetType()
+				.GetField("_goMain", BindingFlags.Instance | BindingFlags.NonPublic)
+				.GetValue(__instance);
+
+			#region Make custom atlas
+			if (atlas_LastBattleMap == null) {
+				atlas_LastBattleMap = ScriptableObject.CreateInstance<NGUIAtlas>();
+
+				var src_sprite = goMain.GetComponentInChildren<UISprite>();
+				var src_atlas = src_sprite.atlas;
+				var src_mat = (Material)src_atlas.GetType()
+					.GetField("material", BindingFlags.Instance | BindingFlags.NonPublic)
+					.GetValue(src_atlas);
+
+				var tex = new Texture2D(1, 1, TextureFormat.ARGB32, false, true);
+				tex.LoadImage(Resource.LastBattleAtlas);
+
+				var mat = new Material(src_mat);
+				mat.name = "LastBattle_Atlas";
+				mat.mainTexture = tex;
+
+				var t = atlas_LastBattleMap.GetType();
+				t.GetField("material", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(atlas_LastBattleMap, mat);
+				t.GetField("materialBright", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(atlas_LastBattleMap, mat);
+				t.GetField("materialCustom", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(atlas_LastBattleMap, mat);
+				t.GetField("materialGray", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(atlas_LastBattleMap, mat);
+
+				t.GetField("mSpriteIndices", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(atlas_LastBattleMap, new Dictionary<string, int> {
+					{ "UI_SelectWorldBtn_MainStory_Small", 0 }
+				});
+				t.GetField("mSprites", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(atlas_LastBattleMap, new List<UISpriteData> {
+					new UISpriteData {
+						name = "UI_SelectWorldBtn_MainStory_Small",
+						x = 0,
+						y = 0,
+						width = 644,
+						height = 280,
+						paddingLeft = 0,
+						paddingTop = 3,
+						paddingRight = 28,
+						paddingBottom = 24,
+						borderLeft = 0,
+						borderTop = 0,
+						borderRight = 0,
+						borderBottom = 0,
+					}
+				});
+			}
+			#endregion
+
+			{ // goBtn adjust
+				var bgsp = goMain.transform.Find("BgSp");
+				bgsp.localPosition = new Vector3(bgsp.localPosition.x, 15f, bgsp.localPosition.z);
+
+				var box = goMain.GetComponent<BoxCollider>();
+				box.center = new Vector3(-20.96f, -113.26f, 0f);
+				box.size = new Vector3(646.504f, 247.321f, 0f);
+
+				var sp = bgsp.GetComponent<UISprite>();
+				sp.atlas = atlas_LastBattleMap;
+				sp.spriteName = "UI_SelectWorldBtn_MainStory_Small";
+				sp.height = 280;
+
+				var lb_Title = goMain.transform.Find("ChapterTitleLb");
+				lb_Title.transform.localPosition -= new Vector3(0f, 70f, 0f);
+
+				var lb_Num = goMain.transform.Find("ChapterNumLb");
+				lb_Num.transform.localPosition -= new Vector3(0f, 70f, 0f);
+
+				var lb_Text = goMain.transform.Find("TextSetPositionUiSprite");
+				lb_Text.transform.localPosition -= new Vector3(0f, 70f, 0f);
+			}
+
+			var btn = GameObject.Instantiate(goMain);
+			btn.name = "LastBattle";
+			btn.transform.SetParent(goMain.transform.parent);
+			btn.transform.localScale = goMain.transform.localScale;
+			btn.transform.localPosition = goMain.transform.localPosition;
+
+			{ // btn adjust
+				var bgsp = btn.transform.Find("BgSp");
+				bgsp.localPosition = new Vector3(bgsp.localPosition.x, 270f, bgsp.localPosition.z);
+
+				var box = btn.GetComponent<BoxCollider>();
+				box.center = new Vector3(-20.96f, 141.74f, 0f);
+				box.size = new Vector3(646.504f, 247.321f, 0f);
+
+				var sp = bgsp.GetComponent<UISprite>();
+				sp.atlas = atlas_LastBattleMap;
+				sp.spriteName = "UI_SelectWorldBtn_MainStory_Small";
+				sp.height = 280;
+
+				var chapterName = !string.IsNullOrEmpty(chapter?.Event_Category)
+					? SingleTon<DataManager>.Instance.GetTableEventChapterByCategory()
+						.Find(x => x.Event_Category == chapter.Event_Category)
+						.Event_CategoryName.Localize()
+					: chapter?.ChapterString ?? "";
+
+				var lb_Title = btn.transform.Find("ChapterTitleLb");
+				lb_Title.transform.localPosition += new Vector3(0f, 260f, 0f);
+				lb_Title.GetComponent<UILabel>().text = map?.StageName?.Localize() ?? "";
+
+				var lb_Num = btn.transform.Find("ChapterNumLb");
+				lb_Num.transform.localPosition += new Vector3(0f, 260f, 0f);
+				lb_Num.GetComponent<UILabel>().text = map != null
+					? $"{chapterName}. {map.StageIdxString}"
+					: "";
+
+				var lb_Text = btn.transform.Find("TextSetPositionUiSprite");
+				lb_Text.transform.localPosition += new Vector3(0f, 260f, 0f);
+
+				lb_Text.Find("!").gameObject.SetActive(false);
+				var lb_Text_Title = lb_Text.Find("TitleLb");
+				lb_Text_Title.GetComponent<UILocalize>().enabled = false;
+				lb_Text_Title.GetComponent<UILabel>().text = "마지막 전투 지역";
+
+				var uiBtn = btn.GetComponent<UIButton>();
+				uiBtn.onClick.Clear();
+				uiBtn.onClick.Add(new(() => {
+					if (map == null) return;
+
+					SingleTon<GameManager>.Instance.MapInit();
+					if (string.IsNullOrEmpty(chapter?.Event_Category)) {
+						SingleTon<GameManager>.Instance.MapStage = map;
+						SingleTon<GameManager>.Instance.GameMode = GAME_MODE.STORY;
+					}
+					else {
+						SingleTon<GameManager>.Instance.MapEventChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
+						SingleTon<GameManager>.Instance.GameMode = GAME_MODE.EVENT;
+					}
+					Handler.Broadcast(new SceneChange(Const.Scene_World)); // __instance.ShowScene(Const.Scene_World);
+				}));
+			}
+		}
+
+		private static void Memorize_MapStage() {
+			var map = SingleTon<GameManager>.Instance.MapStage;
+			if (map == null) return;
+
+			if (map.GameModeType == (int)GAME_MODE.STORY || map.GameModeType == (int)GAME_MODE.EVENT) {
+				if (Conf.SimpleUI.Use_LastBattleMap.Value)
+					Plugin.Logger.LogInfo("[Symphony::LastBattle] Last battle stage is " + map.Key);
+
+				// Last visited battle map always be logged
+				Conf.SimpleUI.LastBattleMapKey.Value = map.Key;
+			}
+		}
+		#endregion
+
 		#region Bypass World Button while Offline Battle
 		private static bool OfflineBattleBypass_Patch(Panel_GameModeMenu __instance) {
 			if (!Conf.SimpleUI.Use_OfflineBattle_Bypass.Value) return true;
 
 			__instance.OnBtnMainStroyMode(); // OnBtnOfflineBattleCheck
 			return false;
+		}
+		#endregion
+
+		#region Map Enemy Preview
+		private static void Patch_MapEnemyPreview_SetMapStage(Panel_StageDetail __instance, Table_MapStage mapStage) {
+			if (!Conf.SimpleUI.Use_MapEnemyPreview.Value) return;
+
+			var goCommon = __instance.XGetFieldValue<GameObject>("_goCommonStage");
+			if (goCommon == null) return;
+
+			try {
+				var SquadSelectEW = SingleTon<ResourceManager>.Instance.LoadUIPrefab("Panel_SquadSelectEW");
+				var RightMenuParent = GameObject.Instantiate(
+					SquadSelectEW.transform.Find("rightmenu").gameObject,
+					goCommon.transform
+				);
+
+				Destroy(RightMenuParent.transform.Find("Battle_Title").gameObject);
+				Destroy(RightMenuParent.transform.Find("Battle_Option").gameObject);
+
+				var goTabs = RightMenuParent.transform.Find("Tabs").gameObject;
+				var goTabInfos = RightMenuParent.transform.Find("TabInfos").gameObject;
+
+				var TabInfos = new GameObject[] {
+					goTabInfos.transform.GetChild(0).gameObject,
+					goTabInfos.transform.GetChild(1).gameObject,
+				};
+				TabInfos[1].transform.DestroyChildren();
+				Destroy(goTabInfos.transform.GetChild(2).gameObject);
+
+				var toggles = new UIToggle[] {
+					goTabs.transform.GetChild(0).GetComponent<UIToggle>(),
+					goTabs.transform.GetChild(1).GetComponent<UIToggle>(),
+				};
+				Destroy(goTabs.transform.GetChild(2).gameObject);
+
+				RightMenuParent.transform.localPosition = new Vector3(-540f, 420f, 0f);
+				TabInfos[0].transform.localPosition += new Vector3(120f, -50f, 0f);
+				TabInfos[1].transform.localPosition = new Vector3(660f, 180f, 0f);
+
+				for (var btnIdx = 0; btnIdx < toggles.Length; btnIdx++) {
+					var _btnIdx = btnIdx;
+					var go_TabButton = toggles[btnIdx].gameObject;
+					var btn = go_TabButton.GetComponent<UIButton>();
+					btn.onClick.Clear();
+					btn.onClick.Add(new(() => {
+						for (var i = 0; i < TabInfos.Length; i++)
+							TabInfos[i].SetActive(i == _btnIdx);
+					}));
+				}
+
+				goCommon.transform.Find("DecoSp (1)").gameObject.SetActive(false);
+
+				var pcList = goCommon.transform.Find("MissingPCList");
+				pcList.SetParent(TabInfos[1].transform);
+				pcList.localPosition = Vector3.zero;
+
+				var itemList = goCommon.transform.Find("ItemList");
+				itemList.SetParent(TabInfos[1].transform);
+				itemList.localPosition = Vector3.zero;
+
+				var clearLb = goCommon.transform.Find("ClearLb");
+				clearLb.SetParent(TabInfos[1].transform);
+				clearLb.localPosition = new Vector3(-850f, -345f, 0f);
+
+				var clearCondition = goCommon.transform.Find("ClearCondition");
+				clearCondition.SetParent(TabInfos[1].transform);
+				clearCondition.localPosition = new Vector3(-120f, -595f, 0f);
+
+				// Make grid
+				var _gridMonsterInfo = TabInfos[0].GetComponentInChildren<UIGrid>(true);
+				var _uiCenterOnMonster = TabInfos[0].GetComponentInChildren<UICenterOnChild>(true);
+
+				{
+					var btnLeft = TabInfos[0].transform.Find("LeftArrow").GetComponent<UIButton>();
+					btnLeft.onClick.Clear();
+					btnLeft.onClick.Add(new(() => _uiCenterOnMonster.Previous(false)));
+					btnLeft.GetComponent<UISprite>().depth = 3;
+
+					var btnRight = TabInfos[0].transform.Find("RightArrow").GetComponent<UIButton>();
+					btnRight.onClick.Clear();
+					btnRight.onClick.Add(new(() => _uiCenterOnMonster.Next(false)));
+					btnRight.GetComponent<UISprite>().depth = 3;
+				}
+
+				_gridMonsterInfo.transform.DestroyChildren();
+
+				void GridFn(List<string> grp, int id) {
+					if (grp != null && grp.Count > 0) {
+						var tmg = SingleTon<DataManager>.Instance.GetTableMobGroup(grp[0]);
+						if (tmg != null)
+							_gridMonsterInfo.gameObject.AddChild(SingleTon<ResourceManager>.Instance.LoadUIPrefab("UIStageMonsterInfo"))
+								.GetComponent<UIStageMonsterInfo>()
+								.SetData(tmg, id);
+					}
+				}
+				GridFn(mapStage.WaveMobGroup1, 1);
+				GridFn(mapStage.WaveMobGroup2, 2);
+				GridFn(mapStage.WaveMobGroup3, 3);
+				GridFn(mapStage.WaveMobGroup4, 4);
+				GridFn(mapStage.WaveMobGroup5, 5);
+
+				_gridMonsterInfo.repositionNow = true;
+
+				toggles[0].GetComponent<UIWidget>().depth = 2;
+				toggles[1].GetComponent<UIWidget>().depth = 2;
+
+				foreach (var lbl in toggles[1].GetComponentsInChildren<UILabel>(true)) {
+					var loc = lbl.GetComponent<UILocalize>();
+					if (loc != null) Destroy(loc);
+					lbl.text = "스테이지 정보";
+				}
+
+				IEnumerator LazyStart() {
+					yield return null;
+					EventDelegate.Execute(toggles[1].GetComponent<UIButton>().onClick);
+					toggles[1].XGetMethodVoid("OnClick").Invoke();
+				}
+				__instance.StartCoroutine(LazyStart());
+			} catch (Exception e) {
+				Plugin.Logger.LogError(e);
+			}
+		}
+		#endregion
+		#endregion
+
+		#region ListItemDisplay + ListSearch
+		#region Character Cost Display Defaultly Off on Character List
+		private static void Patch_CharacterCostOff(Panel_Base __instance) {
+			if (!Conf.SimpleUI.Default_CharacterCost_Off.Value) return;
+
+			var OnBtnCost = __instance.GetType()
+				.GetMethod("OnBtnCost", BindingFlags.Instance | BindingFlags.Public);
+			if (OnBtnCost == null) return;
+
+			var _costToggle = (UIToggle)__instance.GetType()
+				.GetField("_costToggle", BindingFlags.Instance | BindingFlags.NonPublic)
+				.GetValue(__instance);
+			_costToggle.value = false;
+			OnBtnCost.Invoke(__instance, []);
+		}
+		#endregion
+
+		#region Character List DoubleClick
+		private static void Patch_PCWarehouse_DoubleClick(Panel_PcWarehouse __instance) {
+			// Transpiling make broken IL codes
+			if (!Conf.SimpleUI.DblClick_CharWarehouse.Value) return;
+
+			// 2 = Panel_PcWarehouse.WAREHOUSETYPE.INVENTYPE_WAREHOUSE
+			if (__instance.XGetFieldValue<byte>("_invenType") == 2) {
+				var _grid = __instance.XGetFieldValue<UIReuseGrid>("_reUseGrid");
+				var m_listData = _grid.XGetFieldValue<List<IReuseCellData>>("m_listData");
+				foreach (var _cell in m_listData) {
+					var cell = _cell as ItemCellInvenCharacter;
+					cell.callbackDoubleClick = () => __instance.OnBtnDetailGo();
+				}
+			}
 		}
 		#endregion
 
@@ -520,9 +875,6 @@ namespace Symphony.Features {
 				}
 			}
 		}
-		#endregion
-
-		#region Smaller Consumable List Items & Sorting
 		private static void GridItemsPatch_Consumable_Start_pre(Panel_MaterialWarehouse __instance) {
 			if (!Conf.SimpleUI.Small_Consumables.Value) return;
 
@@ -545,6 +897,11 @@ namespace Symphony.Features {
 				cell.transform.localScale = new Vector3(SMALL_CONSUMABLE_RATIO, SMALL_CONSUMABLE_RATIO, SMALL_CONSUMABLE_RATIO);
 			}
 		}
+		#endregion
+		#endregion
+
+		#region ListSorting
+		#region Consumable List Sorting
 		private static string[] ConsumableKeyList = null; // Cache
 		private static void DataSortPatch_DataManager_List(DataManager __instance, ref List<ClientItemInfo> __result) {
 			if (!Conf.SimpleUI.Sort_Consumables.Value) return;
@@ -560,38 +917,6 @@ namespace Symphony.Features {
 			}
 
 			__result.Sort((x, y) => Array.IndexOf(ConsumableKeyList, x.ItemKeyString) - Array.IndexOf(ConsumableKeyList, y.ItemKeyString));
-		}
-		#endregion
-
-		#region Character List DoubleClick
-		private static void Patch_PCWarehouse_DoubleClick(Panel_PcWarehouse __instance) {
-			// Transpiling make broken IL codes
-			if (!Conf.SimpleUI.DblClick_CharWarehouse.Value) return;
-
-			// 2 = Panel_PcWarehouse.WAREHOUSETYPE.INVENTYPE_WAREHOUSE
-			if (__instance.XGetFieldValue<byte>("_invenType") == 2) {
-				var _grid = __instance.XGetFieldValue<UIReuseGrid>("_reUseGrid");
-				var m_listData = _grid.XGetFieldValue<List<IReuseCellData>>("m_listData");
-				foreach (var _cell in m_listData) {
-					var cell = _cell as ItemCellInvenCharacter;
-					cell.callbackDoubleClick = () => __instance.OnBtnDetailGo();
-				}
-			}
-		}
-		#endregion
-
-		#region Scroll Acceleration
-		private static void Accelerate_ScrollDelta(ref float delta) {
-			if (Conf.SimpleUI.Use_AccelerateScrollDelta.Value)
-				delta *= 3f;
-		}
-		private static void Accelerate_CameraPanDelta(ref float deltaTime) {
-			if (Conf.SimpleUI.Use_AccelerateScrollDelta.Value)
-				deltaTime *= 10f;
-		}
-		private static void Accelerate_CameraZoomDelta(ref float deltaTime) {
-			if (Conf.SimpleUI.Use_AccelerateScrollDelta.Value)
-				deltaTime *= -1f;
 		}
 		#endregion
 
@@ -891,99 +1216,174 @@ namespace Symphony.Features {
 			}
 		}
 		#endregion
-
-		#region Character Cost Display Defaultly Off on Character List
-		private static void Patch_CharacterCostOff(Panel_Base __instance) {
-			if (!Conf.SimpleUI.Default_CharacterCost_Off.Value) return;
-
-			var OnBtnCost = __instance.GetType()
-				.GetMethod("OnBtnCost", BindingFlags.Instance | BindingFlags.Public);
-			if (OnBtnCost == null) return;
-
-			var _costToggle = (UIToggle)__instance.GetType()
-				.GetField("_costToggle", BindingFlags.Instance | BindingFlags.NonPublic)
-				.GetValue(__instance);
-			_costToggle.value = false;
-			OnBtnCost.Invoke(__instance, []);
-		}
 		#endregion
 
-		#region Squad Clear Button
-		private static void Patch_Squad_Clear(Panel_SquadInfo __instance) {
-			if (!Conf.SimpleUI.Use_Squad_Clear.Value) return;
+		#region Workbench
+		#region Preview Making
+		private static void Patch_Preview_UnitMaking_Label(UIUnitMake __instance) {
+			var p_label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
+			if (p_label != null) return;
 
-			var btn_src = __instance.GetComponentsInChildren<UIButton>()
-				.FirstOrDefault(x => x.name == "BtnPresetOn")?
-				.gameObject;
-			if (btn_src == null) return;
+			var lbl_src = __instance.XGetFieldValue<UILabel>("_lblMakingTime");
 
-			var btn = GameObject.Instantiate<GameObject>(btn_src, btn_src.transform.parent);
-			btn.name = "BtnClear";
-			btn.transform.localPosition = btn_src.transform.localPosition - new Vector3(0f, 110f, 0f);
-			btn.GetComponentInChildren<UILabel>().text = "CLEAR";
-			btn.GetComponent<UISprite>().spriteName = "UI_Icon_SquadPreset_Trashcan";
+			var active = lbl_src.gameObject.activeSelf;
+			lbl_src.gameObject.SetActive(true);
 
-			var _btn = btn.GetComponent<UIButton>();
-			_btn.onClick.Clear();
-			_btn.onClick.Add(new(() => {
-				IEnumerator Fn() {
-					var squadType = SingleTon<GameManager>.Instance.SquadType;
-					var normalMasterSquad = SingleTon<DataManager>.Instance.GetUserInfo().MasterSquadIndex;
+			{
+				var lbl = GameObject.Instantiate(lbl_src.gameObject);
+				lbl.name = "Label_Preview";
+				lbl.transform.SetParent(lbl_src.transform.parent.parent.parent);
+				lbl.transform.localScale = Vector3.one;
+				lbl.transform.localPosition = lbl_src.transform.localPosition + new Vector3(280f, 0f, 0f);
 
-					var squad = SingleTon<DataManager>.Instance.GetCurrentSquad(squadType);
-					var chars = squad.SquadSlotList // move leader to last of list
-						.Where(r => r.PCId != 0 && r.PCId != squad.LeaderPCID)
-						.Concat(squadType == GlobalDefines.SQUAD_TYPE.NORMAL && normalMasterSquad == squad.SquadIndex
-							? [] // exclude leader for master squad
-							: squad.SquadSlotList.Where(r => r.PCId == squad.LeaderPCID)
-						)
-						.ToArray();
+				var label = lbl.GetComponent<UILabel>();
+				label.height += 20;
+				label.fontSize = 26;
+				label.text = "";
+			}
+			{
+				var lbl = GameObject.Instantiate(lbl_src.gameObject);
+				lbl.name = "Label_Result_New";
+				lbl.transform.SetParent(lbl_src.transform.parent.parent.parent);
+				lbl.transform.localScale = Vector3.one;
+				lbl.transform.localPosition = lbl_src.transform.localPosition + new Vector3(280f, -156f, 0f);
 
-					foreach (var chr in chars) {
-						SquadClear_LastUnsetPC = 0;
+				var label = lbl.GetComponent<UILabel>();
+				label.fontSize = 28;
+				label.color = new Color(1f, 0.73f, 0.27f);
+				label.text = "NEW !";
+				label.enabled = false;
+			}
 
-						// FormationCharacterPick.OnPick
-						MonoSingleton<SceneBase>.Instance.ShowWaitMessage(true);
-						if (squadType == GlobalDefines.SQUAD_TYPE.NORMAL) {
-							C2WPacket.Send_C2W_UNSET_PC_TO_SQUAD(
-							SingleTon<DataManager>.Instance.AccessToken,
-							SingleTon<DataManager>.Instance.WID,
-							chr.PCId,
-							squad.SquadIndex,
-							SingleTon<DataManager>.Instance.GetSquadSlotNumber(chr.PCId, GlobalDefines.SQUAD_TYPE.NORMAL)
-						);
-						}
-						else {
-							C2WPacket.Send_C2W_INFINITEWAR_UNSET_PC_TO_SQUAD(
-								SingleTon<DataManager>.Instance.AccessToken,
-								SingleTon<DataManager>.Instance.WID,
-								chr.PCId,
-								squad.SquadIndex,
-								SingleTon<DataManager>.Instance.GetSquadSlotNumber(chr.PCId, GlobalDefines.SQUAD_TYPE.INFINITE_WAR)
-							);
-						}
+			lbl_src.gameObject.SetActive(active);
+		}
+		private static void Patch_Preview_UnitMaking_Display(UIUnitMake __instance, PCMakingIngInfo makingInfo) {
+			Patch_Preview_UnitMaking_Label(__instance);
 
-						var waitFor = chr.PCId;
-						yield return new WaitUntil(() => SquadClear_LastUnsetPC == waitFor);
-					}
+			if (!Conf.SimpleUI.Use_CharacterMakingPreview.Value) {
+				Patch_Preview_UnitMaking_Display_Clear(__instance);
+				return;
+			}
 
-					var selector = FindObjectOfType<UISquadInfoCreatureSelect>()?.gameObject;
-					if (selector != null) Destroy(selector);
+			var info = makingInfo;
+			var label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
+			if (info == null) {
+				if (label != null) label.text = "";
+				return;
+			}
+
+			var pcMaking = SingleTon<DataManager>.Instance.TableLastOne?._TableManager?._Table_PCMaking;
+			if (pcMaking == null) {
+				if (label != null) label.text = string.Empty;
+				return;
+			}
+
+			var scrapbook = SingleTon<DataManager>.Instance.GetCollectionHero();
+
+			var units = pcMaking
+				.Where(x => x.Value.PCMakingTime == (int)(info.EndTime - info.StartTime))
+				.Select(x => x.Value.Key)
+				.ToArray();
+			var unitNames = string.Join(
+				"\n",
+				units.Select(x => (SingleTon<DataManager>.Instance.GetTablePC(x)?.Name ?? $"${x}").Localize())
+			);
+			if (label != null)
+				label.text = unitNames;
+			else
+				Plugin.Logger.LogWarning($"[Symphony::SimpleUI] Workbench Unit Slot {info.SlotNo} result is {unitNames.Replace("\n", " / ")}, but label not found");
+
+			var label_new = __instance.GetComponentsInChildren<UILabel>(true)
+				.FirstOrDefault(x => x.gameObject.name == "Label_Result_New");
+
+			if (units.All(x => !scrapbook.Contains(x))) { // all results are not in scrapbook
+				if (label_new != null) {
+					label_new.text = "NEW !";
+					label_new.enabled = true;
 				}
-				_btn.StartCoroutine(Fn());
-			}));
+			}
+			else if (units.Any(x => !scrapbook.Contains(x))) { // some result are not in scrapbook
+				if (label_new != null) {
+					label_new.text = "NEW ?";
+					label_new.enabled = true;
+				}
+			}
+			else { // all result are in scrapbook
+				if (label_new != null)
+					label_new.enabled = false;
+			}
 		}
-		private void HandlePacketUnsetPcToSquad(WebResponseState obj) {
-			W2C_UNSET_PC_TO_SQUAD data = obj as W2C_UNSET_PC_TO_SQUAD;
-			if (data.result.ErrorCode != 0) return;
+		private static void Patch_Preview_UnitMaking_Display_Clear(UIUnitMake __instance) {
+			Patch_Preview_UnitMaking_Label(__instance);
 
-			SquadClear_LastUnsetPC = data.result.PCID;
+			var label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
+			if (label != null) label.text = "";
+
+			var label_new = __instance.GetComponentsInChildren<UILabel>(true)
+				.FirstOrDefault(x => x.gameObject.name == "Label_Result_New");
+			if (label_new != null) label_new.enabled = false;
 		}
-		private void HandlePacketInfiniteWarUnsetPcToSquad(WebResponseState obj) {
-			W2C_INFINITEWAR_UNSET_PC_TO_SQUAD data = obj as W2C_INFINITEWAR_UNSET_PC_TO_SQUAD;
-			if (data.result.ErrorCode != 0) return;
 
-			SquadClear_LastUnsetPC = data.result.PCID;
+		private static void Patch_Preview_EquipMaking_Label(UIEquipMake __instance) {
+			var p_label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
+			if (p_label != null) return;
+
+			var lbl_src = __instance.XGetFieldValue<UILabel>("_lblMakingTime");
+
+			var active = lbl_src.gameObject.activeSelf;
+			lbl_src.gameObject.SetActive(true);
+
+			var lbl = GameObject.Instantiate(lbl_src.gameObject);
+			lbl.name = "Label_Preview";
+			lbl.transform.SetParent(lbl_src.transform.parent.parent.parent);
+			lbl.transform.localScale = Vector3.one;
+			lbl.transform.localPosition = lbl_src.transform.localPosition + new Vector3(280f, 0f, 0f);
+
+			var label = lbl.GetComponent<UILabel>();
+			label.height += 20;
+			label.fontSize = 26;
+			label.text = "";
+
+			lbl_src.gameObject.SetActive(active);
+		}
+		private static void Patch_Preview_EquipMaking_Display(UIEquipMake __instance, EquipMakingIngInfo makingInfo) {
+			Patch_Preview_EquipMaking_Label(__instance);
+
+			if (!Conf.SimpleUI.Use_EquipMakingPreview.Value) {
+				Patch_Preview_EquipMaking_Display_Clear(__instance);
+				return;
+			}
+
+			var info = makingInfo;
+			var label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
+			if (info == null) {
+				if (label != null) label.text = "";
+				return;
+			}
+
+			var eqMaking = SingleTon<DataManager>.Instance.TableLastOne?._TableManager?._Table_EquipMaking;
+			if (eqMaking == null) {
+				if (label != null) label.text = string.Empty;
+				return;
+			}
+
+			var units = string.Join(
+				"\n",
+				eqMaking
+					.Where(x => x.Value.EquipMakingTime == (int)(info.EndTime - info.StartTime))
+					.Select(x => SingleTon<DataManager>.Instance.GetTableItemEquip(x.Value.Key)?.ItemName ?? $"${x.Value.Key}")
+					.Select(x => x.Localize())
+			);
+			if (label != null)
+				label.text = units;
+			else
+				Plugin.Logger.LogWarning($"[Symphony::SimpleUI] Workbench Equip Slot {info.SlotNo} result is {units}, but label not found");
+		}
+		private static void Patch_Preview_EquipMaking_Display_Clear(UIEquipMake __instance) {
+			Patch_Preview_EquipMaking_Label(__instance);
+
+			var label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
+			if (label != null) label.text = "";
 		}
 		#endregion
 
@@ -1263,7 +1663,9 @@ namespace Symphony.Features {
 			__instance.StartCoroutine(UpdateButton());
 		}
 		#endregion
+		#endregion
 
+		#region Composite
 		#region Scrapbook Must Be Fancy
 		private static IEnumerable<CodeInstruction> Patch_ScrapbookMBF_NoRotate(MethodBase original, IEnumerable<CodeInstruction> instructions) {
 			Plugin.Logger.LogInfo("[Symphony::SimpleUI] Start to patch Panel_CharacterBookDetail.OnBtnView");
@@ -1485,296 +1887,6 @@ namespace Symphony.Features {
 		}
 		#endregion
 
-		#region Preview Making
-		private static void Patch_Preview_UnitMaking_Label(UIUnitMake __instance) {
-			var p_label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
-			if (p_label != null) return;
-
-			var lbl_src = __instance.XGetFieldValue<UILabel>("_lblMakingTime");
-
-			var active = lbl_src.gameObject.activeSelf;
-			lbl_src.gameObject.SetActive(true);
-
-			{
-				var lbl = GameObject.Instantiate(lbl_src.gameObject);
-				lbl.name = "Label_Preview";
-				lbl.transform.SetParent(lbl_src.transform.parent.parent.parent);
-				lbl.transform.localScale = Vector3.one;
-				lbl.transform.localPosition = lbl_src.transform.localPosition + new Vector3(280f, 0f, 0f);
-
-				var label = lbl.GetComponent<UILabel>();
-				label.height += 20;
-				label.fontSize = 26;
-				label.text = "";
-			}
-			{
-				var lbl = GameObject.Instantiate(lbl_src.gameObject);
-				lbl.name = "Label_Result_New";
-				lbl.transform.SetParent(lbl_src.transform.parent.parent.parent);
-				lbl.transform.localScale = Vector3.one;
-				lbl.transform.localPosition = lbl_src.transform.localPosition + new Vector3(280f, -156f, 0f);
-
-				var label = lbl.GetComponent<UILabel>();
-				label.fontSize = 28;
-				label.color = new Color(1f, 0.73f, 0.27f);
-				label.text = "NEW !";
-				label.enabled = false;
-			}
-
-			lbl_src.gameObject.SetActive(active);
-		}
-		private static void Patch_Preview_UnitMaking_Display(UIUnitMake __instance, PCMakingIngInfo makingInfo) {
-			Patch_Preview_UnitMaking_Label(__instance);
-
-			if (!Conf.SimpleUI.Use_CharacterMakingPreview.Value) {
-				Patch_Preview_UnitMaking_Display_Clear(__instance);
-				return;
-			}
-
-			var info = makingInfo;
-			var label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
-			if (info == null) {
-				if (label != null) label.text = "";
-				return;
-			}
-
-			var pcMaking = SingleTon<DataManager>.Instance.TableLastOne?._TableManager?._Table_PCMaking;
-			if (pcMaking == null) {
-				if (label != null) label.text = string.Empty;
-				return;
-			}
-
-			var scrapbook = SingleTon<DataManager>.Instance.GetCollectionHero();
-
-			var units = pcMaking
-				.Where(x => x.Value.PCMakingTime == (int)(info.EndTime - info.StartTime))
-				.Select(x => x.Value.Key)
-				.ToArray();
-			var unitNames = string.Join(
-				"\n",
-				units.Select(x => (SingleTon<DataManager>.Instance.GetTablePC(x)?.Name ?? $"${x}").Localize())
-			);
-			if (label != null)
-				label.text = unitNames;
-			else
-				Plugin.Logger.LogWarning($"[Symphony::SimpleUI] Workbench Unit Slot {info.SlotNo} result is {unitNames.Replace("\n", " / ")}, but label not found");
-
-			var label_new = __instance.GetComponentsInChildren<UILabel>(true)
-				.FirstOrDefault(x => x.gameObject.name == "Label_Result_New");
-
-			if (units.All(x => !scrapbook.Contains(x))) { // all results are not in scrapbook
-				if (label_new != null) {
-					label_new.text = "NEW !";
-					label_new.enabled = true;
-				}
-			}
-			else if (units.Any(x => !scrapbook.Contains(x))) { // some result are not in scrapbook
-				if (label_new != null) {
-					label_new.text = "NEW ?";
-					label_new.enabled = true;
-				}
-			}
-			else { // all result are in scrapbook
-				if (label_new != null)
-					label_new.enabled = false;
-			}
-		}
-		private static void Patch_Preview_UnitMaking_Display_Clear(UIUnitMake __instance) {
-			Patch_Preview_UnitMaking_Label(__instance);
-
-			var label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
-			if (label != null) label.text = "";
-
-			var label_new = __instance.GetComponentsInChildren<UILabel>(true)
-				.FirstOrDefault(x => x.gameObject.name == "Label_Result_New");
-			if (label_new != null) label_new.enabled = false;
-		}
-
-		private static void Patch_Preview_EquipMaking_Label(UIEquipMake __instance) {
-			var p_label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
-			if (p_label != null) return;
-
-			var lbl_src = __instance.XGetFieldValue<UILabel>("_lblMakingTime");
-
-			var active = lbl_src.gameObject.activeSelf;
-			lbl_src.gameObject.SetActive(true);
-
-			var lbl = GameObject.Instantiate(lbl_src.gameObject);
-			lbl.name = "Label_Preview";
-			lbl.transform.SetParent(lbl_src.transform.parent.parent.parent);
-			lbl.transform.localScale = Vector3.one;
-			lbl.transform.localPosition = lbl_src.transform.localPosition + new Vector3(280f, 0f, 0f);
-
-			var label = lbl.GetComponent<UILabel>();
-			label.height += 20;
-			label.fontSize = 26;
-			label.text = "";
-
-			lbl_src.gameObject.SetActive(active);
-		}
-		private static void Patch_Preview_EquipMaking_Display(UIEquipMake __instance, EquipMakingIngInfo makingInfo) {
-			Patch_Preview_EquipMaking_Label(__instance);
-
-			if (!Conf.SimpleUI.Use_EquipMakingPreview.Value) {
-				Patch_Preview_EquipMaking_Display_Clear(__instance);
-				return;
-			}
-
-			var info = makingInfo;
-			var label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
-			if (info == null) {
-				if (label != null) label.text = "";
-				return;
-			}
-
-			var eqMaking = SingleTon<DataManager>.Instance.TableLastOne?._TableManager?._Table_EquipMaking;
-			if (eqMaking == null) {
-				if (label != null) label.text = string.Empty;
-				return;
-			}
-
-			var units = string.Join(
-				"\n",
-				eqMaking
-					.Where(x => x.Value.EquipMakingTime == (int)(info.EndTime - info.StartTime))
-					.Select(x => SingleTon<DataManager>.Instance.GetTableItemEquip(x.Value.Key)?.ItemName ?? $"${x.Value.Key}")
-					.Select(x => x.Localize())
-			);
-			if (label != null)
-				label.text = units;
-			else
-				Plugin.Logger.LogWarning($"[Symphony::SimpleUI] Workbench Equip Slot {info.SlotNo} result is {units}, but label not found");
-		}
-		private static void Patch_Preview_EquipMaking_Display_Clear(UIEquipMake __instance) {
-			Patch_Preview_EquipMaking_Label(__instance);
-
-			var label = __instance.GetComponentsInChildren<UILabel>().FirstOrDefault(x => x.gameObject.name == "Label_Preview");
-			if (label != null) label.text = "";
-		}
-		#endregion
-
-		#region Map Enemy Preview
-		private static void Patch_MapEnemyPreview_SetMapStage(Panel_StageDetail __instance, Table_MapStage mapStage) {
-			if (!Conf.SimpleUI.Use_MapEnemyPreview.Value) return;
-
-			var goCommon = __instance.XGetFieldValue<GameObject>("_goCommonStage");
-			if (goCommon == null) return;
-
-			try {
-				var SquadSelectEW = SingleTon<ResourceManager>.Instance.LoadUIPrefab("Panel_SquadSelectEW");
-				var RightMenuParent = GameObject.Instantiate(
-					SquadSelectEW.transform.Find("rightmenu").gameObject,
-					goCommon.transform
-				);
-
-				Destroy(RightMenuParent.transform.Find("Battle_Title").gameObject);
-				Destroy(RightMenuParent.transform.Find("Battle_Option").gameObject);
-
-				var goTabs = RightMenuParent.transform.Find("Tabs").gameObject;
-				var goTabInfos = RightMenuParent.transform.Find("TabInfos").gameObject;
-
-				var TabInfos = new GameObject[] {
-					goTabInfos.transform.GetChild(0).gameObject,
-					goTabInfos.transform.GetChild(1).gameObject,
-				};
-				TabInfos[1].transform.DestroyChildren();
-				Destroy(goTabInfos.transform.GetChild(2).gameObject);
-
-				var toggles = new UIToggle[] {
-					goTabs.transform.GetChild(0).GetComponent<UIToggle>(),
-					goTabs.transform.GetChild(1).GetComponent<UIToggle>(),
-				};
-				Destroy(goTabs.transform.GetChild(2).gameObject);
-
-				RightMenuParent.transform.localPosition = new Vector3(-540f, 420f, 0f);
-				TabInfos[0].transform.localPosition += new Vector3(120f, -50f, 0f);
-				TabInfos[1].transform.localPosition = new Vector3(660f, 180f, 0f);
-
-				for (var btnIdx = 0; btnIdx < toggles.Length; btnIdx++) {
-					var _btnIdx = btnIdx;
-					var go_TabButton = toggles[btnIdx].gameObject;
-					var btn = go_TabButton.GetComponent<UIButton>();
-					btn.onClick.Clear();
-					btn.onClick.Add(new(() => {
-						for (var i = 0; i < TabInfos.Length; i++)
-							TabInfos[i].SetActive(i == _btnIdx);
-					}));
-				}
-
-				goCommon.transform.Find("DecoSp (1)").gameObject.SetActive(false);
-
-				var pcList = goCommon.transform.Find("MissingPCList");
-				pcList.SetParent(TabInfos[1].transform);
-				pcList.localPosition = Vector3.zero;
-
-				var itemList = goCommon.transform.Find("ItemList");
-				itemList.SetParent(TabInfos[1].transform);
-				itemList.localPosition = Vector3.zero;
-
-				var clearLb = goCommon.transform.Find("ClearLb");
-				clearLb.SetParent(TabInfos[1].transform);
-				clearLb.localPosition = new Vector3(-850f, -345f, 0f);
-
-				var clearCondition = goCommon.transform.Find("ClearCondition");
-				clearCondition.SetParent(TabInfos[1].transform);
-				clearCondition.localPosition = new Vector3(-120f, -595f, 0f);
-
-				// Make grid
-				var _gridMonsterInfo = TabInfos[0].GetComponentInChildren<UIGrid>(true);
-				var _uiCenterOnMonster = TabInfos[0].GetComponentInChildren<UICenterOnChild>(true);
-
-				{
-					var btnLeft = TabInfos[0].transform.Find("LeftArrow").GetComponent<UIButton>();
-					btnLeft.onClick.Clear();
-					btnLeft.onClick.Add(new(() => _uiCenterOnMonster.Previous(false)));
-					btnLeft.GetComponent<UISprite>().depth = 3;
-
-					var btnRight = TabInfos[0].transform.Find("RightArrow").GetComponent<UIButton>();
-					btnRight.onClick.Clear();
-					btnRight.onClick.Add(new(() => _uiCenterOnMonster.Next(false)));
-					btnRight.GetComponent<UISprite>().depth = 3;
-				}
-
-				_gridMonsterInfo.transform.DestroyChildren();
-
-				void GridFn(List<string> grp, int id) {
-					if (grp != null && grp.Count > 0) {
-						var tmg = SingleTon<DataManager>.Instance.GetTableMobGroup(grp[0]);
-						if (tmg != null)
-							_gridMonsterInfo.gameObject.AddChild(SingleTon<ResourceManager>.Instance.LoadUIPrefab("UIStageMonsterInfo"))
-								.GetComponent<UIStageMonsterInfo>()
-								.SetData(tmg, id);
-					}
-				}
-				GridFn(mapStage.WaveMobGroup1, 1);
-				GridFn(mapStage.WaveMobGroup2, 2);
-				GridFn(mapStage.WaveMobGroup3, 3);
-				GridFn(mapStage.WaveMobGroup4, 4);
-				GridFn(mapStage.WaveMobGroup5, 5);
-
-				_gridMonsterInfo.repositionNow = true;
-
-				toggles[0].GetComponent<UIWidget>().depth = 2;
-				toggles[1].GetComponent<UIWidget>().depth = 2;
-
-				foreach (var lbl in toggles[1].GetComponentsInChildren<UILabel>(true)) {
-					var loc = lbl.GetComponent<UILocalize>();
-					if (loc != null) Destroy(loc);
-					lbl.text = "스테이지 정보";
-				}
-
-				IEnumerator LazyStart() {
-					yield return null;
-					EventDelegate.Execute(toggles[1].GetComponent<UIButton>().onClick);
-					toggles[1].XGetMethodVoid("OnClick").Invoke();
-				}
-				__instance.StartCoroutine(LazyStart());
-			} catch (Exception e) {
-				Plugin.Logger.LogError(e);
-			}
-		}
-		#endregion
-
 		#region Exchange: No messy hand
 		private static void Patch_Exchange_HideSoldOut(Panel_ExShop __instance) {
 			if (!Conf.SimpleUI.Use_Exchange_NoMessyHand.Value) return;
@@ -1828,6 +1940,101 @@ namespace Symphony.Features {
 			var ret = new List<ClientItemInfo>();
 			ret.AddRange(list.Where(x => shopItems.Contains(x.ItemKeyString)));
 			return ret.ToList();
+		}
+		#endregion
+		#endregion
+
+		#region Squad Clear Button
+		private static void Patch_Squad_Clear(Panel_SquadInfo __instance) {
+			if (!Conf.SimpleUI.Use_Squad_Clear.Value) return;
+
+			var btn_src = __instance.GetComponentsInChildren<UIButton>()
+				.FirstOrDefault(x => x.name == "BtnPresetOn")?
+				.gameObject;
+			if (btn_src == null) return;
+
+			var btn = GameObject.Instantiate<GameObject>(btn_src, btn_src.transform.parent);
+			btn.name = "BtnClear";
+			btn.transform.localPosition = btn_src.transform.localPosition - new Vector3(0f, 110f, 0f);
+			btn.GetComponentInChildren<UILabel>().text = "CLEAR";
+			btn.GetComponent<UISprite>().spriteName = "UI_Icon_SquadPreset_Trashcan";
+
+			var _btn = btn.GetComponent<UIButton>();
+			_btn.onClick.Clear();
+			_btn.onClick.Add(new(() => {
+				IEnumerator Fn() {
+					var squadType = SingleTon<GameManager>.Instance.SquadType;
+					var normalMasterSquad = SingleTon<DataManager>.Instance.GetUserInfo().MasterSquadIndex;
+
+					var squad = SingleTon<DataManager>.Instance.GetCurrentSquad(squadType);
+					var chars = squad.SquadSlotList // move leader to last of list
+						.Where(r => r.PCId != 0 && r.PCId != squad.LeaderPCID)
+						.Concat(squadType == GlobalDefines.SQUAD_TYPE.NORMAL && normalMasterSquad == squad.SquadIndex
+							? [] // exclude leader for master squad
+							: squad.SquadSlotList.Where(r => r.PCId == squad.LeaderPCID)
+						)
+						.ToArray();
+
+					foreach (var chr in chars) {
+						SquadClear_LastUnsetPC = 0;
+
+						// FormationCharacterPick.OnPick
+						MonoSingleton<SceneBase>.Instance.ShowWaitMessage(true);
+						if (squadType == GlobalDefines.SQUAD_TYPE.NORMAL) {
+							C2WPacket.Send_C2W_UNSET_PC_TO_SQUAD(
+							SingleTon<DataManager>.Instance.AccessToken,
+							SingleTon<DataManager>.Instance.WID,
+							chr.PCId,
+							squad.SquadIndex,
+							SingleTon<DataManager>.Instance.GetSquadSlotNumber(chr.PCId, GlobalDefines.SQUAD_TYPE.NORMAL)
+						);
+						}
+						else {
+							C2WPacket.Send_C2W_INFINITEWAR_UNSET_PC_TO_SQUAD(
+								SingleTon<DataManager>.Instance.AccessToken,
+								SingleTon<DataManager>.Instance.WID,
+								chr.PCId,
+								squad.SquadIndex,
+								SingleTon<DataManager>.Instance.GetSquadSlotNumber(chr.PCId, GlobalDefines.SQUAD_TYPE.INFINITE_WAR)
+							);
+						}
+
+						var waitFor = chr.PCId;
+						yield return new WaitUntil(() => SquadClear_LastUnsetPC == waitFor);
+					}
+
+					var selector = FindObjectOfType<UISquadInfoCreatureSelect>()?.gameObject;
+					if (selector != null) Destroy(selector);
+				}
+				_btn.StartCoroutine(Fn());
+			}));
+		}
+		private void HandlePacketUnsetPcToSquad(WebResponseState obj) {
+			W2C_UNSET_PC_TO_SQUAD data = obj as W2C_UNSET_PC_TO_SQUAD;
+			if (data.result.ErrorCode != 0) return;
+
+			SquadClear_LastUnsetPC = data.result.PCID;
+		}
+		private void HandlePacketInfiniteWarUnsetPcToSquad(WebResponseState obj) {
+			W2C_INFINITEWAR_UNSET_PC_TO_SQUAD data = obj as W2C_INFINITEWAR_UNSET_PC_TO_SQUAD;
+			if (data.result.ErrorCode != 0) return;
+
+			SquadClear_LastUnsetPC = data.result.PCID;
+		}
+		#endregion
+
+		#region Scroll Acceleration
+		private static void Accelerate_ScrollDelta(ref float delta) {
+			if (Conf.SimpleUI.Use_AccelerateScrollDelta.Value)
+				delta *= 3f;
+		}
+		private static void Accelerate_CameraPanDelta(ref float deltaTime) {
+			if (Conf.SimpleUI.Use_AccelerateScrollDelta.Value)
+				deltaTime *= 10f;
+		}
+		private static void Accelerate_CameraZoomDelta(ref float deltaTime) {
+			if (Conf.SimpleUI.Use_AccelerateScrollDelta.Value)
+				deltaTime *= -1f;
 		}
 		#endregion
 	}

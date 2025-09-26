@@ -15,13 +15,17 @@ namespace Symphony.UI.Panels {
 
 		private void Conf_SimpleUI(ref float offset) {
 			void Subpage_Battle(ref float offset) {
+				DrawToggle(ref offset, "마지막 방문 전투 지역 버튼 추가", Conf.SimpleUI.Use_LastBattleMap);
+				offset += 10f;
 				DrawToggle(ref offset, "자율 전투 확인 대신 맵으로", Conf.SimpleUI.Use_OfflineBattle_Bypass);
-				offset += 4f;
+				offset += 10f;
 				DrawToggle(ref offset, "전투 적 미리보기", Conf.SimpleUI.Use_MapEnemyPreview);
 			}
 			void Subpage_ListItemDisplay(ref float offset) {
 				DrawToggle(ref offset, "전투원 소모 자원 표기 기본 끄기", Conf.SimpleUI.Default_CharacterCost_Off);
-				offset += 4f;
+				offset += 10f;
+				DrawToggle(ref offset, "더블 클릭으로 전투원 상세 보기", Conf.SimpleUI.DblClick_CharWarehouse);
+				offset += 10f;
 				DrawToggle(ref offset, "더 작은 전투원 목록 항목", Conf.SimpleUI.Small_CharWarehouse);
 				DrawToggle(ref offset, "더 작은 전투원 선택 항목", Conf.SimpleUI.Small_CharSelection);
 				DrawToggle(ref offset, "더 작은 전투원 도감 항목", Conf.SimpleUI.Small_CharScrapbook);
@@ -38,7 +42,7 @@ namespace Symphony.UI.Panels {
 			}
 			void Subpage_ListSorting(ref float offset) {
 				DrawToggle(ref offset, "소모품 목록 정렬", Conf.SimpleUI.Sort_Consumables);
-				offset += 4f;
+				offset += 10f;
 				DrawToggle(ref offset, "전투원 이름 정렬 추가", Conf.SimpleUI.Use_SortByName);
 				DrawToggle(ref offset, "전투원 소속 부대 정렬 추가", Conf.SimpleUI.Use_SortByGroup);
 				DrawToggle(ref offset, "전투원 링크 수 정렬 추가", Conf.SimpleUI.Use_SortByLinks);
@@ -46,13 +50,13 @@ namespace Symphony.UI.Panels {
 			void Subpage_Workbench(ref float offset) {
 				DrawToggle(ref offset, "전투원 제조 결과 미리보기", Conf.SimpleUI.Use_CharacterMakingPreview);
 				DrawToggle(ref offset, "장비 제조 결과 미리보기", Conf.SimpleUI.Use_EquipMakingPreview);
-				offset += 4f;
+				offset += 10f;
 				DrawToggle(ref offset, "분해에 모든 전투원 선택 추가", Conf.SimpleUI.Use_Disassemble_SelectAll_Character);
 				DrawToggle(ref offset, "분해에 모든 장비 선택 추가", Conf.SimpleUI.Use_Disassemble_SelectAll_Equip);
 			}
 			void Subpage_Composite(ref float offset) {
 				DrawToggle(ref offset, "도감은 멋져야 한다", Conf.SimpleUI.Use_ScrapbookMustBeFancy);
-				offset += 4f;
+				offset += 10f;
 				DrawToggle(ref offset, "교환소: 손도 깔끔", Conf.SimpleUI.Use_Exchange_NoMessyHand);
 			}
 

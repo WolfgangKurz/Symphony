@@ -50,7 +50,6 @@ namespace Symphony {
 			this.gameObject.AddComponent<Experimental>();
 			this.gameObject.AddComponent<SimpleUI>();
 			this.gameObject.AddComponent<BattleHotkey>();
-			this.gameObject.AddComponent<LastBattle>();
 			this.gameObject.AddComponent<Notification>();
 			this.gameObject.AddComponent<Presets>();
 			this.gameObject.AddComponent<Automation>();

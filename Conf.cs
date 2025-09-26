@@ -7,7 +7,7 @@ using System.IO;
 
 namespace Symphony {
 	internal class Conf {
-		public static ConfigFile config = new ConfigFile(Path.Combine(Paths.ConfigPath, "Symphony.cfg"), true);
+		public static ConfigFile config = new(Path.Combine(Paths.ConfigPath, "Symphony.cfg"), true);
 
 		public static readonly ConfigEntry<string> LastVersionTag = config.Bind("Common", "LastVersionTag", "0.0.0");
 
@@ -52,7 +52,19 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_ContinueBGM = config.Bind("SimpleTweaks", "Use_ContinueBGM", false, $"Continue BGM when any device changed and BGM has reset");
 		}
 		internal class SimpleUI {
+			#region Battle
+			public static readonly ConfigEntry<bool> Use_LastBattleMap = config.Bind("SimpleUI", "Use_LastBattleMap", false, "Whether to use the function that adds a button to the World screen that moves you directly to the last visited battle map.");
+			public static readonly ConfigEntry<string> LastBattleMapKey = config.Bind("SimpleUI", "LastBattleMapKey", "");
+
 			public static readonly ConfigEntry<bool> Use_OfflineBattle_Bypass = config.Bind("SimpleUI", "Use_OfflineBattle_Bypass", false, "Enter Maps screen instead open Offline battle screen");
+
+			public static readonly ConfigEntry<bool> Use_MapEnemyPreview = config.Bind("SimpleUI", "Use_MapEnemyPreview", false, "Displays enemies to be encountered in battle on the Battle Map Information");
+			#endregion
+
+			#region ListItemDisplay
+			public static readonly ConfigEntry<bool> Default_CharacterCost_Off = config.Bind("SimpleUI", "Default_CharacterCost_Off", false, "Set Character's resource cost display default to Off");
+
+			public static readonly ConfigEntry<bool> DblClick_CharWarehouse = config.Bind("SimpleUI", "DblClick_CharWarehouse", true, "Double-Click Character to go in Detail");
 
 			public static readonly ConfigEntry<bool> Small_CharWarehouse = config.Bind("SimpleUI", "Small_CharWarehouse", false, "Display more items for Character Warehouse");
 			public static readonly ConfigEntry<bool> Small_CharSelection = config.Bind("SimpleUI", "Small_CharSelection", false, "Display more items for Character Selection");
@@ -60,37 +72,41 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Small_ItemWarehouse = config.Bind("SimpleUI", "Small_ItemWarehouse", false, "Display more items for Item Warehouse");
 			public static readonly ConfigEntry<bool> Small_ItemSelection = config.Bind("SimpleUI", "Small_ItemSelection", false, "Display more items for Item Selection");
 			public static readonly ConfigEntry<bool> Small_TempInventory = config.Bind("SimpleUI", "Small_TempInventory", false, "Display more items for Temporary Inventory");
-
 			public static readonly ConfigEntry<bool> Small_Consumables = config.Bind("SimpleUI", "Small_Consumables", false, "Display more items for Consumables");
-			public static readonly ConfigEntry<bool> Sort_Consumables = config.Bind("SimpleUI", "Sort_Consumables", false, "Sort consumable items");
+			#endregion
 
-			public static readonly ConfigEntry<bool> DblClick_CharWarehouse = config.Bind("SimpleUI", "DblClick_CharWarehouse", true, "Double-Click Character to go in Detail");
-
+			#region ListSearch
 			public static readonly ConfigEntry<bool> EnterToSearch_CharWarehouse = config.Bind("SimpleUI", "EnterToSearch_CharWarehouse", false, "Press enter to search for Character Warehouse");
 			public static readonly ConfigEntry<bool> EnterToSearch_CharSelection = config.Bind("SimpleUI", "EnterToSearch_CharSelection", false, "Press enter to search for Character Selection");
 			public static readonly ConfigEntry<bool> EnterToSearch_ItemWarehouse = config.Bind("SimpleUI", "EnterToSearch_ItemWarehouse", false, "Press enter to search for Item Warehouse");
 			public static readonly ConfigEntry<bool> EnterToSearch_ItemSelection = config.Bind("SimpleUI", "EnterToSearch_ItemSelection", false, "Press enter to search for Item Selection");
+			#endregion
 
-			public static readonly ConfigEntry<bool> Use_AccelerateScrollDelta = config.Bind("SimpleUI", "Use_MultiplyScrollDelta", false, "Multiply scroll amount for scrollable list");
+			#region ListSorting
+			public static readonly ConfigEntry<bool> Sort_Consumables = config.Bind("SimpleUI", "Sort_Consumables", false, "Sort consumable items");
 
 			public static readonly ConfigEntry<bool> Use_SortByName = config.Bind("SimpleUI", "Use_SortByName", false, "Add name sorting filter to Character list");
 			public static readonly ConfigEntry<bool> Use_SortByGroup = config.Bind("SimpleUI", "Use_SortByGroup", false, "Add group sorting filter to Character list");
 			public static readonly ConfigEntry<bool> Use_SortByLinks = config.Bind("SimpleUI", "Use_SortByLinks", false, "Add links sorting filter to Character list");
-			public static readonly ConfigEntry<bool> Default_CharacterCost_Off = config.Bind("SimpleUI", "Default_CharacterCost_Off", false, "Set Character's resource cost display default to Off");
+			#endregion
 
-			public static readonly ConfigEntry<bool> Use_Squad_Clear = config.Bind("SimpleUI", "Use_Squad_Clear", false, "Add clear button to squad screen");
-
-			public static readonly ConfigEntry<bool> Use_Disassemble_SelectAll_Character = config.Bind("SimpleUI", "Use_Disassemble_SelectAll_Character", false, "Add Select All button to Disassemble Character screen");
-			public static readonly ConfigEntry<bool> Use_Disassemble_SelectAll_Equip = config.Bind("SimpleUI", "Use_Disassemble_SelectAll_Equip", false, "Add Select All button to Disassemble Equip screen");
-
-			public static readonly ConfigEntry<bool> Use_ScrapbookMustBeFancy = config.Bind("SimpleUI", "Use_ScrapbookMustBeFancy", true, "Beautify Scrapbook to usefully");
-
+			#region Workbench
 			public static readonly ConfigEntry<bool> Use_CharacterMakingPreview = config.Bind("SimpleUI", "Use_CharacterMakingPreview", false, "Displays available result for Character making");
 			public static readonly ConfigEntry<bool> Use_EquipMakingPreview = config.Bind("SimpleUI", "Use_EquipMakingPreview", false, "Displays available result for Equip making");
 
-			public static readonly ConfigEntry<bool> Use_MapEnemyPreview = config.Bind("SimpleUI", "Use_MapEnemyPreview", false, "Displays enemies to be encountered in battle on the Battle Map Information");
+			public static readonly ConfigEntry<bool> Use_Disassemble_SelectAll_Character = config.Bind("SimpleUI", "Use_Disassemble_SelectAll_Character", false, "Add Select All button to Disassemble Character screen");
+			public static readonly ConfigEntry<bool> Use_Disassemble_SelectAll_Equip = config.Bind("SimpleUI", "Use_Disassemble_SelectAll_Equip", false, "Add Select All button to Disassemble Equip screen");
+			#endregion
+
+			#region Composite
+			public static readonly ConfigEntry<bool> Use_ScrapbookMustBeFancy = config.Bind("SimpleUI", "Use_ScrapbookMustBeFancy", true, "Beautify Scrapbook to usefully");
 
 			public static readonly ConfigEntry<bool> Use_Exchange_NoMessyHand = config.Bind("SimpleUI", "Use_Exchange_NoMessyHand", true, "Enable the 'Hide Sold Out' in Exchange by default, Display consumables only related to selling");
+			#endregion
+
+			public static readonly ConfigEntry<bool> Use_Squad_Clear = config.Bind("SimpleUI", "Use_Squad_Clear", false, "Add clear button to squad screen");
+
+			public static readonly ConfigEntry<bool> Use_AccelerateScrollDelta = config.Bind("SimpleUI", "Use_MultiplyScrollDelta", false, "Multiply scroll amount for scrollable list");
 		}
 		internal class BattleHotkey {
 			public static readonly ConfigEntry<bool> Use_SkillPanel = config.Bind("BattleHotkey", "Use_SkillPanel", true, "Use skill panel hotkeys");
@@ -128,12 +144,8 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_PlayButton = config.Bind("BattleHotkey", "Use_PlayButton", true, "Use play button hotkeys");
 			public static readonly ConfigEntry<string> Key_Play = config.Bind("BattleHotkey", "Play", "KeypadPlus", "Play button hotkey");
 		}
-		internal class LastBattle {
-			public static readonly ConfigEntry<bool> Use_LastBattleMap = config.Bind("LastBattle", "Use_LastBattleMap", false, "Whether to use the function that adds a button to the World screen that moves you directly to the last visited battle map.");
-			public static readonly ConfigEntry<string> LastBattleMapKey = config.Bind("LastBattle", "LastBattleMapKey", "");
-		}
 		internal class Notification {
-			public static readonly ConfigEntry<bool> Handle_Notification = config.Bind("LastBattle", "Handle_Notification", true, "Handle in-game push notification as windows notification.");
+			public static readonly ConfigEntry<bool> Handle_Notification = config.Bind("Notification", "Handle_Notification", true, "Handle in-game push notification as windows notification.");
 		}
 		internal class Presets {
 			public static readonly ConfigEntry<bool> Use_CharMaking_Preset= config.Bind("Presets", "Use_CharMakingPreset", false, "Use Preset for Character making screen");
@@ -212,30 +224,30 @@ namespace Symphony {
 
 			#region Migration Pre-ConfigManager Configs
 			{ // SimpleTweaks -> ConfigManager.GracefulFPS
-				ConfigEntry<bool> entry_bool;
-				ConfigEntry<int> entry_int;
+				bool value_bool;
+				int value_int;
 
-				if (config.TryGetEntry("SimpleTweaks", "DisplayFPS", out entry_bool)) {
-					GracefulFPS.DisplayFPS.Value = entry_bool.Value;
-					config.Remove(new ConfigDefinition("SimpleTweaks", "DisplayFPS"), out _);
-				}
-
-				if (config.TryGetEntry("SimpleTweaks", "LimitFPS", out entry_bool)) {
-					GracefulFPS.LimitFPS.Value = entry_bool.Value ? "Fixed" : "Off";
-					config.Remove(new ConfigDefinition("SimpleTweaks", "LimitFPS"), out _);
-				}
-				if (config.TryGetEntry("SimpleTweaks", "LimitBattleFPS", out entry_bool)) {
-					GracefulFPS.LimitBattleFPS.Value = entry_bool.Value ? "Fixed" : "Off";
-					config.Remove(new ConfigDefinition("SimpleTweaks", "LimitBattleFPS"), out _);
+				if (config.TryGetOrphanedEntry("SimpleTweaks", "DisplayFPS", out value_bool)) {
+					GracefulFPS.DisplayFPS.Value = value_bool;
+					config.RemoveAll(new ConfigDefinition("SimpleTweaks", "DisplayFPS"));
 				}
 
-				if (config.TryGetEntry("SimpleTweaks", "MaxFPS", out entry_int)) {
-					GracefulFPS.MaxFPS.Value = entry_int.Value;
-					config.Remove(new ConfigDefinition("SimpleTweaks", "MaxFPS"), out _);
+				if (config.TryGetOrphanedEntry("SimpleTweaks", "LimitFPS", out value_bool)) {
+					GracefulFPS.LimitFPS.Value = value_bool ? "Fixed" : "Off";
+					config.RemoveAll(new ConfigDefinition("SimpleTweaks", "LimitFPS"));
 				}
-				if (config.TryGetEntry("SimpleTweaks", "MaxBattleFPS", out entry_int)) {
-					GracefulFPS.MaxBattleFPS.Value = entry_int.Value;
-					config.Remove(new ConfigDefinition("SimpleTweaks", "MaxBattleFPS"), out _);
+				if (config.TryGetOrphanedEntry("SimpleTweaks", "LimitBattleFPS", out value_bool)) {
+					GracefulFPS.LimitBattleFPS.Value = value_bool ? "Fixed" : "Off";
+					config.RemoveAll(new ConfigDefinition("SimpleTweaks", "LimitBattleFPS"));
+				}
+
+				if (config.TryGetOrphanedEntry("SimpleTweaks", "MaxFPS", out value_int)) {
+					GracefulFPS.MaxFPS.Value = value_int;
+					config.RemoveAll(new ConfigDefinition("SimpleTweaks", "MaxFPS"));
+				}
+				if (config.TryGetOrphanedEntry("SimpleTweaks", "MaxBattleFPS", out value_int)) {
+					GracefulFPS.MaxBattleFPS.Value = value_int;
+					config.RemoveAll(new ConfigDefinition("SimpleTweaks", "MaxBattleFPS"));
 				}
 			}
 			{ // SimpleTweaks -> ConfigManager.SimpleTweaks
@@ -328,14 +340,68 @@ namespace Symphony {
 
 			#region Migration renamed Configs
 			{ // HelpfulBase -> Automation
-				ConfigEntry<bool> entry_bool;
+				bool value_bool;
 
-				if (config.TryGetEntry("HelpfulBase", "Use_GetAll", out entry_bool)){
-					Automation.Use_Base_GetAll.Value = entry_bool.Value;
-					config.Remove(new ConfigDefinition("Automation", "Use_Base_GetAll"), out _);
+				if (config.TryGetOrphanedEntry("HelpfulBase", "Use_GetAll", out value_bool)) {
+					Plugin.Logger.LogMessage("[Symphony] HelpfulBase configuration detected, migration it.");
+					Automation.Use_Base_GetAll.Value = value_bool;
+					config.RemoveAll(new ConfigDefinition("HelpfulBase", "Use_Base_GetAll"));
+				}
+			}
+
+			{ // LastBattle -> Notification (Section name not changed after copy-paste)
+				bool value_bool;
+
+				if (config.TryGetOrphanedEntry("LastBattle", "Handle_Notification", out value_bool)) {
+					Plugin.Logger.LogMessage("[Symphony] LastBattle configuration detected, migration it.");
+					Notification.Handle_Notification.Value = value_bool;
+					config.RemoveAll(new ConfigDefinition("LastBattle", "Handle_Notification"));
+				}
+			}
+
+			{ // LastBattle -> SimpleUI
+				bool value_bool;
+				string value_str;
+
+				if (config.TryGetOrphanedEntry("LastBattle", "Use_LastBattleMap", out value_bool)) {
+					Plugin.Logger.LogMessage("[Symphony] LastBattle configuration detected, migration it.");
+					SimpleUI.Use_LastBattleMap.Value = value_bool;
+					config.RemoveAll(new ConfigDefinition("LastBattle", "Use_LastBattleMap"));
+				}
+				if (config.TryGetOrphanedEntry("LastBattle", "LastBattleMapKey", out value_str)) {
+					Plugin.Logger.LogMessage("[Symphony] LastBattle configuration detected, migration it.");
+					SimpleUI.LastBattleMapKey.Value = value_str;
+					config.RemoveAll(new ConfigDefinition("LastBattle", "LastBattleMapKey"));
 				}
 			}
 			#endregion
+
+			config.Save();
+		}
+	}
+
+	file static class ConfigFileHelper {
+		public static bool TryGetOrphanedEntry<T>(this ConfigFile config, string section, string key, out T value) {
+			var orphaned = (Dictionary<ConfigDefinition, string>)config.GetType()
+				.GetProperty("OrphanedEntries", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+				.GetValue(config);
+
+			var def = new ConfigDefinition(section, key);
+			if (!orphaned.TryGetValue(def, out var v)) {
+				value = default;
+				return false;
+			}
+
+			value = (T)TomlTypeConverter.ConvertToValue(v, typeof(T));
+			return true;
+		}
+		public static void RemoveAll(this ConfigFile config, ConfigDefinition def) {
+			config.Remove(def);
+
+			var orphaned = (Dictionary<ConfigDefinition, string>)config.GetType()
+				.GetProperty("OrphanedEntries", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+				.GetValue(config);
+			orphaned.Remove(def);
 		}
 	}
 }
