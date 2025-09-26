@@ -56,8 +56,12 @@ namespace Symphony.UI.Panels {
 			}
 			void Subpage_Composite(ref float offset) {
 				DrawToggle(ref offset, "도감은 멋져야 한다", Conf.SimpleUI.Use_ScrapbookMustBeFancy);
+				DrawLabel(ref offset, "전투원 도감에서 스킨 배경을 표시하며,\n자세히 보기 화면에 진입할 때 회전하지 않도록 변경하고,\n배경 및 장식품 감추기/보이기 버튼을 추가합니다.", Color_description, 20);
+
 				offset += 10f;
+
 				DrawToggle(ref offset, "교환소: 손도 깔끔", Conf.SimpleUI.Use_Exchange_NoMessyHand);
+				DrawLabel(ref offset, "교환소의 '품절된 상품 숨기기'를 체크상태로 변경하고,\n현재 보고있는 상품에 관련된 소모품만 목록에 표시합니다.", Color_description, 20);
 			}
 
 			var headingRect = new Rect(60, offset, WIDTH_FILL - 60, 20);

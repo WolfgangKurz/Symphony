@@ -15,6 +15,8 @@ namespace Symphony.UI.Panels {
 		private delegate void VoidDelegate();
 		private delegate string SliderTemplateDelegate(float value);
 
+		private readonly Color Color_description = new(0.9f, 0.9f, 0.9f, 0.9f);
+
 		public override Rect rc { get; set; } = new Rect(10f, 30f, 422f, 500f);
 
 		private const float WIDTH_FILL = 408f - 120f - 8f;
@@ -367,6 +369,7 @@ namespace Symphony.UI.Panels {
 							offset += 10;
 
 							DrawLabel(ref offset, "FPS 제한하기");
+							offset -= 4;
 							DrawRadio(ref offset, new() {
 								{ "None",  "바닐라" },
 								{ "Fixed", "고정" },
@@ -385,9 +388,12 @@ namespace Symphony.UI.Panels {
 								);
 							}
 
+							offset += 10;
+
 							DrawLabel(ref offset, "전투 FPS 제한하기");
+							offset -= 4;
 							DrawRadio(ref offset, new() {
-								{ "None",  "바닐라" },
+								{ "None",  "설정 안함" },
 								{ "Fixed", "고정" },
 								{ "VSync", "수직동기화" }
 							}, Conf.GracefulFPS.LimitBattleFPS, () => GracefulFPS.ApplyFPS());
@@ -403,6 +409,8 @@ namespace Symphony.UI.Panels {
 									1f, 240f, 1f
 								);
 							}
+
+							DrawLabel(ref offset, "'설정 안함'으로 설정하는 경우,\n위 'FPS 제한하기'의 설정을 따릅니다.", Color_description, 20);
 							break;
 
 						#endregion
@@ -433,11 +441,12 @@ namespace Symphony.UI.Panels {
 							DrawSeparator(ref offset);
 
 							DrawToggle(ref offset, "백그라운드 재생 동작 변경", Conf.SimpleTweaks.MuteOnBackgroundFix);
-							DrawLabel(ref offset, "사운드 설정에서 '백그라운드 재생'을 켰을 경우, 백그라운드에서 오디오가 일시정지 되는 동작 대신 음소거가 되도록 하는 옵션입니다.\n'백그라운드 재생'이 꺼져있을 경우, 동작하지 않습니다.", Color.yellow, 20);
+							DrawLabel(ref offset, "사운드 설정에서 '백그라운드 재생'을 켰을 경우, 백그라운드에서 오디오가 일시정지 되는 동작 대신 음소거가 되도록 하는 옵션입니다.\n'백그라운드 재생'이 꺼져있을 경우, 동작하지 않습니다.", Color_description, 20);
 
 							DrawSeparator(ref offset);
 
-							DrawToggle(ref offset, "마지막 자율 전투 분해 설정 기억하기", Conf.SimpleTweaks.Use_OfflineBattle_Memorize);
+							DrawToggle(ref offset, "마지막 자율 전투 설정 기억하기", Conf.SimpleTweaks.Use_OfflineBattle_Memorize);
+							DrawLabel(ref offset, "전투원 및 장비 분해 설정과 시간을 기억합니다.", Color_description, 20);
 
 							DrawSeparator(ref offset);
 
@@ -454,7 +463,7 @@ namespace Symphony.UI.Panels {
 							DrawSeparator(ref offset);
 
 							DrawToggle(ref offset, "BGM 초기화 방지하기", Conf.SimpleTweaks.Use_ContinueBGM);
-							DrawLabel(ref offset, "사운드 장치 등이 변경되었을 때, BGM이 초기화되어 처음부터 재생되는 것을 방지하고, 재생되던 위치부터 이어서 재생되도록 합니다.", Color.yellow, 20);
+							DrawLabel(ref offset, "사운드 장치 등이 변경되었을 때, BGM이 초기화되어 처음부터 재생되는 것을 방지하고, 재생되던 위치부터 이어서 재생되도록 합니다.", Color_description, 20);
 							#endregion
 							break;
 
@@ -689,6 +698,8 @@ namespace Symphony.UI.Panels {
 							offset += 20;
 							DrawLabel(ref offset, "이 기능은 완전히 검증되지 않은 동작을 포함합니다.\n사용 시 게임 동작에 문제가 발생할 수 있습니다.\n위 내용을 충분히 숙지 후 사용해 주세요.", Color.yellow);
 
+							DrawSeparator(ref offset);
+
 							KeepOffset(ref offset, () => {
 								DrawToggle(ref offset, "키 맵핑 사용하기", Conf.Experimental.Use_KeyMapping, rightMargin: 90);
 							});
@@ -697,10 +708,12 @@ namespace Symphony.UI.Panels {
 							}, WIDTH_FILL - 80);
 
 							DrawSlider(ref offset, "키 맵 불투명도", Conf.Experimental.KeyMapping_Opacity, labelWidth: 100f);
+							DrawLabel(ref offset, "설정한 키를 누르면 화면의 특정 영역을 클릭한 것과 같은 동작을 만드는 기능입니다.\n앱플레이어 등에서 '가상키'로 불리는 동작입니다.", Color_description, 20);
 
 							DrawSeparator(ref offset);
 
 							DrawToggle(ref offset, "전투 프리징 수정", Conf.Experimental.Fix_BattleFreezing);
+							DrawLabel(ref offset, "특정 전투 상황에서 캐릭터/적의 움직임이 멈추고 다음으로 진행되지 않는 문제를 수정하는 기능입니다.\n모든 프리징이 수정되지 않을 수 있습니다.", Color_description, 20);
 							#endregion
 							break;
 					}
