@@ -46,10 +46,16 @@ namespace Symphony.UI {
 			public static float dragStartMousePosition;
 		}
 
+		private static class DropdownState {
+			public static int hotControlID = 0;
+			public static bool dropdownOpen = false;
+			public static Vector2 dropdownScroll = Vector2.zero;
+		}
+
 		private static Texture2D tex_Transparent = new Texture2D(1, 1);
-		private static GUIStyle style_Empty = new GUIStyle();
 
 		private static RenderTexture tex_CheckMark;
+		private static RenderTexture tex_DownCaret;
 		private static RenderTexture tex_Circle30;
 		private static RenderTexture tex_Circle60;
 		private static RenderTexture tex_Circle90;
@@ -119,6 +125,47 @@ namespace Symphony.UI {
 				Graphics.SetRenderTarget(null);
 			}
 			#endregion
+			#region DownCaret
+			{
+				var sz = 30;
+				tex_DownCaret = new RenderTexture(sz, sz, 0);
+				tex_DownCaret.antiAliasing = 4;
+
+				Graphics.SetRenderTarget(tex_DownCaret);
+
+				var shader = Shader.Find("Hidden/Internal-Colored");
+				var mat = new Material(shader);
+				mat.hideFlags = HideFlags.HideAndDontSave;
+				mat.SetPass(0);
+
+				var r = 0.4f * sz;
+				var h = 0.5f * sz;
+
+				var vert = new Vector3[] {
+					new Vector3(h,              h + 0.75f * r),
+					new Vector3(h - 0.866f * r, h - 0.75f * r),
+					new Vector3(h + 0.866f * r, h - 0.75f * r),
+				};
+
+				GL.Clear(true, true, Color.white.AlphaMultiplied(0f));
+
+				GL.PushMatrix();
+				GL.LoadPixelMatrix(0, sz, sz, 0);
+
+				GL.Begin(GL.TRIANGLES);
+				GL.Color(Color.white);
+
+				GL.Vertex(vert[0]); GL.Vertex(vert[1]); GL.Vertex(vert[2]);
+
+				GL.End();
+
+				GL.PopMatrix();
+
+				GameObject.Destroy(mat);
+
+				Graphics.SetRenderTarget(null);
+			}
+			#endregion
 			#region Circle
 			RenderTexture MakeCircle(int size) {
 				var half = (float)size / 2f;
@@ -175,6 +222,10 @@ namespace Symphony.UI {
 		public static void DrawCheckmark(Rect rc) {
 			var rc_check = rc.Width(rc.height);
 			GUI.DrawTexture(rc_check, tex_CheckMark);
+		}
+		public static void DrawDownCaret(Rect rc) {
+			var rc_check = rc.Width(rc.height);
+			GUI.DrawTexture(rc_check, tex_DownCaret);
 		}
 		public static void DrawBorder(Rect rc) {
 			rc = rc.Shrink(-1);
@@ -294,6 +345,79 @@ namespace Symphony.UI {
 			};
 			style.normal.textColor = Color.white;
 			GUI.Label(rc.Shrink(4, 2), text, style);
+		}
+
+		public static int _NOT_IMPLEMENTED_Dropdown(Rect rc, int value, string[] items) {
+			var controlID = GUIUtility.GetControlID(FocusType.Passive);
+			var e = Event.current;
+
+			switch(e.GetTypeForControl(controlID)) {
+				case EventType.MouseDown:
+					if(e.button == 0 && rc.Contains(e.mousePosition)) {
+						GUIUtility.hotControl = controlID;
+						DropdownState.hotControlID = controlID;
+						DropdownState.dropdownOpen = true;
+						DropdownState.dropdownScroll = Vector2.zero;
+						e.Use();
+					}
+					break;
+				case EventType.MouseUp:
+					if(GUIUtility.hotControl == controlID) {
+						GUIUtility.hotControl = 0;
+						e.Use();
+					}
+					break;
+
+				case EventType.Repaint:
+					var opened = DropdownState.dropdownOpen && DropdownState.hotControlID == controlID;
+					var f_hover = false;
+					if (rc.Contains(e.mousePosition))
+						f_hover = true;
+
+					GUIX.Fill(rc.Shrink(0, 0, rc.height, 0), f_hover && !opened ? Colors.FrameBGHover : Colors.FrameBG);
+
+					var rc_arrow = rc.Shrink(rc.width - rc.height, 0, 0, 0);
+					GUIX.Fill(rc_arrow, f_hover || opened ? Colors.ButtonHover : Colors.Button);
+					GUIX.DrawDownCaret(rc_arrow.Shrink(3, 3));
+
+					var current = value < 0 || value >= items.Length ? "" : items[value];
+					GUIX.Label(rc.Shrink(4, 3), current);
+
+					if(opened) {
+						// TODO: Replace using ModalWindow, should be used to prevent inputs
+						GUI.ModalWindow(0, new Rect(0, 0, Screen.width, Screen.height), _ => {
+							var w = rc.width;
+							var h = 180f;
+
+							var y = rc.yMax;
+							if (rc.yMax + h > Screen.height)
+								y = rc.yMin - h;
+
+							GUIX.Group(new Rect(0, y, w, h), () => {
+								var rcPopup = new Rect(0, 0, w, h);
+								GUIX.Fill(rcPopup, Colors.Button);
+
+								DropdownState.dropdownScroll = GUIX.ScrollView(
+									rcPopup,
+									DropdownState.dropdownScroll,
+									rcPopup.Height(items.Length * 20f),
+									false,
+									true,
+									() => {
+										for (var i = 0; i < items.Length; i++) {
+											var item = items[i];
+											GUIX.Label(new Rect(0, i * 20f, w, 20f).Shrink(4, 3), item);
+										}
+									}
+								);
+							});
+						}, "");
+					}
+
+					break;
+			}
+
+			return value;
 		}
 
 		public static Vector2 ScrollView(
