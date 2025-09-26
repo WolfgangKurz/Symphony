@@ -165,6 +165,13 @@ namespace Symphony.Features {
 			#endregion
 			#endregion
 
+			#region CharacterDetail
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_CharacterDetails), nameof(Panel_CharacterDetails.Start)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterDetail_NextPre))
+			);
+			#endregion
+
 			#region Workbench
 			#region Preview Making
 			harmony.Patch(
@@ -1128,6 +1135,115 @@ namespace Symphony.Features {
 			return a.GetPCID().CompareTo(b.GetPCID());
 		}
 		#endregion
+		#endregion
+
+		#region CharacterDetail
+		private static void Patch_CharacterDetail_NextPre(Panel_CharacterDetails __instance) {
+			if (!Conf.SimpleUI.Use_CharacterDetail_NextPrev.Value) return;
+			if (SingleTon<GameManager>.Instance.CharacterDetailOpeType != 1) return; // From Warehouse
+
+			var _list = SingleTon<DataManager>.Instance.GetAllPc();
+			var toggles = NativeSingleton<ToggleManager>.Instance.Char_Lobby;
+			
+			bool IsFilterGrade(ClientPcInfo pc) => toggles.Grade[pc.Grade - 2];
+			bool IsFilterActorClass(ClientPcInfo pc) => toggles.Type[pc.PCTable.ActorClassType];
+			bool IsFilterRoleType(ClientPcInfo pc) => toggles.Type[pc.PCTable.RoleType];
+			bool IsFilterBodyType(ClientPcInfo pc) => toggles.Body[pc.PCTable.ActorBodyType];
+
+			Comparison<IReuseCellData> sortFunc = toggles.Sort switch {
+				0 => Common.SortGrade,
+				1 => Common.SortLevel,
+				2 => Common.SortAtt,
+				3 => Common.SortHp,
+				4 => Common.SortDef,
+				5 => Common.SortApply,
+				6 => Common.SortEvade,
+				7 => Common.SortCri,
+				8 => Common.SortActivePoint,
+				9 => Common.SortFavor,
+				10 => Common.SortGetTime,
+				11 => Common.SortMarriage,
+				_ => null
+			};
+			if(sortFunc == null && Conf.SimpleUI.Use_SortBy_Extra.Value) {
+				sortFunc = toggles.Sort switch {
+					12 => Patch_SortBy_Name,
+					13 => Patch_SortBy_Group,
+					14 => Patch_SortBy_Links,
+					_ => null
+				};
+			}
+			if(sortFunc == null) {
+				Plugin.Logger.LogInfo($"[Symphony::SimpleUI] Unable to find Sort function, value was {toggles.Sort}");
+				return; // No need to move
+			}
+
+			// Name search unavailable
+			var _filtered = _list
+				.Where(pc => !pc.IsModulePc() && IsFilterGrade(pc) && IsFilterActorClass(pc) && IsFilterRoleType(pc) && IsFilterBodyType(pc))
+				.Select(x => new ItemCellInvenCharacter {
+					pcInfo = x,
+					coreTargetPcInfo = x,
+					IsCostView = false,
+					IsCharUpGradeView = false,
+					IsCoreStateView = true
+				})
+				.ToList();
+			_filtered.Sort(sortFunc);
+			var filtered = _filtered.ToArray();
+
+			if (filtered.Length <= 1) {
+				Plugin.Logger.LogInfo($"[Symphony::SimpleUI] Filtered unit list length was {filtered.Length}");
+				return; // No need to move
+			}
+
+			var goPrev = __instance.XGetFieldValue<GameObject>("_goPcRight");
+			goPrev.SetActive(true);
+
+			var btnPrev = goPrev.GetComponentInChildren<UIButton>();
+			btnPrev.onClick.Clear();
+			btnPrev.onClick.Add(new(() => Patch_CharacterDetail_OnBtnNextPrev(__instance, filtered, -1)));
+
+			var goNext = __instance.XGetFieldValue<GameObject>("_goPcLeft");
+			goNext.SetActive(true);
+
+			var btnNext = goNext.GetComponentInChildren<UIButton>();
+			btnNext.onClick.Clear();
+			btnNext.onClick.Add(new(() => Patch_CharacterDetail_OnBtnNextPrev(__instance, filtered, +1)));
+		}
+		private static void Patch_CharacterDetail_OnBtnNextPrev(
+			Panel_CharacterDetails __instance, ItemCellInvenCharacter[] list, int offset
+		) {
+			__instance.XGetMethodVoid<Action>("SendReqSetSkin").Invoke(null);
+
+			var cur = SingleTon<GameManager>.Instance.SelectPCID;
+			var idx = Array.FindIndex(list, x => x.pcInfo.PCId == cur) - offset; // list are reversed
+			if (idx < 0) idx = list.Length - 1;
+			else if (idx >= list.Length) idx = 0;
+
+			Plugin.Logger.LogWarning($"{list[idx].Index}, {list[idx].pcInfo.PCId}");
+
+			var to = list[idx];
+			var fn = () => {
+				__instance.XSetFieldValue("_selectPCID", to.pcInfo.PCId);
+				SingleTon<GameManager>.Instance.SelectPCID = to.pcInfo.PCId;
+				__instance.XGetMethodVoid("RefreshPCInfo").Invoke();
+			};
+			EventManager.StartListening(__instance, 204u, HandlePacketResponsePcInfo);
+
+			void HandlePacketResponsePcInfo(WebResponseState p) {
+				var res = p as W2C_RESPONSE_PCINFO;
+				__instance.ShowWaitMessage(show: false);
+				if (InstantPanel.IsWait()) InstantPanel.Wait(show: false);
+
+				if (res.result.ErrorCode == 0) {
+					EventManager.StopListening(__instance, 204u, HandlePacketResponsePcInfo);
+					fn();
+				}
+			}
+
+			SingleTon<DataManager>.Instance.RefreshPCInfo(to.pcInfo.PCId, new(fn));
+		}
 		#endregion
 
 		#region Workbench

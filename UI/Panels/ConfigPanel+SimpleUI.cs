@@ -8,6 +8,7 @@ namespace Symphony.UI.Panels {
 			ListItemDisplay, // 목록 항목 표시
 			ListSearch, // 목록 검색
 			ListSorting, // 목록 정렬
+			CharacterDetail, // 전투원 상세 정보
 			Workbench, // 공방
 			Composite, // 복합
 		}
@@ -44,6 +45,9 @@ namespace Symphony.UI.Panels {
 				DrawToggle(ref offset, "소모품 목록 정렬", Conf.SimpleUI.Sort_Consumables);
 				offset += 10f;
 				DrawToggle(ref offset, "정렬 기준 추가", Conf.SimpleUI.Use_SortBy_Extra);
+			}
+			void Subpage_CharacterDetail(ref float offset) {
+				DrawToggle(ref offset, "이전/다음 전투원 버튼 추가", Conf.SimpleUI.Use_CharacterDetail_NextPrev);
 			}
 			void Subpage_Workbench(ref float offset) {
 				DrawToggle(ref offset, "전투원 제조 결과 미리보기", Conf.SimpleUI.Use_CharacterMakingPreview);
@@ -84,6 +88,9 @@ namespace Symphony.UI.Panels {
 					DrawLineButton(ref offset, "목록 정렬 개선", () => {
 						this.Conf_SimpleUI_Subpage = ConfigPanel_SimpleUI_SubpageType.ListSorting;
 					});
+					DrawLineButton(ref offset, "전투원 상세 정보", () => {
+						this.Conf_SimpleUI_Subpage = ConfigPanel_SimpleUI_SubpageType.CharacterDetail;
+					});
 					DrawLineButton(ref offset, "공방 개선", () => {
 						this.Conf_SimpleUI_Subpage = ConfigPanel_SimpleUI_SubpageType.Workbench;
 					});
@@ -114,6 +121,10 @@ namespace Symphony.UI.Panels {
 				case ConfigPanel_SimpleUI_SubpageType.ListSorting:
 					GUIX.Heading(headingRect, "목록 정렬 개선", alignment: TextAnchor.MiddleCenter);
 					Subpage_ListSorting(ref offset);
+					break;
+				case ConfigPanel_SimpleUI_SubpageType.CharacterDetail:
+					GUIX.Heading(headingRect, "전투원 상세 정보 개선", alignment: TextAnchor.MiddleCenter);
+					Subpage_CharacterDetail(ref offset);
 					break;
 				case ConfigPanel_SimpleUI_SubpageType.Workbench:
 					GUIX.Heading(headingRect, "공방 개선", alignment: TextAnchor.MiddleCenter);

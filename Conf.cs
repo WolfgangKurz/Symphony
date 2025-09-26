@@ -88,6 +88,10 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_SortBy_Extra = config.Bind("SimpleUI", "Use_SortBy_Extra", false, "Add extra sorting filter to Character list");
 			#endregion
 
+			#region CharacterDetail
+			public static ConfigEntry<bool> Use_CharacterDetail_NextPrev = config.Bind("SimpleUI", "Use_CharacterDetail_NextPrev", false, "Add next/prev character button to Character Detail screen");
+			#endregion
+
 			#region Workbench
 			public static readonly ConfigEntry<bool> Use_CharacterMakingPreview = config.Bind("SimpleUI", "Use_CharacterMakingPreview", false, "Displays available result for Character making");
 			public static readonly ConfigEntry<bool> Use_EquipMakingPreview = config.Bind("SimpleUI", "Use_EquipMakingPreview", false, "Displays available result for Equip making");
