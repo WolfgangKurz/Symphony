@@ -1221,28 +1221,27 @@ namespace Symphony.Features {
 			if (idx < 0) idx = list.Length - 1;
 			else if (idx >= list.Length) idx = 0;
 
-			Plugin.Logger.LogWarning($"{list[idx].Index}, {list[idx].pcInfo.PCId}");
-
 			var to = list[idx];
 			var fn = () => {
 				__instance.XSetFieldValue("_selectPCID", to.pcInfo.PCId);
 				SingleTon<GameManager>.Instance.SelectPCID = to.pcInfo.PCId;
 				__instance.XGetMethodVoid("RefreshPCInfo").Invoke();
 			};
-			EventManager.StartListening(__instance, 204u, HandlePacketResponsePcInfo);
 
 			void HandlePacketResponsePcInfo(WebResponseState p) {
 				var res = p as W2C_RESPONSE_PCINFO;
 				__instance.ShowWaitMessage(show: false);
 				if (InstantPanel.IsWait()) InstantPanel.Wait(show: false);
 
-				if (res.result.ErrorCode == 0) {
-					EventManager.StopListening(__instance, 204u, HandlePacketResponsePcInfo);
-					fn();
-				}
+				EventManager.StopListening(__instance, 204u, HandlePacketResponsePcInfo);
+				if (res.result.ErrorCode == 0) fn();
 			}
 
-			SingleTon<DataManager>.Instance.RefreshPCInfo(to.pcInfo.PCId, new(fn));
+			EventManager.StartListening(__instance, 204u, HandlePacketResponsePcInfo);
+			SingleTon<DataManager>.Instance.RefreshPCInfo(to.pcInfo.PCId, new(() => {
+				EventManager.StopListening(__instance, 204u, HandlePacketResponsePcInfo);
+				fn();
+			}));
 		}
 		#endregion
 
