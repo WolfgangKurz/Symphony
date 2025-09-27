@@ -567,7 +567,7 @@ namespace Symphony.Features {
 			if (Conf.SimpleUI.Use_LastOfflineBattle.Value)
 				Plugin.Logger.LogInfo("[Symphony::SimpleUI] Last offline battle stage is " + value.StageKey);
 
-			if (value != null)
+			if (value != null && !string.IsNullOrEmpty(value.StageKey))
 				Conf.SimpleUI.LastOfflineBattleKey.Value = value.StageKey;
 		}
 		#endregion
