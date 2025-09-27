@@ -163,9 +163,9 @@ namespace Symphony {
         /// <summary>
         ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
         /// </summary>
-        internal static byte[] LastBattleAtlas {
+        internal static byte[] NotiBinary {
             get {
-                object obj = ResourceManager.GetObject("LastBattleAtlas", resourceCulture);
+                object obj = ResourceManager.GetObject("NotiBinary", resourceCulture);
                 return ((byte[])(obj));
             }
         }
@@ -173,9 +173,9 @@ namespace Symphony {
         /// <summary>
         ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
         /// </summary>
-        internal static byte[] NotiBinary {
+        internal static byte[] SymphonyAtlas {
             get {
-                object obj = ResourceManager.GetObject("NotiBinary", resourceCulture);
+                object obj = ResourceManager.GetObject("SymphonyAtlas", resourceCulture);
                 return ((byte[])(obj));
             }
         }

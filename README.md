@@ -41,25 +41,37 @@ The default key for toggling fullscreen/windowed mode is `F11`.
 ### SimpleUI
 This modifies parts of the UI to make them easier to use.
 
+- A button will be added to the World Menu to quickly move to the last visited Battle Map and last visited Offlien Battle Map.
 - Provides a feature that, when an Auto-Battle is in progress, tapping the Battle map will bring up the Map screen instead of the Auto-Battle screen.
-- Provides the ability to reduce the display size of combatant, equipment, and consumable lists. (Allows more items to be seen on one screen.)
-- Provides a sorting function for the consumable list.
-- Provides instant search with the Enter key in some search input fields.
-- Provides accelerated scrolling via the mouse wheel.
-- Provides the Set Character's resource cost display default to Off feature.
-- Provides clearing all member in squad feature.
-- Provides Scrapbook improvement feature(`Scrapbook Must Be Fancy`).
 - Provides Enemy Preview for Battle Information.
-- Provides improvements for Exchange screen.
+---
+- Provides the Set Character's resource cost display default to Off feature.
+- Provides the feature to go to detail screen for character via Double-Click in character list.
+- Provides the ability to reduce the display size of character, equipment, and consumable lists. (Allows more items to be seen on one screen.)
+---
+- Provides instant search with the Enter key in some search input fields.
+---
+- Provides a sorting for the consumable list.
+- Provides a extra sorting function for the character list.
+---
+- Provides a Previous/Next button to character detail screen.
+---
+- Provides the preview of available results for character/equipment crafting.
+- Provides the Select All button to the Disassembly character/equipment screen.
+---
+- Provides Scrapbook improvement feature - `Scrapbook Must Be Fancy`.
+- Provides improvements for Exchange screen - `Exchange: No messy hand`.
+---
+- Provides clearing all member in squad feature.
+- Provides accelerated scrolling via the mouse wheel.
 
 ### BattleHotkey
+> This feature is deprecated, use `Key Mapping` in `Experimental` instead.
+
 Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Standby`, `Select Enemy`, `Select Enemy Tile`, `Confirm (after selecting an enemy or tile)`, and `Start Action` buttons in battle.
 
 `Confirm (after selecting an enemy or tile)` works by pressing the key corresponding to the selected enemy or tile a second time.
 The numbering for enemies and tiles corresponds to the numpad layout (Enemy `1` is located at the bottom left).
-
-### LastBattle
-A button will be added to the World Menu to quickly move to the last visited Battle Map.
 
 ### Notification
 This handles in-game push-notification as Windows Notification.

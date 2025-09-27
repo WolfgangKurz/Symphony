@@ -17,6 +17,7 @@ namespace Symphony.UI.Panels {
 		private void Conf_SimpleUI(ref float offset) {
 			void Subpage_Battle(ref float offset) {
 				DrawToggle(ref offset, "마지막 방문 전투 지역 버튼 추가", Conf.SimpleUI.Use_LastBattleMap);
+				DrawToggle(ref offset, "마지막 자율 전투 지역 버튼 추가", Conf.SimpleUI.Use_LastOfflineBattle);
 				offset += 10f;
 				DrawToggle(ref offset, "자율 전투 확인 대신 맵으로", Conf.SimpleUI.Use_OfflineBattle_Bypass);
 				offset += 10f;

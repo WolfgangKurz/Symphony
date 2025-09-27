@@ -22,8 +22,6 @@ using UnityEngine;
 
 namespace Symphony.Features {
 	internal class SimpleUI : MonoBehaviour {
-		private static NGUIAtlas atlas_LastBattleMap;
-
 		private static ulong SquadClear_LastUnsetPC = 0;
 
 		private static ButtonChangeSupport Disassemble_Char_All_Buttons = null;
@@ -35,14 +33,18 @@ namespace Symphony.Features {
 			var harmony = new Harmony("Symphony.SimpleUI");
 
 			#region Battle
-			#region Last Battle Map
+			#region Last Battle Map & Last Offline Battle
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_GameModeMenu), "Start"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.LastBattleMap_Panel_GameModeMenu_Start))
 			);
 			harmony.Patch(
 				AccessTools.Method(typeof(SceneStageBattle), "Start"),
-				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Memorize_MapStage))
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Memorize_LastBattleMap))
+			);
+			harmony.Patch(
+				AccessTools.PropertySetter(typeof(DataManager), nameof(DataManager.OfflineBattleInfo)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Memorize_LastOfflineBattle))
 			);
 			#endregion
 
@@ -298,74 +300,19 @@ namespace Symphony.Features {
 		}
 
 		#region Battle
-		#region Last Battle Map 
+		#region Last Battle Map & Last Offline Battle
 		private static void LastBattleMap_Panel_GameModeMenu_Start(Panel_GameModeMenu __instance) {
-			if (!Conf.SimpleUI.Use_LastBattleMap.Value) return;
+			if (!Conf.SimpleUI.Use_LastBattleMap.Value && !Conf.SimpleUI.Use_LastOfflineBattle.Value) return;
 
-			var map = SingleTon<DataManager>.Instance.GetTableChapterStage(Conf.SimpleUI.LastBattleMapKey.Value);
-			var chapter = map != null
-				? SingleTon<DataManager>.Instance.GetTableMapChapter(map?.ChapterIndex)
-				: null;
+			Atlas.Setup_Atlas();
 
-			if (!string.IsNullOrEmpty(chapter?.Event_Category)) {
-				var evChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
-				if (evChapter.Event_OpenType == 0) { // Closed event
-					Plugin.Logger.LogWarning("[Symphony::LastBattle] Last visited map was event and closed, reset to none");
-					Conf.SimpleUI.LastBattleMapKey.Value = "";
-					map = null;
-					chapter = null;
-				}
-			}
+			var use_lastBattle = Conf.SimpleUI.Use_LastBattleMap.Value;
+			var use_lastOffline = Conf.SimpleUI.Use_LastOfflineBattle.Value;
 
+			#region Resize and Move down `goMain`
 			var goMain = (GameObject)__instance.GetType()
 				.GetField("_goMain", BindingFlags.Instance | BindingFlags.NonPublic)
 				.GetValue(__instance);
-
-			#region Make custom atlas
-			if (atlas_LastBattleMap == null) {
-				atlas_LastBattleMap = ScriptableObject.CreateInstance<NGUIAtlas>();
-
-				var src_sprite = goMain.GetComponentInChildren<UISprite>();
-				var src_atlas = src_sprite.atlas;
-				var src_mat = (Material)src_atlas.GetType()
-					.GetField("material", BindingFlags.Instance | BindingFlags.NonPublic)
-					.GetValue(src_atlas);
-
-				var tex = new Texture2D(1, 1, TextureFormat.ARGB32, false, true);
-				tex.LoadImage(Resource.LastBattleAtlas);
-
-				var mat = new Material(src_mat);
-				mat.name = "LastBattle_Atlas";
-				mat.mainTexture = tex;
-
-				var t = atlas_LastBattleMap.GetType();
-				t.GetField("material", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(atlas_LastBattleMap, mat);
-				t.GetField("materialBright", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(atlas_LastBattleMap, mat);
-				t.GetField("materialCustom", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(atlas_LastBattleMap, mat);
-				t.GetField("materialGray", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(atlas_LastBattleMap, mat);
-
-				t.GetField("mSpriteIndices", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(atlas_LastBattleMap, new Dictionary<string, int> {
-					{ "UI_SelectWorldBtn_MainStory_Small", 0 }
-				});
-				t.GetField("mSprites", BindingFlags.Instance | BindingFlags.NonPublic).SetValue(atlas_LastBattleMap, new List<UISpriteData> {
-					new UISpriteData {
-						name = "UI_SelectWorldBtn_MainStory_Small",
-						x = 0,
-						y = 0,
-						width = 644,
-						height = 280,
-						paddingLeft = 0,
-						paddingTop = 3,
-						paddingRight = 28,
-						paddingBottom = 24,
-						borderLeft = 0,
-						borderTop = 0,
-						borderRight = 0,
-						borderBottom = 0,
-					}
-				});
-			}
-			#endregion
 
 			{ // goBtn adjust
 				var bgsp = goMain.transform.Find("BgSp");
@@ -376,7 +323,7 @@ namespace Symphony.Features {
 				box.size = new Vector3(646.504f, 247.321f, 0f);
 
 				var sp = bgsp.GetComponent<UISprite>();
-				sp.atlas = atlas_LastBattleMap;
+				sp.atlas = Atlas.atlas;
 				sp.spriteName = "UI_SelectWorldBtn_MainStory_Small";
 				sp.height = 280;
 
@@ -389,80 +336,239 @@ namespace Symphony.Features {
 				var lb_Text = goMain.transform.Find("TextSetPositionUiSprite");
 				lb_Text.transform.localPosition -= new Vector3(0f, 70f, 0f);
 			}
+			#endregion
 
-			var btn = GameObject.Instantiate(goMain);
-			btn.name = "LastBattle";
-			btn.transform.SetParent(goMain.transform.parent);
-			btn.transform.localScale = goMain.transform.localScale;
-			btn.transform.localPosition = goMain.transform.localPosition;
+			if (use_lastBattle && use_lastOffline) {
+				string[] names = ["LastBattle", "LastOfflineBattle"];
+				string[] labels = ["마지막 전투 지역", "마지막 자율 전투"];
+				Table_MapStage[] maps = [
+					SingleTon<DataManager>.Instance.GetTableChapterStage(Conf.SimpleUI.LastBattleMapKey.Value),
+					SingleTon<DataManager>.Instance.GetTableChapterStage(Conf.SimpleUI.LastOfflineBattleKey.Value),
+				];
+				for(var i=0; i<maps.Length;i++) {
+					var map = maps[i];
+					var chapter = map != null
+						? SingleTon<DataManager>.Instance.GetTableMapChapter(map?.ChapterIndex)
+						: null;
 
-			{ // btn adjust
-				var bgsp = btn.transform.Find("BgSp");
-				bgsp.localPosition = new Vector3(bgsp.localPosition.x, 270f, bgsp.localPosition.z);
+					if (!string.IsNullOrEmpty(chapter?.Event_Category)) {
+						var evChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
+						if (evChapter.Event_OpenType == 0) { // Closed event
+							Plugin.Logger.LogWarning("[Symphony::SimpleUI] Last visited map was event and closed, reset to none");
 
-				var box = btn.GetComponent<BoxCollider>();
-				box.center = new Vector3(-20.96f, 141.74f, 0f);
-				box.size = new Vector3(646.504f, 247.321f, 0f);
-
-				var sp = bgsp.GetComponent<UISprite>();
-				sp.atlas = atlas_LastBattleMap;
-				sp.spriteName = "UI_SelectWorldBtn_MainStory_Small";
-				sp.height = 280;
-
-				var chapterName = !string.IsNullOrEmpty(chapter?.Event_Category)
-					? SingleTon<DataManager>.Instance.GetTableEventChapterByCategory()
-						.Find(x => x.Event_Category == chapter.Event_Category)
-						.Event_CategoryName.Localize()
-					: chapter?.ChapterString ?? "";
-
-				var lb_Title = btn.transform.Find("ChapterTitleLb");
-				lb_Title.transform.localPosition += new Vector3(0f, 260f, 0f);
-				lb_Title.GetComponent<UILabel>().text = map?.StageName?.Localize() ?? "";
-
-				var lb_Num = btn.transform.Find("ChapterNumLb");
-				lb_Num.transform.localPosition += new Vector3(0f, 260f, 0f);
-				lb_Num.GetComponent<UILabel>().text = map != null
-					? $"{chapterName}. {map.StageIdxString}"
-					: "";
-
-				var lb_Text = btn.transform.Find("TextSetPositionUiSprite");
-				lb_Text.transform.localPosition += new Vector3(0f, 260f, 0f);
-
-				lb_Text.Find("!").gameObject.SetActive(false);
-				var lb_Text_Title = lb_Text.Find("TitleLb");
-				lb_Text_Title.GetComponent<UILocalize>().enabled = false;
-				lb_Text_Title.GetComponent<UILabel>().text = "마지막 전투 지역";
-
-				var uiBtn = btn.GetComponent<UIButton>();
-				uiBtn.onClick.Clear();
-				uiBtn.onClick.Add(new(() => {
-					if (map == null) return;
-
-					SingleTon<GameManager>.Instance.MapInit();
-					if (string.IsNullOrEmpty(chapter?.Event_Category)) {
-						SingleTon<GameManager>.Instance.MapStage = map;
-						SingleTon<GameManager>.Instance.GameMode = GAME_MODE.STORY;
+							if (use_lastBattle)
+								Conf.SimpleUI.LastBattleMapKey.Value = "";
+							else
+								Conf.SimpleUI.LastOfflineBattleKey.Value = "";
+							map = null;
+							chapter = null;
+						}
 					}
-					else {
-						SingleTon<GameManager>.Instance.MapEventChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
-						SingleTon<GameManager>.Instance.GameMode = GAME_MODE.EVENT;
+
+					if (!string.IsNullOrEmpty(chapter?.Event_Category)) {
+						var evChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
+						if (evChapter.Event_OpenType == 0) { // Closed event
+							Plugin.Logger.LogWarning("[Symphony::SimpleUI] Last visited map was event and closed, reset to none");
+
+							if (use_lastBattle)
+								Conf.SimpleUI.LastBattleMapKey.Value = "";
+							else
+								Conf.SimpleUI.LastOfflineBattleKey.Value = "";
+							map = null;
+							chapter = null;
+						}
 					}
-					Handler.Broadcast(new SceneChange(Const.Scene_World)); // __instance.ShowScene(Const.Scene_World);
-				}));
+
+					var btn = GameObject.Instantiate(goMain);
+					btn.name = names[i];
+					btn.transform.SetParent(goMain.transform.parent);
+					btn.transform.localScale = goMain.transform.localScale;
+					btn.transform.localPosition = goMain.transform.localPosition
+						+ new Vector3(323.252f * i, 0f);
+
+					{ // btn adjust
+						var bgsp = btn.transform.Find("BgSp");
+						bgsp.localPosition = new Vector3(bgsp.localPosition.x, 270f, bgsp.localPosition.z);
+
+						var box = btn.GetComponent<BoxCollider>();
+						box.center = new Vector3(-20.96f - 323.252f / 2f, 141.74f, 0f);
+						box.size = new Vector3(323.252f, 247.321f, 0f);
+
+						var sp = bgsp.GetComponent<UISprite>();
+						sp.atlas = Atlas.atlas;
+						sp.spriteName = "UI_SelectWorldBtn_MainStory_Small_Half";
+						sp.width = 350;
+						sp.height = 280;
+
+						var chapterName = !string.IsNullOrEmpty(chapter?.Event_Category)
+							? SingleTon<DataManager>.Instance.GetTableEventChapterByCategory()
+								.Find(x => x.Event_Category == chapter.Event_Category)
+								.Event_CategoryName.Localize()
+							: chapter?.ChapterString ?? "";
+
+						var lb_Title = btn.transform.Find("ChapterTitleLb");
+						lb_Title.transform.localPosition += new Vector3(-10f, 300f, 0f);
+						{
+							var cp = lb_Title.GetComponent<UILabel>();
+							cp.fontSize = 32;
+							cp.overflowMethod = UILabel.Overflow.ClampContent;
+							cp.width = 224;
+							cp.text = map?.StageName?.Localize() ?? "";
+						}
+
+						var lb_Num = btn.transform.Find("ChapterNumLb");
+						lb_Num.transform.localPosition += new Vector3(-10f, 300f, 0f);
+						{
+							var cp = lb_Num.GetComponent<UILabel>();
+							cp.pivot = UIWidget.Pivot.TopLeft;
+							cp.fontSize = 28;
+							cp.overflowMethod = UILabel.Overflow.ClampContent;
+							cp.width = 184;
+							cp.height = 56;
+							cp.text = map != null ? $"{chapterName}. {map.StageIdxString}" : "";
+						}
+
+						var lb_Text = btn.transform.Find("TextSetPositionUiSprite");
+						lb_Text.transform.localPosition += new Vector3(-10f, 270f, 0f);
+
+						lb_Text.Find("!").gameObject.SetActive(false);
+
+						var lb_Text_Title = lb_Text.Find("TitleLb");
+						Destroy(lb_Text_Title.GetComponent<UILocalize>());
+						{
+							var cp = lb_Text_Title.GetComponent<UILabel>();
+							cp.text = labels[i];
+							cp.fontSize = 32;
+						}
+
+						var uiBtn = btn.GetComponent<UIButton>();
+						uiBtn.onClick.Clear();
+						uiBtn.onClick.Add(new(() => {
+							if (map == null) return;
+
+							SingleTon<GameManager>.Instance.MapInit();
+							SingleTon<GameManager>.Instance.MapChapter = chapter;
+							if (string.IsNullOrEmpty(chapter?.Event_Category)) {
+								SingleTon<GameManager>.Instance.MapStage = map;
+								SingleTon<GameManager>.Instance.GameMode = GAME_MODE.STORY;
+								SingleTon<GameManager>.Instance.PlayMapStage = map;
+							}
+							else {
+								SingleTon<GameManager>.Instance.MapEventChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
+								SingleTon<GameManager>.Instance.GameMode = GAME_MODE.EVENT;
+								SingleTon<GameManager>.Instance.PlayMapStage = map;
+							}
+
+							Handler.Broadcast(new SceneChange(Const.Scene_World)); // __instance.ShowScene(Const.Scene_World);
+						}));
+					}
+				}
+			}
+			else {
+				var map = SingleTon<DataManager>.Instance.GetTableChapterStage(
+					use_lastBattle
+						? Conf.SimpleUI.LastBattleMapKey.Value
+						: Conf.SimpleUI.LastOfflineBattleKey.Value
+				);
+				var chapter = map != null
+					? SingleTon<DataManager>.Instance.GetTableMapChapter(map?.ChapterIndex)
+					: null;
+
+				if (!string.IsNullOrEmpty(chapter?.Event_Category)) {
+					var evChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
+					if (evChapter.Event_OpenType == 0) { // Closed event
+						Plugin.Logger.LogWarning("[Symphony::SimpleUI] Last visited map was event and closed, reset to none");
+
+						if (use_lastBattle)
+							Conf.SimpleUI.LastBattleMapKey.Value = "";
+						else
+							Conf.SimpleUI.LastOfflineBattleKey.Value = "";
+						map = null;
+						chapter = null;
+					}
+				}
+
+				var btn = GameObject.Instantiate(goMain);
+				btn.name = use_lastBattle ? "LastBattle" : "LastOfflineBattle";
+				btn.transform.SetParent(goMain.transform.parent);
+				btn.transform.localScale = goMain.transform.localScale;
+				btn.transform.localPosition = goMain.transform.localPosition;
+
+				{ // btn adjust
+					var bgsp = btn.transform.Find("BgSp");
+					bgsp.localPosition = new Vector3(bgsp.localPosition.x, 270f, bgsp.localPosition.z);
+
+					var box = btn.GetComponent<BoxCollider>();
+					box.center = new Vector3(-20.96f, 141.74f, 0f);
+					box.size = new Vector3(646.504f, 247.321f, 0f);
+
+					var sp = bgsp.GetComponent<UISprite>();
+					sp.atlas = Atlas.atlas;
+					sp.spriteName = "UI_SelectWorldBtn_MainStory_Small";
+					sp.height = 280;
+
+					var chapterName = !string.IsNullOrEmpty(chapter?.Event_Category)
+						? SingleTon<DataManager>.Instance.GetTableEventChapterByCategory()
+							.Find(x => x.Event_Category == chapter.Event_Category)
+							.Event_CategoryName.Localize()
+						: chapter?.ChapterString ?? "";
+
+					var lb_Title = btn.transform.Find("ChapterTitleLb");
+					lb_Title.transform.localPosition += new Vector3(0f, 260f, 0f);
+					lb_Title.GetComponent<UILabel>().text = map?.StageName?.Localize() ?? "";
+
+					var lb_Num = btn.transform.Find("ChapterNumLb");
+					lb_Num.transform.localPosition += new Vector3(0f, 260f, 0f);
+					lb_Num.GetComponent<UILabel>().text = map != null
+						? $"{chapterName}. {map.StageIdxString}"
+						: "";
+
+					var lb_Text = btn.transform.Find("TextSetPositionUiSprite");
+					lb_Text.transform.localPosition += new Vector3(0f, 260f, 0f);
+
+					lb_Text.Find("!").gameObject.SetActive(false);
+					var lb_Text_Title = lb_Text.Find("TitleLb");
+					Destroy(lb_Text_Title.GetComponent<UILocalize>());
+					lb_Text_Title.GetComponent<UILabel>().text = use_lastBattle ? "마지막 전투 지역" : "마지막 자율 전투";
+
+					var uiBtn = btn.GetComponent<UIButton>();
+					uiBtn.onClick.Clear();
+					uiBtn.onClick.Add(new(() => {
+						if (map == null) return;
+
+						SingleTon<GameManager>.Instance.MapInit();
+						if (string.IsNullOrEmpty(chapter?.Event_Category)) {
+							SingleTon<GameManager>.Instance.MapStage = map;
+							SingleTon<GameManager>.Instance.GameMode = GAME_MODE.STORY;
+						}
+						else {
+							SingleTon<GameManager>.Instance.MapEventChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
+							SingleTon<GameManager>.Instance.GameMode = GAME_MODE.EVENT;
+						}
+						Handler.Broadcast(new SceneChange(Const.Scene_World)); // __instance.ShowScene(Const.Scene_World);
+					}));
+				}
 			}
 		}
 
-		private static void Memorize_MapStage() {
+		private static void Memorize_LastBattleMap() {
 			var map = SingleTon<GameManager>.Instance.MapStage;
 			if (map == null) return;
 
 			if (map.GameModeType == (int)GAME_MODE.STORY || map.GameModeType == (int)GAME_MODE.EVENT) {
 				if (Conf.SimpleUI.Use_LastBattleMap.Value)
-					Plugin.Logger.LogInfo("[Symphony::LastBattle] Last battle stage is " + map.Key);
+					Plugin.Logger.LogInfo("[Symphony::SimpleUI] Last battle stage is " + map.Key);
 
 				// Last visited battle map always be logged
 				Conf.SimpleUI.LastBattleMapKey.Value = map.Key;
 			}
+		}
+		private static void Memorize_LastOfflineBattle(AutoRepeatInfo value) {
+			if (Conf.SimpleUI.Use_LastOfflineBattle.Value)
+				Plugin.Logger.LogInfo("[Symphony::SimpleUI] Last offline battle stage is " + value.StageKey);
+
+			if (value != null)
+				Conf.SimpleUI.LastOfflineBattleKey.Value = value.StageKey;
 		}
 		#endregion
 

@@ -56,6 +56,9 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_LastBattleMap = config.Bind("SimpleUI", "Use_LastBattleMap", false, "Whether to use the function that adds a button to the World screen that moves you directly to the last visited battle map.");
 			public static readonly ConfigEntry<string> LastBattleMapKey = config.Bind("SimpleUI", "LastBattleMapKey", "");
 
+			public static readonly ConfigEntry<bool> Use_LastOfflineBattle = config.Bind("SimpleUI", "Use_LastOfflineBattle", false, "Whether to use the function that adds a button to the World screen that moves you directly to the last visited offline battle map.");
+			public static readonly ConfigEntry<string> LastOfflineBattleKey = config.Bind("SimpleUI", "LastOfflineBattleKey", "");
+
 			public static readonly ConfigEntry<bool> Use_OfflineBattle_Bypass = config.Bind("SimpleUI", "Use_OfflineBattle_Bypass", false, "Enter Maps screen instead open Offline battle screen");
 
 			public static readonly ConfigEntry<bool> Use_MapEnemyPreview = config.Bind("SimpleUI", "Use_MapEnemyPreview", false, "Displays enemies to be encountered in battle on the Battle Map Information");
