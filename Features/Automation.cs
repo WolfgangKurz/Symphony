@@ -13,6 +13,7 @@ using System.Reflection;
 using UnityEngine;
 
 namespace Symphony.Features {
+	[Feature("Automation")]
 	internal class Automation : MonoBehaviour {
 		private static bool GetAll_GettingAll = false;
 		private WebGiveRewardInfo GetAll_RewardTotal = null;

@@ -45,14 +45,10 @@ namespace Symphony {
 
 			StartCoroutine(this.InitUI());
 
-			this.gameObject.AddComponent<GracefulFPS>();
-			this.gameObject.AddComponent<SimpleTweaks>();
-			this.gameObject.AddComponent<Experimental>();
-			this.gameObject.AddComponent<SimpleUI>();
-			this.gameObject.AddComponent<BattleHotkey>();
-			this.gameObject.AddComponent<Notification>();
-			this.gameObject.AddComponent<Presets>();
-			this.gameObject.AddComponent<Automation>();
+			var features = Assembly.GetExecutingAssembly().GetTypes()
+				.Where(x => x.GetCustomAttributes(typeof(FeatureAttribute), false).Length > 0);
+			foreach(var feat in features) 
+				this.gameObject.AddComponent(feat);
 		}
 
 		private IEnumerator InitUI() {

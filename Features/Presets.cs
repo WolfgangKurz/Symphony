@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using UnityEngine;
 
 namespace Symphony.Features {
+	[Feature("Presets")]
 	internal class Presets : MonoBehaviour {
 		private class CharMakingPresetData {
 			private static readonly Regex reg = new("^([0-9]+),([0-9]+),([0-9]+),([0-9]+),([0-9]+),([0-9]+),(.+)$", RegexOptions.Compiled);

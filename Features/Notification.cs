@@ -15,6 +15,7 @@ using UnityEngine;
 using static Skill;
 
 namespace Symphony.Features {
+	[Feature("Notification")]
 	internal class Notification : MonoBehaviour {
 		private static string NotiToolPath => Path.Combine(
 			Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),

@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace Symphony.Features {
+	[Feature("GracefulFPS")]
 	internal class GracefulFPS : MonoBehaviour {
 		private FrameLimit DisplayFPSLimit = new(0.2f);
 

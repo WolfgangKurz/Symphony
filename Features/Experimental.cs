@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 namespace Symphony.Features {
+	[Feature("Experimental")]
 	internal class Experimental : MonoBehaviour {
 		public void Start() {
 			var harmony = new Harmony("Symphony.Experimental");

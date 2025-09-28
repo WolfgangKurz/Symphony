@@ -10,6 +10,7 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace Symphony.Features {
+	[Feature("SimpleTweaks")]
 	internal class SimpleTweaks : MonoBehaviour {
 		private class SimpleTweaks_Patch {
 			private static Helper.RECT? lastWindowRect = null;

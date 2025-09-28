@@ -9,6 +9,7 @@ using System.Reflection;
 using UnityEngine;
 
 namespace Symphony.Features {
+	[Feature("BattleHotkey")]
 	internal class BattleHotkey : MonoBehaviour, Listener {
 		private bool inBattleScene = false;
 

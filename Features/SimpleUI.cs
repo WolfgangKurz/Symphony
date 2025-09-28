@@ -21,6 +21,7 @@ using System.Reflection.Emit;
 using UnityEngine;
 
 namespace Symphony.Features {
+	[Feature("SimpleUI")]
 	internal class SimpleUI : MonoBehaviour {
 		private static ulong SquadClear_LastUnsetPC = 0;
 
