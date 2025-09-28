@@ -83,9 +83,13 @@ namespace Symphony.Features {
 			#region KeyMapping
 			if (Conf.Experimental.Use_KeyMapping.Value) {
 				try {
-					foreach (var map in KeyMappingConf.KeyMaps) {
-						if (Helper.KeyCodeParse(map.Key, out var kc) && Input.GetKeyDown(kc))
-							StartCoroutine(KeyMapping_SimulateTouch(map.X, map.Y));
+					var act = Conf.Experimental.KeyMapping_Active.Value;
+					if (KeyMappingConf.KeyMaps.ContainsKey(act)) {
+						var maps = KeyMappingConf.KeyMaps[act];
+						foreach (var map in maps) {
+							if (Helper.KeyCodeParse(map.Key, out var kc) && Input.GetKeyDown(kc))
+								StartCoroutine(KeyMapping_SimulateTouch(map.X, map.Y));
+						}
 					}
 				} catch (Exception e) {
 					Plugin.Logger.LogError(e);
@@ -99,19 +103,23 @@ namespace Symphony.Features {
 			if (UIManager.Instance?.GetPanel<KeyMapPanel>() == null && Conf.Experimental.Use_KeyMapping.Value) {
 				var KeyMap_Alpha = Conf.Experimental.KeyMapping_Opacity.Value;
 				if (KeyMap_Alpha > 0f) {
-					for (var i = 0; i < KeyMappingConf.KeyMaps.Length; i++) {
-						var map = KeyMappingConf.KeyMaps[i];
-						var rcBase = new Rect(map.X * Screen.width, (1f - map.Y) * Screen.height, 0, 0);
-						var rcCircle = rcBase.Expand(KEY_MAP_CIRCLE);
+					var act = Conf.Experimental.KeyMapping_Active.Value;
+					if (KeyMappingConf.KeyMaps.ContainsKey(act)) {
+						var maps = KeyMappingConf.KeyMaps[act];
+						for (var i = 0; i < maps.Length; i++) {
+							var map = maps[i];
+							var rcBase = new Rect(map.X * Screen.width, (1f - map.Y) * Screen.height, 0, 0);
+							var rcCircle = rcBase.Expand(KEY_MAP_CIRCLE);
 
-						var dup = KeyMappingConf.KeyMaps.Any((x, y) => y != i && x.Key == map.Key);
+							var dup = maps.Any((x, y) => y != i && x.Key == map.Key);
 
-						GUIX.Circle(rcCircle, dup ? new Color(0.94f, 0.42f, 0.42f, KeyMap_Alpha) : new Color(0.2f, 0.65f, 0.94f, KeyMap_Alpha));
-						GUIX.Label(
-							rcCircle, map.Key,
-							new Color(1f, 1f, 1f, KeyMap_Alpha), fontSize: 12, fontStyle: FontStyle.Bold,
-							alignment: TextAnchor.MiddleCenter
-						);
+							GUIX.Circle(rcCircle, dup ? new Color(0.94f, 0.42f, 0.42f, KeyMap_Alpha) : new Color(0.2f, 0.65f, 0.94f, KeyMap_Alpha));
+							GUIX.Label(
+								rcCircle, map.Key,
+								new Color(1f, 1f, 1f, KeyMap_Alpha), fontSize: 12, fontStyle: FontStyle.Bold,
+								alignment: TextAnchor.MiddleCenter
+							);
+						}
 					}
 				}
 			}

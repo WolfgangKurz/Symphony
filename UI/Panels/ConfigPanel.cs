@@ -4,9 +4,11 @@ using LOEventSystem;
 using LOEventSystem.Msg;
 
 using Symphony.Features;
+using Symphony.Features.KeyMapping;
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using UnityEngine;
 
@@ -24,6 +26,8 @@ namespace Symphony.UI.Panels {
 
 		private Rect panelViewport = new Rect(0, 0, 248, 0);
 		private Vector2 panelScroll = Vector2.zero;
+
+		private string experimental_KeyMapping_NewName = "";
 
 		private enum IconKey : int {
 			None,
@@ -189,7 +193,7 @@ namespace Symphony.UI.Panels {
 			offset += 20 + 4;
 		}
 		private void DrawRadio<T>(
-			ref float offset, Dictionary<T, string> options, ConfigEntry<T> config, VoidDelegate onChange,
+			ref float offset, Dictionary<T, string> options, ConfigEntry<T> config, VoidDelegate onChange = null,
 			float leftMargin = 0f, float rightMargin = 0f) where T : IEquatable<T> {
 
 			var x = 0f;
@@ -700,20 +704,64 @@ namespace Symphony.UI.Panels {
 
 							DrawSeparator(ref offset);
 
-							KeepOffset(ref offset, () => {
-								DrawToggle(ref offset, "키 맵핑 사용하기", Conf.Experimental.Use_KeyMapping, rightMargin: 90);
-							});
-							DrawLineButton(ref offset, "편집하기", () => {
-								UIManager.Instance.AddPanel(new KeyMapPanel(this.instance));
-							}, WIDTH_FILL - 80);
-
-							DrawSlider(ref offset, "키 맵 불투명도", Conf.Experimental.KeyMapping_Opacity, labelWidth: 100f);
-							DrawLabel(ref offset, "설정한 키를 누르면 화면의 특정 영역을 클릭한 것과 같은 동작을 만드는 기능입니다.\n앱플레이어 등에서 '가상키'로 불리는 동작입니다.", Color_description, 20);
+							DrawToggle(ref offset, "전투 프리징 수정", Conf.Experimental.Fix_BattleFreezing);
+							DrawLabel(ref offset, "특정 전투 상황에서 캐릭터/적의 움직임이 멈추고 다음으로 진행되지 않는 문제를 수정하는 기능입니다.\n모든 프리징이 수정되지 않을 수 있습니다.", Color_description, 20);
 
 							DrawSeparator(ref offset);
 
-							DrawToggle(ref offset, "전투 프리징 수정", Conf.Experimental.Fix_BattleFreezing);
-							DrawLabel(ref offset, "특정 전투 상황에서 캐릭터/적의 움직임이 멈추고 다음으로 진행되지 않는 문제를 수정하는 기능입니다.\n모든 프리징이 수정되지 않을 수 있습니다.", Color_description, 20);
+							DrawToggle(ref offset, "키 맵핑 사용하기", Conf.Experimental.Use_KeyMapping, rightMargin: 90);
+							DrawSlider(ref offset, "키 맵 불투명도", Conf.Experimental.KeyMapping_Opacity, labelWidth: 100f);
+							DrawLabel(ref offset, "설정한 키를 누르면 화면의 특정 영역을 클릭한 것과 같은 동작을 만드는 기능입니다.\n앱플레이어 등에서 '가상키'로 불리는 동작입니다.", Color_description, 20);
+
+							var groupToRemove = "";
+							foreach (var g in KeyMappingConf.KeyMaps) {
+								KeepOffset(ref offset, () => {
+									DrawRadio(ref offset, new() { { g.Key, "" } }, Conf.Experimental.KeyMapping_Active);
+								});
+
+								if (g.Key != "Default") {
+									KeepOffset(ref offset, () => {
+										DrawLineButton(ref offset, "X", () => {
+											if (g.Key == Conf.Experimental.KeyMapping_Active.Value)
+												Conf.Experimental.KeyMapping_Active.Value = "Default";
+
+											groupToRemove = g.Key;
+										}, WIDTH_FILL - 20);
+									});
+								}
+
+								if (Conf.Experimental.KeyMapping_Active.Value == g.Key) {
+									KeepOffset(ref offset, () => {
+										DrawLineButton(ref offset, "편집하기", () => {
+											UIManager.Instance.AddPanel(new KeyMapPanel(this.instance));
+										}, WIDTH_FILL - 105, 25);
+									});
+								}
+
+								GUIX.Label(new Rect(25, offset, WIDTH_FILL - 105, 20), g.Key);
+								offset += 20 + 4;
+							}
+							if (groupToRemove.Length > 0) KeyMappingConf.RemoveGroup(groupToRemove);
+
+							this.experimental_KeyMapping_NewName = GUIX.TextField(
+								new Rect(0, offset, WIDTH_FILL - 85, 20),
+								this.experimental_KeyMapping_NewName,
+								fontStyle: KeyMappingConf.KeyMaps.Keys.Contains(this.experimental_KeyMapping_NewName)
+									? FontStyle.Italic
+									: FontStyle.Normal
+							);
+							DrawLineButton(ref offset, "추가하기", () => {
+								var n = this.experimental_KeyMapping_NewName;
+								if (
+									string.IsNullOrWhiteSpace(n) ||
+									KeyMappingConf.KeyMaps.Keys.Contains(n)
+								) return;
+
+								KeyMappingConf.Save(n, []);
+								Conf.Experimental.KeyMapping_Active.Value = n;
+								this.experimental_KeyMapping_NewName = "";
+							}, WIDTH_FILL - 80);
+
 							#endregion
 							break;
 					}

@@ -32,11 +32,19 @@ namespace Symphony.UI.Panels {
 			"　 　　키 우클릭 : 키 삭제 　　　"
 		]);
 
+		private string activeKey => Conf.Experimental.KeyMapping_Active.Value;
+		private KeyMappingData[] CurrentKeyMap => KeyMappingConf.KeyMaps[activeKey];
+
 		public KeyMapPanel(MonoBehaviour instance) : base(instance) { }
 
 		public override void Start() {
 			var config = UIManager.Instance.GetPanel<ConfigPanel>();
 			if (config != null) config.locked = true;
+
+			if (!KeyMappingConf.KeyMaps.ContainsKey(activeKey)) {
+				UIManager.Instance.ReserveRemovePanel<KeyMapPanel>();
+				return;
+			}
 		}
 		public override void OnDestroy() {
 			var config = UIManager.Instance.GetPanel<ConfigPanel>();
@@ -82,18 +90,24 @@ namespace Symphony.UI.Panels {
 				}
 				else if (Input.GetMouseButtonDown(0)) {
 					if (this.InEdit >= 0) {
-						var map = this.InEdit >= KeyMappingConf.KeyMaps.Length
+						var map = this.InEdit >= CurrentKeyMap.Length
 								? this.EditingKey
-								: KeyMappingConf.KeyMaps[this.InEdit];
+								: CurrentKeyMap[this.InEdit];
 						var rcBase = new Rect(map.X * Screen.width, map.Y * Screen.height, 0, 0);
 						var d = Mathf.Pow(Input.mousePosition.x - rcBase.x, 2f) +
 								Mathf.Pow(Input.mousePosition.y - rcBase.y, 2f);
 
 						if (d >= KEY_MAP_CIRCLE_POWER2) { // not in editing circle
-							if (this.InEdit >= KeyMappingConf.KeyMaps.Length) // New item
-								KeyMappingConf.Save(new List<KeyMappingData>(KeyMappingConf.KeyMaps) { this.EditingKey }.ToArray());
+							if (this.InEdit >= CurrentKeyMap.Length) // New item
+								KeyMappingConf.Save(
+									activeKey,
+									new List<KeyMappingData>(CurrentKeyMap) { this.EditingKey }.ToArray()
+								);
 							else
-								KeyMappingConf.Save(KeyMappingConf.KeyMaps);
+								KeyMappingConf.Save(
+									activeKey,
+									CurrentKeyMap
+								);
 
 							this.InEdit = -1;
 							this.InMoving = -1;
@@ -101,7 +115,7 @@ namespace Symphony.UI.Panels {
 						}
 					}
 					else {
-						var i = Array.FindIndex(KeyMappingConf.KeyMaps, map => {
+						var i = Array.FindIndex(CurrentKeyMap, map => {
 							var rcBase = new Rect(map.X * Screen.width, map.Y * Screen.height, 0, 0);
 							var d = Mathf.Pow(Input.mousePosition.x - rcBase.x, 2f) +
 									Mathf.Pow(Input.mousePosition.y - rcBase.y, 2f);
@@ -110,14 +124,14 @@ namespace Symphony.UI.Panels {
 							return false;
 						});
 						if (i >= 0) {
-							var map = KeyMappingConf.KeyMaps[i];
+							var map = CurrentKeyMap[i];
 
 							this.InMoving = i;
 							this.beforeKeyPos = new Vector2(map.X, map.Y);
 							this.lastMousePos = Input.mousePosition;
 						}
 						else {
-							this.InEdit = KeyMappingConf.KeyMaps.Length;
+							this.InEdit = CurrentKeyMap.Length;
 							this.EditingKey = new KeyMappingData() {
 								Key = "",
 								X = Input.mousePosition.x / Screen.width,
@@ -127,7 +141,7 @@ namespace Symphony.UI.Panels {
 					}
 				}
 				else if (Input.GetMouseButtonDown(1) && this.InMoving == -1) {
-					var i = Array.FindIndex(KeyMappingConf.KeyMaps, map => {
+					var i = Array.FindIndex(CurrentKeyMap, map => {
 						var rcBase = new Rect(map.X * Screen.width, map.Y * Screen.height, 0, 0);
 						var d = Mathf.Pow(Input.mousePosition.x - rcBase.x, 2f) +
 								Mathf.Pow(Input.mousePosition.y - rcBase.y, 2f);
@@ -136,7 +150,10 @@ namespace Symphony.UI.Panels {
 						return false;
 					});
 					if (i >= 0) {
-						KeyMappingConf.Save(KeyMappingConf.KeyMaps.Where((_, x) => x != i).ToArray());
+						KeyMappingConf.Save(
+							activeKey,
+							CurrentKeyMap.Where((_, x) => x != i).ToArray()
+						);
 
 						if (this.InEdit >= 0)
 							this.InEdit = -1;
@@ -147,33 +164,39 @@ namespace Symphony.UI.Panels {
 				var delta = Input.mousePosition - this.lastMousePos;
 				this.lastMousePos = Input.mousePosition;
 
-				KeyMappingConf.KeyMaps[this.InMoving].X += delta.x / Screen.width;
-				KeyMappingConf.KeyMaps[this.InMoving].Y += delta.y / Screen.height;
+				CurrentKeyMap[this.InMoving].X += delta.x / Screen.width;
+				CurrentKeyMap[this.InMoving].Y += delta.y / Screen.height;
 			}
 			else if (e.type == EventType.DragExited && this.InMoving >= 0) {
-				KeyMappingConf.Save(KeyMappingConf.KeyMaps);
+				KeyMappingConf.Save(
+					activeKey,
+					CurrentKeyMap
+				);
 				this.InMoving = -1;
 			}
 			else if (e.type == EventType.MouseUp && this.InMoving >= 0) {
-				var map = KeyMappingConf.KeyMaps[this.InMoving];
+				var map = CurrentKeyMap[this.InMoving];
 				if (this.beforeKeyPos == new Vector2(map.X, map.Y)) {
 					this.InEdit = this.InMoving;
-					this.EditingKey = KeyMappingConf.KeyMaps[this.InEdit];
+					this.EditingKey = CurrentKeyMap[this.InEdit];
 				}
 				this.InMoving = -1;
 
-				KeyMappingConf.Save(KeyMappingConf.KeyMaps);
+				KeyMappingConf.Save(
+					activeKey,
+					CurrentKeyMap
+				);
 			}
 
-			for (var i = 0; i < KeyMappingConf.KeyMaps.Length; i++) {
+			for (var i = 0; i < CurrentKeyMap.Length; i++) {
 				if (this.InEdit == i) continue;
 
-				var map = KeyMappingConf.KeyMaps[i];
+				var map = CurrentKeyMap[i];
 				var rcBase = new Rect(map.X * Screen.width, (1f - map.Y) * Screen.height, 0, 0);
 				var rcCircle = rcBase.Expand(KEY_MAP_CIRCLE);
 				var rcBinder = rcBase.Expand(KEY_MAP_INNER_WIDTH, KEY_MAP_INNER_HEIGHT);
 
-				var dup = KeyMappingConf.KeyMaps.Any((x, y) => y != i && x.Key == map.Key);
+				var dup = CurrentKeyMap.Any((x, y) => y != i && x.Key == map.Key);
 
 				var a = this.InEdit >= 0 ? 0.33f : 1f;
 
