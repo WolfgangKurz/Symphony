@@ -667,7 +667,12 @@ namespace Symphony.UI.Panels {
 							offset += 20 + 8;
 
 							DrawToggle(ref offset, "전투원 제조 프리셋 사용하기", Conf.Presets.Use_CharMaking_Preset);
+
+							DrawSeparator(ref offset);
+
 							DrawToggle(ref offset, "마지막 전투원 제조 수치 불러오기", Conf.Presets.Use_Last_CharMakingData);
+							DrawToggle(ref offset, "마지막 장비 제조 수치 불러오기", Conf.Presets.Use_Last_EquipMakingData);
+							DrawToggle(ref offset, "마지막 시설 부품 제조 수치 불러오기", Conf.Presets.Use_Last_FacPartsMakingData);
 							#endregion
 							break;
 

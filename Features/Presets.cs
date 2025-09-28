@@ -75,6 +75,16 @@ namespace Symphony.Features {
 				postfix: new HarmonyMethod(typeof(Presets), nameof(Presets.Preset_CharacterCreate))
 			);
 			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Equipment_parts_Creator), nameof(Panel_Equipment_parts_Creator.Start)),
+				postfix: new HarmonyMethod(typeof(Presets), nameof(Presets.Patch_LastResource_Equipment))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Facility_parts_Creator), nameof(Panel_Facility_parts_Creator.Start)),
+				postfix: new HarmonyMethod(typeof(Presets), nameof(Presets.Patch_LastResource_FacParts))
+			);
+
+			#region Memorize Last Resources
+			harmony.Patch(
 				AccessTools.Method(typeof(Panel_Character_Creator), nameof(Panel_Character_Creator.OnBtnUnitMaking)),
 				prefix: new HarmonyMethod(typeof(Presets), nameof(Presets.Preset_CharacterCreate_Memorize))
 			);
@@ -82,6 +92,25 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Panel_Character_Creator), nameof(Panel_Character_Creator.OnBtnTotalMaking)),
 				prefix: new HarmonyMethod(typeof(Presets), nameof(Presets.Preset_CharacterCreate_Memorize))
 			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Equipment_parts_Creator), nameof(Panel_Equipment_parts_Creator.OnBtnMaking)),
+				prefix: new HarmonyMethod(typeof(Presets), nameof(Presets.Preset_EquipmentCreate_Memorize))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Equipment_parts_Creator), nameof(Panel_Equipment_parts_Creator.OnBtnTotalMaking)),
+				prefix: new HarmonyMethod(typeof(Presets), nameof(Presets.Preset_EquipmentCreate_Memorize))
+			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Facility_parts_Creator), nameof(Panel_Facility_parts_Creator.OnBtnMaking)),
+				prefix: new HarmonyMethod(typeof(Presets), nameof(Presets.Preset_FacPartsCreate_Memorize))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Facility_parts_Creator), nameof(Panel_Facility_parts_Creator.OnBtnTotalMaking)),
+				prefix: new HarmonyMethod(typeof(Presets), nameof(Presets.Preset_FacPartsCreate_Memorize))
+			);
+			#endregion
 		}
 
 		private static void LazyInit() {
@@ -153,9 +182,55 @@ namespace Symphony.Features {
 
 			panel.StartCoroutine(LogCallback(panel, Modules));
 		}
+		private static void SetEquipmentMakingData_To_Panel(int Metal, int Power, int Nutrient) {
+			IEnumerator LogCallback(Panel_Equipment_parts_Creator panel) {
+				yield return null;
+				panel.EquipMakingCallBack();
+			}
+
+			Plugin.Logger.LogDebug("[Symphony::Presets] Trying to load preset to making panel");
+			SingleTon<DataManager>.Instance.EquipResource[0] = (ushort)Metal;
+			SingleTon<DataManager>.Instance.EquipResource[1] = (ushort)Nutrient;
+			SingleTon<DataManager>.Instance.EquipResource[2] = (ushort)Power;
+
+			var panel = FindObjectOfType<Panel_Equipment_parts_Creator>();
+			if (panel == null) return;
+
+			Plugin.Logger.LogDebug("[Symphony::Presets] Show dummy message to prevent close making screen");
+			panel.ShowMessage(
+				"임시 메시지입니다.\n이 메시지가 자동으로 닫히지 않는다면, 직접 닫아도 됩니다.",
+				"[Symphony::Presets]",
+				"", ""
+			);
+
+			panel.StartCoroutine(LogCallback(panel));
+		}
+		private static void SetFacPartsMakingData_To_Panel(int SyntheticResin, int Varnish, int Iron) {
+			IEnumerator LogCallback(Panel_Facility_parts_Creator panel) {
+				yield return null;
+				panel.EquipMakingCallBack();
+			}
+
+			Plugin.Logger.LogDebug("[Symphony::Presets] Trying to load preset to making panel");
+			SingleTon<DataManager>.Instance.FacilityPartsResource[0] = (ushort)SyntheticResin;
+			SingleTon<DataManager>.Instance.FacilityPartsResource[1] = (ushort)Varnish;
+			SingleTon<DataManager>.Instance.FacilityPartsResource[2] = (ushort)Iron;
+
+			var panel = FindObjectOfType<Panel_Facility_parts_Creator>();
+			if (panel == null) return;
+
+			Plugin.Logger.LogDebug("[Symphony::Presets] Show dummy message to prevent close making screen");
+			panel.ShowMessage(
+				"임시 메시지입니다.\n이 메시지가 자동으로 닫히지 않는다면, 직접 닫아도 됩니다.",
+				"[Symphony::Presets]",
+				"", ""
+			);
+
+			panel.StartCoroutine(LogCallback(panel));
+		}
 		#endregion
 
-		#region Character Making Preset & Last Character Making Data
+		#region Character/Equipment/Facility Parts Making Preset
 		private static void Preset_CharacterCreate(Panel_Character_Creator __instance) {
 			LazyInit();
 
@@ -222,6 +297,35 @@ namespace Symphony.Features {
 			gui_CharMakingPreset_Scroll = Vector2.zero;
 			Plugin.Logger.LogDebug("[Symphony::Presets] Preset button for Character Making has been generated");
 		}
+		private static void Patch_LastResource_Equipment(Panel_Equipment_parts_Creator __instance) {
+			if (Conf.Presets.Use_Last_EquipMakingData.Value) {
+				var r = Conf.Presets.Last_EquipMaking_Data.Value
+					.Split(",")
+					.Select(r => int.TryParse(r, out var v) ? v : 0)
+					.Concat([0, 0, 0])
+					.Take(3)
+					.Select(x => Math.Max(10, x))
+					.ToArray();
+
+				SetEquipmentMakingData_To_Panel(r[0], r[1], r[2]);
+			}
+		}
+		private static void Patch_LastResource_FacParts(Panel_Facility_parts_Creator __instance) {
+			if (Conf.Presets.Use_Last_FacPartsMakingData.Value) {
+				var r = Conf.Presets.Last_FacPartsMaking_Data.Value
+					.Split(",")
+					.Select(r => int.TryParse(r, out var v) ? v : 0)
+					.Concat([0, 0, 0])
+					.Take(3)
+					.Select(x => Math.Max(10, x))
+					.ToArray();
+
+				SetFacPartsMakingData_To_Panel(r[0], r[1], r[2]);
+			}
+		}
+		#endregion
+
+		#region Last Character/Equip/Facility Parts Making Data
 		private static void Preset_CharacterCreate_Memorize(Panel_Character_Creator __instance) {
 			if (!__instance.XGetMethod<bool>("IsEnableUnitMaking").Invoke()) return;
 
@@ -238,6 +342,28 @@ namespace Symphony.Features {
 			var arr = inp.ToArray();
 			var ret = new int[] { arr[0], arr[4], arr[1], arr[2], arr[3], arr[5] };
 			Conf.Presets.Last_CharMaking_Data.Value = string.Join(",", ret);
+		}
+		private static void Preset_EquipmentCreate_Memorize(Panel_Equipment_parts_Creator __instance) {
+			if (!__instance.XGetMethod<bool>("IsEnableEquipMaking").Invoke()) return;
+
+			var inp = SingleTon<DataManager>.Instance.EquipResource.Select(x => (int)x);
+
+			// Memorize
+			Plugin.Logger.LogInfo("[Symphony::Presets] Last Equipment Making memorized");
+
+			var arr = inp.ToArray();
+			Conf.Presets.Last_EquipMaking_Data.Value = string.Join(",", arr);
+		}
+		private static void Preset_FacPartsCreate_Memorize(Panel_Facility_parts_Creator __instance) {
+			if (!__instance.XGetMethod<bool>("IsEnableMaking").Invoke()) return;
+
+			var inp = SingleTon<DataManager>.Instance.FacilityPartsResource.Select(x => (int)x);
+
+			// Memorize
+			Plugin.Logger.LogInfo("[Symphony::Presets] Last Facility Making memorized");
+
+			var arr = inp.ToArray();
+			Conf.Presets.Last_FacPartsMaking_Data.Value = string.Join(",", arr);
 		}
 		#endregion
 

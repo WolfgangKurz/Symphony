@@ -154,9 +154,16 @@ namespace Symphony {
 		}
 		internal class Presets {
 			public static readonly ConfigEntry<bool> Use_CharMaking_Preset = config.Bind("Presets", "Use_CharMakingPreset", false, "Use Preset for Character making screen");
-			public static readonly ConfigEntry<bool> Use_Last_CharMakingData = config.Bind("Presets", "Use_Last_CharMakingData", false, "Load last character making data automatically");
 
+			public static readonly ConfigEntry<bool> Use_Last_CharMakingData = config.Bind("Presets", "Use_Last_CharMakingData", false, "Load last character making data automatically");
 			public static readonly ConfigEntry<string> Last_CharMaking_Data = config.Bind("Presets", "Last_CharMaking_Data", "0,0,0,0,0,0");
+
+			public static readonly ConfigEntry<bool> Use_Last_EquipMakingData = config.Bind("Presets", "Use_Last_EquipMakingData", false, "Load last equipment making data automatically");
+			public static readonly ConfigEntry<string> Last_EquipMaking_Data = config.Bind("Presets", "Last_EquipMaking_Data", "0,0,0");
+
+			public static readonly ConfigEntry<bool> Use_Last_FacPartsMakingData = config.Bind("Presets", "Use_Last_FacPartsMakingData", false, "Load last facility parts making data automatically");
+			public static readonly ConfigEntry<string> Last_FacPartsMaking_Data = config.Bind("Presets", "Last_FacPartsMaking_Data", "0,0,0");
+
 			public static readonly ConfigEntry<string> CharMaking_Preset_Data = config.Bind("Presets", "CharMaking_Preset_Data", "");
 		}
 		internal class Automation {
