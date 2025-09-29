@@ -46,6 +46,9 @@ namespace Symphony.UI.Panels {
 				DrawToggle(ref offset, "소모품 목록 정렬", Conf.SimpleUI.Sort_Consumables);
 				offset += 10f;
 				DrawToggle(ref offset, "정렬 기준 추가", Conf.SimpleUI.Use_SortBy_Extra);
+				offset += 10f;
+				DrawToggle(ref offset, "상세 검색 추가", Conf.SimpleUI.Use_AdvancedFilter);
+				DrawLabel(ref offset, "전투원 목록 및 선택에 상세 검색 기능을 추가합니다.\n우측 상단의 버튼으로 필터 방식을 전환할 수 있습니다.", Color_description, 20);
 			}
 			void Subpage_CharacterDetail(ref float offset) {
 				DrawToggle(ref offset, "이전/다음 전투원 버튼 추가", Conf.SimpleUI.Use_CharacterDetail_NextPrev);

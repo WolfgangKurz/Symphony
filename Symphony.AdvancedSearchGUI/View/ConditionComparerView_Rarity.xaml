@@ -1,0 +1,73 @@
+﻿<UserControl x:Class="Symphony.AdvancedSearchGUI.View.ConditionComparerView_Rarity"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:Symphony.AdvancedSearchGUI.View"
+             xmlns:m="clr-namespace:Symphony.AdvancedSearchGUI.Model"
+             xmlns:vm="clr-namespace:Symphony.AdvancedSearchGUI.ViewModel"
+             mc:Ignorable="d" 
+             d:DesignWidth="200"
+             d:DesignHeight="60">
+    <UserControl.DataContext>
+        <m:ConditionComparer_Rarity />
+    </UserControl.DataContext>
+
+    <UserControl.Resources>
+        <ObjectDataProvider x:Key="CompareTypes"
+                            MethodName="GetValues"
+                            ObjectType="{x:Type m:ConditionCompareHelper_Numeric}" />
+
+        <ObjectDataProvider x:Key="RarityList"
+                            MethodName="GetValues"
+                            ObjectType="{x:Type m:RarityHelper}" />
+        <m:RarityConverter x:Key="RarityConverter" />
+    </UserControl.Resources>
+    
+    <WrapPanel Orientation="Horizontal">
+        <WrapPanel.Resources>
+            <Style TargetType="ComboBox">
+                <Setter Property="Height" Value="24" />
+            </Style>
+        </WrapPanel.Resources>
+        
+        <ComboBox ItemsSource="{Binding Source={StaticResource RarityList}}"
+                  SelectedValue="{Binding Value2, Mode=TwoWay}">
+            <ComboBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Converter={StaticResource RarityConverter}}" />
+                </DataTemplate>
+            </ComboBox.ItemTemplate>
+
+            <ComboBox.Style>
+                <Style TargetType="ComboBox">
+                    <Setter Property="Visibility" Value="Hidden" />
+                    <Setter Property="Margin" Value="0" />
+                    <Setter Property="Width" Value="0" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding CompareType}" Value="FromTo">
+                            <Setter Property="Visibility" Value="Visible" />
+                            <Setter Property="Margin" Value="0,0,5,0" />
+                            <Setter Property="Width" Value="60" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </ComboBox.Style>
+        </ComboBox>
+
+        <ComboBox ItemsSource="{Binding Source={StaticResource CompareTypes}}"
+                  SelectedValue="{Binding CompareTypeAccessor, Mode=TwoWay}"
+                  Width="50"
+                  Margin="0,0,5,0" />
+
+        <ComboBox ItemsSource="{Binding Source={StaticResource RarityList}}"
+                  SelectedValue="{Binding Value1, Mode=TwoWay}"
+                  Width="60">
+            <ComboBox.ItemTemplate>
+                <DataTemplate>
+                    <TextBlock Text="{Binding Converter={StaticResource RarityConverter}}" />
+                </DataTemplate>
+            </ComboBox.ItemTemplate>
+        </ComboBox>
+    </WrapPanel>
+</UserControl>

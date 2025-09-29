@@ -83,6 +83,17 @@ namespace Symphony {
 		}
 		public static bool IsLesserOrEqualVersion(string v1, string v2) => v1 == v2 || IsLesserVersion(v1, v2);
 
+		public static Transform Find(this Transform transform, params string[] names) {
+			var cur = transform;
+			foreach (var name in names) {
+				if (cur == null) return null;
+				cur = cur.Find(name);
+			}
+			return cur;
+		}
+		public static void Destroy(this UnityEngine.Object self) => GameObject.Destroy(self);
+		public static void DestroyImmediate(this UnityEngine.Object self) => GameObject.DestroyImmediate(self);
+
 		#region Windows
 		private class WindowHandleFinder {
 			private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);

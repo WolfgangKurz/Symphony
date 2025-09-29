@@ -10,6 +10,8 @@ using LOEventSystem;
 
 using LOEventSystem.Msg;
 
+using Symphony.Features.SimpleUIHelper;
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -132,7 +134,7 @@ namespace Symphony.Features {
 			#endregion
 			#endregion
 
-			#region ListSorting
+			#region ListFilter
 			#region Consumable List Sorting
 			harmony.Patch(
 				AccessTools.Method(typeof(DataManager), "GetItemConsumableEnchantCreate"),
@@ -164,6 +166,17 @@ namespace Symphony.Features {
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_BasePc), "Start"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_SortByXXX_post))
+			);
+			#endregion
+
+			#region Advanced Filter
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_PcWarehouse), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_AdvancedFilter))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_AndroidInventory), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Inject_AdvancedFilter))
 			);
 			#endregion
 			#endregion
@@ -1021,7 +1034,7 @@ namespace Symphony.Features {
 		#endregion
 		#endregion
 
-		#region ListSorting
+		#region ListFilter
 		#region Consumable List Sorting
 		private static string[] ConsumableKeyList = null; // Cache
 		private static void DataSortPatch_DataManager_List(DataManager __instance, ref List<ClientItemInfo> __result) {
@@ -1240,6 +1253,50 @@ namespace Symphony.Features {
 				return SingleTon<GameManager>.Instance.InvertSort;
 
 			return a.GetPCID().CompareTo(b.GetPCID());
+		}
+		#endregion
+
+		#region Advanced Filter
+		private static void Inject_AdvancedFilter(Panel_BasePc __instance) {
+			if (!Conf.SimpleUI.Use_AdvancedFilter.Value) return;
+
+			var btnChangeSource = __instance.XGetFieldValue<UIToggle[]>("_toggleRole");
+			if (btnChangeSource == null) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Cannot find reference button for Advanced Filter creating swap button");
+				return;
+			}
+
+			var goType = __instance.XGetFieldValue<GameObject[]>("_goTypeWrapper").FirstOrDefault(x => x.activeSelf);
+			var btnSwap = Instantiate<GameObject>(btnChangeSource[2].gameObject, goType.transform);
+			btnSwap.name = "btnModeSwap";
+			btnSwap.transform.localPosition = goType.transform.Find("TitleLb").localPosition - new Vector3(224f, 0f);
+			{ // Remove except sprites, setup Button
+				var comps = ((MonoBehaviour[])btnSwap.GetComponentsInChildren<UILabel>(true))
+					.Concat(btnSwap.GetComponentsInChildren<UILocalize>(true))
+					.Select(x => x.gameObject)
+					.Distinct();
+				foreach (var c in comps) c?.gameObject?.Destroy();
+
+				btnSwap.transform.Find("btnSortRankSp")?.gameObject?.Destroy();
+				btnSwap.transform.Find("btnSortRank-ON").gameObject.name = "btnFilterSwap";
+
+				var icon = btnSwap.transform.Find("btnFilterSwap", "btnSortRank-label");
+				icon.gameObject.name = "btnFilterSwap-icon";
+				icon.localPosition = Vector3.zero;
+
+				btnSwap.GetComponent<UIToggle>()?.Destroy();
+
+				var comp = __instance.gameObject.AddComponent<AdvancedSearchComponent>();
+				comp.enabled = false;
+
+				var btn = btnSwap.AddComponent<UIButton>();
+				btn.onClick.Add(new(() => {
+					comp.enabled = !comp.enabled; // not advanced mode
+
+					var filter = __instance.kDynamicWidget.transform.Find("Anchor_CenterRight", "FilterFolder", "Filter");
+					filter?.gameObject.SetActive(!comp.enabled);
+				}));
+			}
 		}
 		#endregion
 		#endregion

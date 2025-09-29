@@ -10,6 +10,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Symphony", "Symphony.csproj
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Symphony.Notification", "Symphony.Notification\Symphony.Notification.csproj", "{1152D8BE-1A8F-4818-A6FA-E16E2B0C06DA}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Symphony.AdvancedSearchGUI", "Symphony.AdvancedSearchGUI\Symphony.AdvancedSearchGUI.csproj", "{251F8CB6-AB96-4F27-8ECA-8000F8F03A82}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,6 +26,10 @@ Global
 		{1152D8BE-1A8F-4818-A6FA-E16E2B0C06DA}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1152D8BE-1A8F-4818-A6FA-E16E2B0C06DA}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1152D8BE-1A8F-4818-A6FA-E16E2B0C06DA}.Release|Any CPU.Build.0 = Release|Any CPU
+		{251F8CB6-AB96-4F27-8ECA-8000F8F03A82}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{251F8CB6-AB96-4F27-8ECA-8000F8F03A82}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{251F8CB6-AB96-4F27-8ECA-8000F8F03A82}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{251F8CB6-AB96-4F27-8ECA-8000F8F03A82}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -85,10 +85,12 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> EnterToSearch_ItemSelection = config.Bind("SimpleUI", "EnterToSearch_ItemSelection", false, "Press enter to search for Item Selection");
 			#endregion
 
-			#region ListSorting
+			#region ListFilter
 			public static readonly ConfigEntry<bool> Sort_Consumables = config.Bind("SimpleUI", "Sort_Consumables", false, "Sort consumable items");
 
 			public static readonly ConfigEntry<bool> Use_SortBy_Extra = config.Bind("SimpleUI", "Use_SortBy_Extra", false, "Add extra sorting filter to Character list");
+
+			public static readonly ConfigEntry<bool> Use_AdvancedFilter = config.Bind("SimpleUI", "Use_AdvanceFilter", false, "Add Advanced Filter system for Character/Equipment list & selection");
 			#endregion
 
 			#region CharacterDetail

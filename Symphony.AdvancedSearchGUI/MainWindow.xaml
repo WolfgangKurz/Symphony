@@ -1,0 +1,104 @@
+﻿<Window x:Class="Symphony.AdvancedSearchGUI.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
+        xmlns:local="clr-namespace:Symphony.AdvancedSearchGUI"
+        xmlns:m="clr-namespace:Symphony.AdvancedSearchGUI.Model"
+        xmlns:v="clr-namespace:Symphony.AdvancedSearchGUI.View"
+        xmlns:vm="clr-namespace:Symphony.AdvancedSearchGUI.ViewModel"
+        mc:Ignorable="d"
+        Title="MainWindow"
+        Width="800" Height="450"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+    <Window.Resources>
+        <ObjectDataProvider x:Key="ConditionCategoryType"
+                            MethodName="GetValues"
+                            ObjectType="{x:Type m:ConditionCategoryHelper}">
+            <ObjectDataProvider.MethodParameters>
+                <sys:Boolean>False</sys:Boolean>
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+        <ObjectDataProvider x:Key="ConditionCategoryTypeForNew"
+                            MethodName="GetValues"
+                            ObjectType="{x:Type m:ConditionCategoryHelper}">
+            <ObjectDataProvider.MethodParameters>
+                <sys:Boolean>True</sys:Boolean>
+            </ObjectDataProvider.MethodParameters>
+        </ObjectDataProvider>
+        <m:ConditionCategoryConverter x:Key="ConditionCategoryConverter" />
+
+        <DataTemplate x:Key="ConditionCompareViewTemplate_Rarity">
+            <v:ConditionComparerView_Rarity />
+        </DataTemplate>
+        <DataTemplate x:Key="ConditionCompareViewTemplate_Class">
+            <v:ConditionComparerView_Class />
+        </DataTemplate>
+        <DataTemplate x:Key="ConditionCompareViewTemplate_Role">
+            <v:ConditionComparerView_Role />
+        </DataTemplate>
+    </Window.Resources>
+    <Window.DataContext>
+        <vm:AdvancedSearchViewModel />
+    </Window.DataContext>
+
+    <Window.Background>
+        <SolidColorBrush Opacity="0.5" Color="Gray"/>
+    </Window.Background>
+    
+    <StackPanel>
+        <ItemsControl ItemsSource="{Binding Conditions}"
+                      Padding="5,5,5,0">
+            <ItemsControl.ItemContainerStyle>
+                <Style TargetType="ContentPresenter">
+                    <Setter Property="Margin" Value="0,0,0,5" />
+                </Style>
+            </ItemsControl.ItemContainerStyle>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        
+                        <ComboBox SelectedValue="{Binding Category, Mode=TwoWay}"
+                                  ItemsSource="{Binding Source={StaticResource ConditionCategoryType}}"
+                                  Width="100"
+                                  Height="24"
+                                  Grid.Column="0"
+                                  VerticalAlignment="Top">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate>
+                                    <TextBlock Text="{Binding Converter={StaticResource ConditionCategoryConverter}}" />
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+
+                        <ContentControl Grid.Column="1"
+                                        Margin="10,0,0,0"
+                                        Content="{Binding Comparer}">
+                            <ContentControl.Style>
+                                <Style TargetType="ContentControl">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Category}" Value="Rarity">
+                                            <Setter Property="ContentTemplate" Value="{StaticResource ConditionCompareViewTemplate_Rarity}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Category}" Value="Class">
+                                            <Setter Property="ContentTemplate" Value="{StaticResource ConditionCompareViewTemplate_Class}" />
+                                        </DataTrigger>
+                                        <DataTrigger Binding="{Binding Category}" Value="Role">
+                                            <Setter Property="ContentTemplate" Value="{StaticResource ConditionCompareViewTemplate_Role}" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ContentControl.Style>
+                        </ContentControl>
+                    </Grid>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </StackPanel>
+</Window>
