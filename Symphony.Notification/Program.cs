@@ -2,11 +2,8 @@
 
 using System;
 using System.Linq;
-using System.Windows.Forms;
 
 using Windows.UI.Notifications;
-
-using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 
 namespace Symphony.Notification {
 	internal static class Program {
