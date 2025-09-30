@@ -2,8 +2,6 @@
 
 using HarmonyLib;
 
-using LO_ClientNetwork;
-
 using Symphony.Features.KeyMapping;
 using Symphony.UI;
 using Symphony.UI.Panels;
@@ -11,6 +9,8 @@ using Symphony.UI.Panels;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 
 using UnityEngine;
 
@@ -19,9 +19,14 @@ namespace Symphony.Features {
 	internal class Experimental : MonoBehaviour {
 		public void Start() {
 			var harmony = new Harmony("Symphony.Experimental");
+
 			harmony.Patch(
 				AccessTools.Method(typeof(Creature), nameof(Creature.DisappearBuffEffectParticleAll)),
-				prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.EXP_Creature_DisappearBuffEffectParticleAll))
+				prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_Creature_DisappearBuffEffectParticleAll))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(CreatureState_Evade), "MoveBackEvade"),
+				prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_CreatureState_Evade_MoveBackEvade))
 			);
 
 			KeyMappingConf.Load();
@@ -126,7 +131,9 @@ namespace Symphony.Features {
 			#endregion
 		}
 
-		private static bool EXP_Creature_DisappearBuffEffectParticleAll(Creature __instance) {
+		#region Freezing fixers
+		#region DisappearBuffEffectParticleAll "Collection was mutated while being enumerated" exception fix
+		private static bool Patch_Creature_DisappearBuffEffectParticleAll(Creature __instance) {
 			if (!Conf.Experimental.Fix_BattleFreezing.Value) return true;
 
 			// Make copy to prevent collection changed exception
@@ -137,5 +144,86 @@ namespace Symphony.Features {
 			Plugin.Logger.LogDebug("[Symphony::Experimental] Freezing Patched (DisappearBuffEffectParticleAll)");
 			return false;
 		}
+		#endregion
+
+		#region AnimationClip Event missing fix
+		private static void Patch_XXXstep_Animation(Creature creature) {
+			if (creature == null) return;
+
+			if (creature is Character) {
+				var _animator = creature.Animator;
+
+				eAndroidAnimationType[] animTypes = [
+					eAndroidAnimationType.backstep,
+					eAndroidAnimationType.frontstep
+				];
+				foreach (var animType in animTypes) {
+					var clip = _animator.GetClip(animType);
+					if (clip == null) return;
+					if (!clip.events.Any(x => x.functionName == "EventJumpMoveStart")) {
+						Plugin.Logger.LogInfo($"[Symphony::Experimental] EventJumpMoveStart missing patched, for {animType.ToString()} animation");
+
+						var ev = new AnimationEvent();
+						ev.functionName = "EventJumpMoveStart";
+						ev.time = 0;
+						clip.AddEvent(ev);
+					}
+				}
+			}
+		}
+		private static bool Patch_CreatureState_Evade_MoveBackEvade(CreatureState_Evade __instance, ref IEnumerator __result) {
+			IEnumerator Fn() {
+				var _creature = __instance.XGetFieldValue<Creature>("creature");
+
+
+				var f = _creature.CreatureType == eCreatureType.CHARACTER ? -2.3561945f : -0.7853982f;
+				var x = 5f * Mathf.Cos(f);
+				var y = -5f * Mathf.Sin(f);
+
+				var linePCStart = (
+					_creature.CreatureType != eCreatureType.MONSTER
+						? MonoSingleton<StageMapData>.Instance.GetCharacterLineData(_creature.LineSpot)
+						: MonoSingleton<StageMapData>.Instance.GetMonsterLineData(_creature.LineSpot)
+				).transform.position;
+				var linePCEnd = linePCStart + new Vector3(x, y, 0.0f);
+
+				__instance.XSetFieldValue<Vector3>("originalPos", linePCStart);
+
+				_creature.Animator.PlayAnimation(eAndroidAnimationType.backstep);
+				Experimental.Patch_XXXstep_Animation(_creature); // Fix, fill missing jump start event for AnimationClip
+
+				var field = __instance.GetType()
+					.GetField("JumpMoveTime", BindingFlags.NonPublic | BindingFlags.Instance);
+
+				while (true) {
+					var mt = field.GetValue<float>(__instance);
+
+					if (mt != 0.0f) break;
+					yield return null;
+				}
+
+				var lineTime = 0.0f;
+				while (true) {
+					lineTime += Time.deltaTime;
+					_creature.transform.position = Vector3.Lerp(linePCStart, linePCEnd, lineTime / field.GetValue<float>(__instance));
+
+					if (lineTime <= 1.0f)
+						yield return null;
+					else
+						break;
+				}
+
+				_creature.Animator.PlayAnimation(_creature.CurIdle);
+				Experimental.Patch_XXXstep_Animation(_creature); // Fix, fill missing jump start event for AnimationClip
+
+				__instance.transform.position = linePCEnd;
+				yield return new WaitForEndOfFrame();
+			}
+			__result = Fn();
+
+			return false;
+		}
+		#endregion
+		#endregion
 	}
 }

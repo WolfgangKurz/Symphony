@@ -710,7 +710,10 @@ namespace Symphony.UI.Panels {
 							DrawSeparator(ref offset);
 
 							DrawToggle(ref offset, "전투 프리징 수정", Conf.Experimental.Fix_BattleFreezing);
-							DrawLabel(ref offset, "특정 전투 상황에서 캐릭터/적의 움직임이 멈추고 다음으로 진행되지 않는 문제를 수정하는 기능입니다.\n모든 프리징이 수정되지 않을 수 있습니다.", Color_description, 20);
+							DrawLabel(ref offset, "특정 전투 상황에서 캐릭터/적의 움직임이 멈추고 다음으로 진행되지 않는 문제를 수정하는 기능입니다.\n모든 프리징이 수정되지 않을 수 있습니다.\n다음 프리징 문제가 해결됩니다.", Color_description, 20);
+
+							DrawLabel(ref offset, " * 프레데터, 블라인드 프린세스 등 파티클 관련 프리징 문제", Color_description, 20);
+							DrawLabel(ref offset, " * 치이 아루엘 회피 프리징 문제", Color_description, 20);
 
 							DrawSeparator(ref offset);
 
