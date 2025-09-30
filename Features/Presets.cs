@@ -182,7 +182,7 @@ namespace Symphony.Features {
 
 			panel.StartCoroutine(LogCallback(panel, Modules));
 		}
-		private static void SetEquipmentMakingData_To_Panel(int Metal, int Power, int Nutrient) {
+		private static void SetEquipmentMakingData_To_Panel(int Metal, int Nutrient, int Power) {
 			IEnumerator LogCallback(Panel_Equipment_parts_Creator panel) {
 				yield return null;
 				panel.EquipMakingCallBack();
