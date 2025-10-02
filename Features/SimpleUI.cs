@@ -40,6 +40,10 @@ namespace Symphony.Features {
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.LastBattleMap_Panel_GameModeMenu_Start))
 			);
 			harmony.Patch(
+				AccessTools.Method(typeof(Panel_World), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.LastBattleMap_Panel_World_Start))
+			);
+			harmony.Patch(
 				AccessTools.Method(typeof(SceneStageBattle), "Start"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Memorize_LastBattleMap))
 			);
@@ -346,7 +350,7 @@ namespace Symphony.Features {
 					SingleTon<DataManager>.Instance.GetTableChapterStage(Conf.SimpleUI.LastBattleMapKey.Value),
 					SingleTon<DataManager>.Instance.GetTableChapterStage(Conf.SimpleUI.LastOfflineBattleKey.Value),
 				];
-				for(var i=0; i<maps.Length;i++) {
+				for (var i = 0; i < maps.Length; i++) {
 					var map = maps[i];
 					var chapter = map != null
 						? SingleTon<DataManager>.Instance.GetTableMapChapter(map?.ChapterIndex)
@@ -449,15 +453,15 @@ namespace Symphony.Features {
 
 							SingleTon<GameManager>.Instance.MapInit();
 							SingleTon<GameManager>.Instance.MapChapter = chapter;
+							SingleTon<GameManager>.Instance.MapStage = map;
+							SingleTon<GameManager>.Instance.PlayMapStage = map;
+
 							if (string.IsNullOrEmpty(chapter?.Event_Category)) {
-								SingleTon<GameManager>.Instance.MapStage = map;
 								SingleTon<GameManager>.Instance.GameMode = GAME_MODE.STORY;
-								SingleTon<GameManager>.Instance.PlayMapStage = map;
 							}
 							else {
 								SingleTon<GameManager>.Instance.MapEventChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
 								SingleTon<GameManager>.Instance.GameMode = GAME_MODE.EVENT;
-								SingleTon<GameManager>.Instance.PlayMapStage = map;
 							}
 
 							Handler.Broadcast(new SceneChange(Const.Scene_World)); // __instance.ShowScene(Const.Scene_World);
@@ -550,6 +554,17 @@ namespace Symphony.Features {
 					}));
 				}
 			}
+		}
+		private static void LastBattleMap_Panel_World_Start(Panel_World __instance) {
+			Plugin.Logger.LogWarning(SingleTon<GameManager>.Instance.MapChapter.Key);
+			Plugin.Logger.LogWarning(SingleTon<GameManager>.Instance.MapChapter.ChapterName);
+			Plugin.Logger.LogWarning(SingleTon<GameManager>.Instance.MapChapter.ChapterString);
+			Plugin.Logger.LogWarning(SingleTon<GameManager>.Instance.MapChapter.Chapter_IDX);
+
+			__instance.XGetMethodVoid<Table_MapChapter>("SetPanelChapter")
+				.Invoke(SingleTon<GameManager>.Instance.MapChapter);
+
+			Plugin.Logger.LogWarning("OK");
 		}
 
 		private static void Memorize_LastBattleMap() {
