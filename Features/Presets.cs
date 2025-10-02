@@ -68,15 +68,31 @@ namespace Symphony.Features {
 
 		private static UIAtlas asset_masterAtlas = null;
 
+		private static bool LastResource_Character_TempInProgressing = false;
+		private static bool LastResource_Equipment_TempInProgressing = false;
+		private static bool LastResource_FacParts_TempInProgressing = false;
+
 		public void Start() {
 			var harmony = new Harmony("Symphony.Presets");
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Character_Creator), "IsEnableUnitMaking"),
+				prefix: new HarmonyMethod(typeof(Presets), nameof(Presets.Patch_LastResource_Character_IsEnableUnitMaking))
+			);
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_Character_Creator), nameof(Panel_Character_Creator.Start)),
 				postfix: new HarmonyMethod(typeof(Presets), nameof(Presets.Preset_CharacterCreate))
 			);
 			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Equipment_parts_Creator), "IsEnableEquipMaking"),
+				prefix: new HarmonyMethod(typeof(Presets), nameof(Presets.Patch_LastResource_Equipment_IsEnableEquipMaking))
+			);
+			harmony.Patch(
 				AccessTools.Method(typeof(Panel_Equipment_parts_Creator), nameof(Panel_Equipment_parts_Creator.Start)),
 				postfix: new HarmonyMethod(typeof(Presets), nameof(Presets.Patch_LastResource_Equipment))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Facility_parts_Creator), "IsEnableMaking"),
+				prefix: new HarmonyMethod(typeof(Presets), nameof(Presets.Patch_LastResource_FacParts_IsEnableMaking))
 			);
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_Facility_parts_Creator), nameof(Panel_Facility_parts_Creator.Start)),
@@ -142,14 +158,14 @@ namespace Symphony.Features {
 				panel.XGetFieldValue<GameObject>("_godigitsSpecial").SetActive(Modules != 0);
 				panel.OnBtnAndroidPos(panel.XGetFieldValue<PCMAKING_BIO_POS_TYPE>("_bioPosType"));
 
-				if (Modules > 0) {
-					yield return null;
+				LastResource_Character_TempInProgressing = true;
+				yield return null;
+				if (Modules > 0)
 					panel.LogMakingSpCallBack();
-				}
-				else {
-					yield return null;
+				else
 					panel.LogMakingCallBack();
-				}
+				yield return null;
+				LastResource_Character_TempInProgressing = false;
 			}
 
 			Plugin.Logger.LogDebug("[Symphony::Presets] Trying to load preset to making panel");
@@ -173,21 +189,9 @@ namespace Symphony.Features {
 			var panel = FindObjectOfType<Panel_Character_Creator>();
 			if (panel == null) return;
 
-			Plugin.Logger.LogDebug("[Symphony::Presets] Show dummy message to prevent close making screen");
-			panel.ShowMessage(
-				"임시 메시지입니다.\n이 메시지가 자동으로 닫히지 않는다면, 직접 닫아도 됩니다.",
-				"[Symphony::Presets]",
-				"", ""
-			);
-
 			panel.StartCoroutine(LogCallback(panel, Modules));
 		}
 		private static void SetEquipmentMakingData_To_Panel(int Metal, int Nutrient, int Power) {
-			IEnumerator LogCallback(Panel_Equipment_parts_Creator panel) {
-				yield return null;
-				panel.EquipMakingCallBack();
-			}
-
 			Plugin.Logger.LogDebug("[Symphony::Presets] Trying to load preset to making panel");
 			SingleTon<DataManager>.Instance.EquipResource[0] = (ushort)Metal;
 			SingleTon<DataManager>.Instance.EquipResource[1] = (ushort)Nutrient;
@@ -196,21 +200,11 @@ namespace Symphony.Features {
 			var panel = FindObjectOfType<Panel_Equipment_parts_Creator>();
 			if (panel == null) return;
 
-			Plugin.Logger.LogDebug("[Symphony::Presets] Show dummy message to prevent close making screen");
-			panel.ShowMessage(
-				"임시 메시지입니다.\n이 메시지가 자동으로 닫히지 않는다면, 직접 닫아도 됩니다.",
-				"[Symphony::Presets]",
-				"", ""
-			);
-
-			panel.StartCoroutine(LogCallback(panel));
+			LastResource_Equipment_TempInProgressing = true;
+			panel.EquipMakingCallBack();
+			LastResource_Equipment_TempInProgressing = false;
 		}
 		private static void SetFacPartsMakingData_To_Panel(int SyntheticResin, int Varnish, int Iron) {
-			IEnumerator LogCallback(Panel_Facility_parts_Creator panel) {
-				yield return null;
-				panel.EquipMakingCallBack();
-			}
-
 			Plugin.Logger.LogDebug("[Symphony::Presets] Trying to load preset to making panel");
 			SingleTon<DataManager>.Instance.FacilityPartsResource[0] = (ushort)SyntheticResin;
 			SingleTon<DataManager>.Instance.FacilityPartsResource[1] = (ushort)Varnish;
@@ -219,18 +213,20 @@ namespace Symphony.Features {
 			var panel = FindObjectOfType<Panel_Facility_parts_Creator>();
 			if (panel == null) return;
 
-			Plugin.Logger.LogDebug("[Symphony::Presets] Show dummy message to prevent close making screen");
-			panel.ShowMessage(
-				"임시 메시지입니다.\n이 메시지가 자동으로 닫히지 않는다면, 직접 닫아도 됩니다.",
-				"[Symphony::Presets]",
-				"", ""
-			);
-
-			panel.StartCoroutine(LogCallback(panel));
+			LastResource_FacParts_TempInProgressing = true;
+			panel.EquipMakingCallBack();
+			LastResource_FacParts_TempInProgressing = false;
 		}
 		#endregion
 
 		#region Character/Equipment/Facility Parts Making Preset
+		private static bool Patch_LastResource_Character_IsEnableUnitMaking(Panel_Character_Creator __instance, ref bool __result) {
+			if (LastResource_Character_TempInProgressing) {
+				__result = false;
+				return false;
+			}
+			return true;
+		}
 		private static void Preset_CharacterCreate(Panel_Character_Creator __instance) {
 			LazyInit();
 
@@ -297,6 +293,13 @@ namespace Symphony.Features {
 			gui_CharMakingPreset_Scroll = Vector2.zero;
 			Plugin.Logger.LogDebug("[Symphony::Presets] Preset button for Character Making has been generated");
 		}
+		private static bool Patch_LastResource_Equipment_IsEnableEquipMaking(Panel_Equipment_parts_Creator __instance, ref bool __result) { 
+			if(LastResource_Equipment_TempInProgressing) {
+				__result = false;
+				return false;
+			}
+			return true;
+		}
 		private static void Patch_LastResource_Equipment(Panel_Equipment_parts_Creator __instance) {
 			if (Conf.Presets.Use_Last_EquipMakingData.Value) {
 				var r = Conf.Presets.Last_EquipMaking_Data.Value
@@ -309,6 +312,13 @@ namespace Symphony.Features {
 
 				SetEquipmentMakingData_To_Panel(r[0], r[1], r[2]);
 			}
+		}
+		private static bool Patch_LastResource_FacParts_IsEnableMaking(Panel_Facility_parts_Creator __instance, ref bool __result) {
+			if (LastResource_FacParts_TempInProgressing) {
+				__result = false;
+				return false;
+			}
+			return true;
 		}
 		private static void Patch_LastResource_FacParts(Panel_Facility_parts_Creator __instance) {
 			if (Conf.Presets.Use_Last_FacPartsMakingData.Value) {
