@@ -9,10 +9,11 @@ using Symphony.UI.Panels;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
-using System.Reflection;
 
 using UnityEngine;
+using UnityEngine.Networking;
 
 namespace Symphony.Features {
 	[Feature("Experimental")]
@@ -20,6 +21,10 @@ namespace Symphony.Features {
 		public void Start() {
 			var harmony = new Harmony("Symphony.Experimental");
 
+			harmony.Patch(
+				AccessTools.Method(typeof(DownloadHandlerAssetBundle), nameof(DownloadHandlerAssetBundle.GetContent)),
+				prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_Initial_AssetBundle_Loading))
+			);
 			harmony.Patch(
 				AccessTools.Method(typeof(Creature), nameof(Creature.DisappearBuffEffectParticleAll)),
 				prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_Creature_DisappearBuffEffectParticleAll))
@@ -132,6 +137,20 @@ namespace Symphony.Features {
 		}
 
 		#region Freezing fixers
+		#region Initial AssetBundle Loading fix
+		private static bool Patch_Initial_AssetBundle_Loading(UnityWebRequest www, ref AssetBundle __result) {
+			var target_name = Path.GetFileName(www.url);
+			__result = AssetBundle.GetAllLoadedAssetBundles().FirstOrDefault(x => x.name == target_name);
+
+			if (__result == null)
+				__result = DownloadHandler.GetCheckedDownloader<DownloadHandlerAssetBundle>(www).assetBundle;
+			else
+				Plugin.Logger.LogInfo($"[Symphony::Experimental] Tried to load AssetBundle '{target_name}' that already loaded, return it from memory");
+
+			return false;
+		}
+		#endregion
+
 		#region DisappearBuffEffectParticleAll "Collection was mutated while being enumerated" exception fix
 		private static bool Patch_Creature_DisappearBuffEffectParticleAll(Creature __instance) {
 			if (!Conf.Experimental.Fix_BattleFreezing.Value) return true;

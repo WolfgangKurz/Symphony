@@ -5,7 +5,6 @@ using BepInEx.Unity.Mono;
 
 using LitJson;
 
-using Symphony.Features;
 using Symphony.UI;
 using Symphony.UI.Panels;
 
