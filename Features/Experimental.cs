@@ -25,8 +25,8 @@ namespace Symphony.Features {
 				prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_Creature_DisappearBuffEffectParticleAll))
 			);
 			harmony.Patch(
-				AccessTools.Method(typeof(CreatureState_Evade), "MoveBackEvade"),
-				prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_CreatureState_Evade_MoveBackEvade))
+				AccessTools.Method(typeof(Creature), nameof(Creature.PlayAnimation)),
+				postfix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_Creature_PlayAnimation))
 			);
 
 			KeyMappingConf.Load();
@@ -171,57 +171,167 @@ namespace Symphony.Features {
 				}
 			}
 		}
-		private static bool Patch_CreatureState_Evade_MoveBackEvade(CreatureState_Evade __instance, ref IEnumerator __result) {
-			IEnumerator Fn() {
-				var _creature = __instance.XGetFieldValue<Creature>("creature");
+		private static void Patch_Nabi_NS1_Skill2(ref AnimationEvent[] events) {
+			if (!events.Any(x => x.functionName == "EventHit" && x.stringParameter == "vfx_Nabi_ns1_skill1_hit")) return;
+			Plugin.Logger.LogDebug("[Symphony::Experimental] Fix Freezing for Nabi NS1 Skill2");
 
+			var audio = events.FirstOrDefault(x => x.objectReferenceParameter != null).objectReferenceParameter as AudioClip;
 
-				var f = _creature.CreatureType == eCreatureType.CHARACTER ? -2.3561945f : -0.7853982f;
-				var x = 5f * Mathf.Cos(f);
-				var y = -5f * Mathf.Sin(f);
-
-				var linePCStart = (
-					_creature.CreatureType != eCreatureType.MONSTER
-						? MonoSingleton<StageMapData>.Instance.GetCharacterLineData(_creature.LineSpot)
-						: MonoSingleton<StageMapData>.Instance.GetMonsterLineData(_creature.LineSpot)
-				).transform.position;
-				var linePCEnd = linePCStart + new Vector3(x, y, 0.0f);
-
-				__instance.XSetFieldValue<Vector3>("originalPos", linePCStart);
-
-				_creature.Animator.PlayAnimation(eAndroidAnimationType.backstep);
-				Experimental.Patch_XXXstep_Animation(_creature); // Fix, fill missing jump start event for AnimationClip
-
-				var field = __instance.GetType()
-					.GetField("JumpMoveTime", BindingFlags.NonPublic | BindingFlags.Instance);
-
-				while (true) {
-					var mt = field.GetValue<float>(__instance);
-
-					if (mt != 0.0f) break;
-					yield return null;
+			#region Patch
+			events = [ // Copy of non-skin
+				new() {
+					time = 0.016666667f,
+					functionName = "EventDynamicBone",
+					stringParameter = "Bone_Hair",
+				},
+				new() {
+					time = 0.033333333f,
+					functionName = "EventDynamicBone",
+					stringParameter = "Bone_Breast",
+				},
+				new() {
+					time = 0.050000000f,
+					functionName = "EventDynamicBone",
+					stringParameter = "Bone_Skirt",
+				},
+				new() {
+					time = 0.166666667f,
+					functionName = "EventCameraControlSelfMultiParam",
+					stringParameter = "0.2,25,0,40",
+				},
+				new() {
+					time = 0.5f,
+					functionName = "EventSoundPlaySFXPrefab",
+					objectReferenceParameter = null,
+				},
+				new() {
+					time = 1.0f,
+					functionName = "EventSoundPlaySFXPrefab",
+					objectReferenceParameter=audio,
+				},
+				new() {
+					time = 1.25f,
+					functionName = "EventSoundPlaySFXPrefab",
+					objectReferenceParameter = audio,
+				},
+				new() {
+					time = 3.0f,
+					functionName = "EventEvadeCheck",
+				},
+				new() {
+					time = 3.333333333f,
+					functionName = "EventSoundPlaySFXPrefab",
+					objectReferenceParameter = null,
+				},
+				new() {
+					time = 3.55f,
+					functionName = "EventCameraShake",
+					stringParameter = "0.15",
+					floatParameter = 0.2f,
+				},
+				new() {
+					time = 3.55f,
+					functionName = "EventHit",
+					stringParameter = "",
+				},
+				new() {
+					time = 3.75f,
+					functionName = "EventSoundPlaySFXPrefab",
+					objectReferenceParameter = null,
+				},
+				new() {
+					time = 3.75f,
+					functionName = "EventHit",
+					stringParameter = "noHit_m",
+				},
+				new() {
+					time = 4.0f,
+					functionName = "EventHit",
+					stringParameter = "noHit_m",
+				},
+				new() {
+					time = 4.0f,
+					functionName = "EventCameraShake",
+					stringParameter = "0.2",
+					floatParameter = 0.2f,
+				},
+				new() {
+					time = 4.25f,
+					functionName = "EventHit",
+					stringParameter = "noHit_m",
+				},
+				new() {
+					time = 4.333333333f,
+					functionName = "EventSoundPlaySFXPrefab",
+					objectReferenceParameter = null,
+				},
+				new() {
+					time = 4.333333333f,
+					functionName = "EventThrowProjectileFire1",
+					stringParameter = "eff_nabi_ns1_skill2_bullet", // Change name
+				},
+				new() {
+					time = 4.333333333f,
+					functionName = "EventCameraShake",
+					stringParameter = "0.7",
+					floatParameter = 1.0f,
+				},
+				new() {
+					time = 4.5f,
+					functionName = "EventHit",
+					stringParameter = "noHit_m",
+				},
+				new() {
+					time = 4.5f,
+					functionName = "EventHit",
+					stringParameter = "",
+				},
+				new() {
+					time = 4.75f,
+					functionName = "EventHit",
+					stringParameter = "noHit_m",
+				},
+				new() {
+					time = 4.75f,
+					functionName = "EventSoundPlaySFXPrefab",
+					objectReferenceParameter = null,
+				},
+				new() {
+					time = 5.0f,
+					functionName = "EventCameraShake",
+					stringParameter = "0.7",
+					floatParameter = 1.0f,
+				},
+				new() {
+					time = 5.0f,
+					functionName = "EventHit",
+					stringParameter = "noHit_m",
 				}
+			];
+			#endregion
+		}
+		private static void Patch_Creature_PlayAnimation(Creature __instance, eAndroidAnimationType aniType) {
+			var creature = __instance;
+			Plugin.Logger.LogInfo($"[Symphony::Experimental] Creature_PlayAnimation : {__instance?.name}, {aniType}");
 
-				var lineTime = 0.0f;
-				while (true) {
-					lineTime += Time.deltaTime;
-					_creature.transform.position = Vector3.Lerp(linePCStart, linePCEnd, lineTime / field.GetValue<float>(__instance));
-
-					if (lineTime <= 1.0f)
-						yield return null;
-					else
-						break;
-				}
-
-				_creature.Animator.PlayAnimation(_creature.CurIdle);
-				Experimental.Patch_XXXstep_Animation(_creature); // Fix, fill missing jump start event for AnimationClip
-
-				__instance.transform.position = linePCEnd;
-				yield return new WaitForEndOfFrame();
+			eAndroidAnimationType[] animTypes_step = [
+				eAndroidAnimationType.frontstep,
+				eAndroidAnimationType.frontstep_protect,
+				eAndroidAnimationType.backstep,
+				eAndroidAnimationType.backstep_protect,
+			];
+			if (animTypes_step.Contains(aniType)) {
+				// Fix, fill missing jump start event for AnimationClip
+				Experimental.Patch_XXXstep_Animation(creature);
 			}
-			__result = Fn();
 
-			return false;
+			// Patch LC_Nabi NS1 Skill2
+			if (aniType == eAndroidAnimationType.skill2 && (creature as Character)?.TablePC.Key == "Char_LC_Nabi_N") {
+				var clip = __instance.Animator.GetClip(eAndroidAnimationType.skill2);
+				var events = clip.events;
+				Experimental.Patch_Nabi_NS1_Skill2(ref events);
+				clip.events = events;
+			}
 		}
 		#endregion
 		#endregion

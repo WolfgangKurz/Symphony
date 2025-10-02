@@ -714,6 +714,7 @@ namespace Symphony.UI.Panels {
 
 							DrawLabel(ref offset, " * 프레데터, 블라인드 프린세스 등 파티클 관련 프리징 문제", Color_description, 20);
 							DrawLabel(ref offset, " * 치이 아루엘 회피 프리징 문제", Color_description, 20);
+							DrawLabel(ref offset, " * 이나비 스킨 2스킬 프리징 문제", Color_description, 20);
 
 							DrawSeparator(ref offset);
 
