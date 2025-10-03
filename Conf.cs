@@ -112,6 +112,8 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_Squad_Clear = config.Bind("SimpleUI", "Use_Squad_Clear", false, "Add clear button to squad screen");
 
 			public static readonly ConfigEntry<bool> Use_AccelerateScrollDelta = config.Bind("SimpleUI", "Use_MultiplyScrollDelta", false, "Multiply scroll amount for scrollable list");
+
+			public static readonly ConfigEntry<bool> Use_NovelDialog_LabelFix = config.Bind("SimpleUI", "Use_NovelDialog_LabelFix", false, "Fix Story Viewer's label invalid displaying");
 		}
 		internal class BattleHotkey {
 			public static readonly ConfigEntry<bool> Use_SkillPanel = config.Bind("BattleHotkey", "Use_SkillPanel", true, "Use skill panel hotkeys");

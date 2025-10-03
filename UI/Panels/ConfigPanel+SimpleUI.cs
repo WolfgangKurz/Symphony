@@ -106,6 +106,10 @@ namespace Symphony.UI.Panels {
 					DrawSeparator(ref offset);
 
 					DrawToggle(ref offset, "스크롤/패닝 가속, 줌 반전하기", Conf.SimpleUI.Use_AccelerateScrollDelta);
+
+					DrawSeparator(ref offset);
+
+					DrawToggle(ref offset, "스토리 뷰어 텍스트 표시 문제 수정", Conf.SimpleUI.Use_NovelDialog_LabelFix);
 					break;
 				case ConfigPanel_SimpleUI_SubpageType.Battle:
 					GUIX.Heading(headingRect, "전투 관련 개선", alignment: TextAnchor.MiddleCenter);

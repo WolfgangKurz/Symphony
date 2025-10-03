@@ -297,7 +297,14 @@ namespace Symphony.Features {
 			);
 			#endregion
 
-			#region Invalidate UILabel after screen size changed
+			#region Invalidate UILabel after back from hiding Dialog Novel
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_DialogNovel), "UIHideCheck"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_UILabel_for_DialogNovel))
+			);
+			#endregion
+
+			#region ---- Invalidate UILabel after screen size changed
 			harmony.Patch(
 				AccessTools.Method(typeof(WindowsGameManager), "CustomWndProc"),
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_UILabel_Resolution_After_Screen_Resize))
@@ -2194,7 +2201,27 @@ namespace Symphony.Features {
 		}
 		#endregion
 
-		#region Invalidate UILabel after screen size changed
+		#region Invalidate UILabel after back from hiding Dialog Novel
+		private static void Patch_UILabel_for_DialogNovel(Panel_DialogNovel __instance, ref IEnumerator __result) {
+			if (!Conf.SimpleUI.Use_NovelDialog_LabelFix.Value) return;
+
+			var r = __result;
+			var panel = __instance;
+			IEnumerator Fn() {
+				while (r.MoveNext())
+					yield return r.Current;
+
+				yield return null; // ensure next frame
+
+				var label = __instance.XGetFieldValue<UILabel>("_lblTalk");
+				var text = __instance.XGetFieldValue<string>("currentTalk");
+				label.text = text;
+			}
+			__result = Fn();
+		}
+		#endregion
+
+		#region ---- Invalidate UILabel after screen size changed
 		private static void Patch_UILabel_Resolution_After_Screen_Resize(uint msg) {
 			if (msg == 0x0005) {
 				IEnumerator Fn() {
