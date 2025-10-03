@@ -296,6 +296,13 @@ namespace Symphony.Features {
 				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Accelerate_CameraZoomDelta))
 			);
 			#endregion
+
+			#region Invalidate UILabel after screen size changed
+			harmony.Patch(
+				AccessTools.Method(typeof(WindowsGameManager), "CustomWndProc"),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_UILabel_Resolution_After_Screen_Resize))
+			);
+			#endregion
 		}
 
 		private static void LazyInit() {
@@ -1116,7 +1123,7 @@ namespace Symphony.Features {
 			);
 
 			var _toggleSort = __instance.XGetFieldValue<UIToggle[]>("_toggleSort").ToList();
-			foreach (var ex in Patch_SortBy_Extra_List) { 
+			foreach (var ex in Patch_SortBy_Extra_List) {
 				var sep = GameObject.Instantiate(_sep.gameObject);
 				sep.name = $"DecoSp_{ex.id}";
 				sep.transform.SetParent(_sep.parent);
@@ -1266,7 +1273,7 @@ namespace Symphony.Features {
 
 			var _list = SingleTon<DataManager>.Instance.GetAllPc();
 			var toggles = NativeSingleton<ToggleManager>.Instance.Char_Lobby;
-			
+
 			bool IsFilterGrade(ClientPcInfo pc) => toggles.Grade[pc.Grade - 2];
 			bool IsFilterActorClass(ClientPcInfo pc) => toggles.Type[pc.PCTable.ActorClassType];
 			bool IsFilterRoleType(ClientPcInfo pc) => toggles.Type[pc.PCTable.RoleType];
@@ -1287,7 +1294,7 @@ namespace Symphony.Features {
 				11 => Common.SortMarriage,
 				_ => null
 			};
-			if(sortFunc == null && Conf.SimpleUI.Use_SortBy_Extra.Value) {
+			if (sortFunc == null && Conf.SimpleUI.Use_SortBy_Extra.Value) {
 				sortFunc = toggles.Sort switch {
 					12 => Patch_SortBy_Name,
 					13 => Patch_SortBy_Group,
@@ -1295,7 +1302,7 @@ namespace Symphony.Features {
 					_ => null
 				};
 			}
-			if(sortFunc == null) {
+			if (sortFunc == null) {
 				Plugin.Logger.LogInfo($"[Symphony::SimpleUI] Unable to find Sort function, value was {toggles.Sort}");
 				return; // No need to move
 			}
@@ -2184,6 +2191,22 @@ namespace Symphony.Features {
 		private static void Accelerate_CameraZoomDelta(ref float deltaTime) {
 			if (Conf.SimpleUI.Use_AccelerateScrollDelta.Value)
 				deltaTime *= -1f;
+		}
+		#endregion
+
+		#region Invalidate UILabel after screen size changed
+		private static void Patch_UILabel_Resolution_After_Screen_Resize(uint msg) {
+			if (msg == 0x0005) {
+				IEnumerator Fn() {
+					yield return new WaitForSecondsRealtime(0.1f);
+
+					var labels = GameObject.FindObjectsOfType<UILabel>();
+					foreach (var label in labels)
+						label.Invalidate(false);
+				}
+
+				GameObject.FindObjectOfType<MonoBehaviour>()?.StartCoroutine(Fn());
+			}
 		}
 		#endregion
 	}
