@@ -4,6 +4,7 @@ using BepInEx.Configuration;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 
 namespace Symphony {
 	internal class Conf {
@@ -114,42 +115,6 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_AccelerateScrollDelta = config.Bind("SimpleUI", "Use_MultiplyScrollDelta", false, "Multiply scroll amount for scrollable list");
 
 			public static readonly ConfigEntry<bool> Use_NovelDialog_LabelFix = config.Bind("SimpleUI", "Use_NovelDialog_LabelFix", false, "Fix Story Viewer's label invalid displaying");
-		}
-		internal class BattleHotkey {
-			public static readonly ConfigEntry<bool> Use_SkillPanel = config.Bind("BattleHotkey", "Use_SkillPanel", true, "Use skill panel hotkeys");
-			public static readonly ConfigEntry<string>[] Key_SkillPanel = [
-				config.Bind("BattleHotkey", "Skill1", "Alpha1", "Skill1 button hotkey"),
-				config.Bind("BattleHotkey", "Skill2", "Alpha2", "Skill2 button hotkey"),
-				config.Bind("BattleHotkey", "Move", "Alpha3", "Move button hotkey"),
-				config.Bind("BattleHotkey", "Wait", "Alpha4", "Wait button hotkey"),
-			];
-
-			public static readonly ConfigEntry<bool> Use_TeamGrid = config.Bind("BattleHotkey", "Use_TeamGrid", true, "Use team grid hotkeys");
-			public static readonly ConfigEntry<string>[] Key_TeamGrid = [
-				config.Bind("BattleHotkey", "Team1", "Z", "Team grid 1 button hotkey"),
-				config.Bind("BattleHotkey", "Team2", "X", "Team grid 2 button hotkey"),
-				config.Bind("BattleHotkey", "Team3", "C", "Team grid 3 button hotkey"),
-				config.Bind("BattleHotkey", "Team4", "A", "Team grid 4 button hotkey"),
-				config.Bind("BattleHotkey", "Team5", "S", "Team grid 5 button hotkey"),
-				config.Bind("BattleHotkey", "Team6", "D", "Team grid 6 button hotkey"),
-				config.Bind("BattleHotkey", "Team7", "Q", "Team grid 7 button hotkey"),
-				config.Bind("BattleHotkey", "Team8", "W", "Team grid 8 button hotkey"),
-				config.Bind("BattleHotkey", "Team9", "E", "Team grid 9 button hotkey"),
-			];
-			public static readonly ConfigEntry<bool> Use_EnemyGrid = config.Bind("BattleHotkey", "Use_EnemyGrid", true, "Use enemy grid hotkeys");
-			public static readonly ConfigEntry<string>[] Key_EnemyGrid = [
-				config.Bind("BattleHotkey", "Enemy1", "Keypad1", "Enemy grid 1 button hotkey"),
-				config.Bind("BattleHotkey", "Enemy2", "Keypad2", "Enemy grid 2 button hotkey"),
-				config.Bind("BattleHotkey", "Enemy3", "Keypad3", "Enemy grid 3 button hotkey"),
-				config.Bind("BattleHotkey", "Enemy4", "Keypad4", "Enemy grid 4 button hotkey"),
-				config.Bind("BattleHotkey", "Enemy5", "Keypad5", "Enemy grid 5 button hotkey"),
-				config.Bind("BattleHotkey", "Enemy6", "Keypad6", "Enemy grid 6 button hotkey"),
-				config.Bind("BattleHotkey", "Enemy7", "Keypad7", "Enemy grid 7 button hotkey"),
-				config.Bind("BattleHotkey", "Enemy8", "Keypad8", "Enemy grid 8 button hotkey"),
-				config.Bind("BattleHotkey", "Enemy9", "Keypad9", "Enemy grid 9 button hotkey"),
-			];
-			public static readonly ConfigEntry<bool> Use_PlayButton = config.Bind("BattleHotkey", "Use_PlayButton", true, "Use play button hotkeys");
-			public static readonly ConfigEntry<string> Key_Play = config.Bind("BattleHotkey", "Play", "KeypadPlus", "Play button hotkey");
 		}
 		internal class Notification {
 			public static readonly ConfigEntry<bool> Handle_Notification = config.Bind("Notification", "Handle_Notification", true, "Handle in-game push notification as windows notification.");
@@ -315,40 +280,7 @@ namespace Symphony {
 				var path = Path.Combine(Paths.ConfigPath, "Symphony.BattleHotKey.cfg");
 				if (File.Exists(path)) {
 					Plugin.Logger.LogMessage("[Symphony] BattleHotKey old configuration detected, migrate it.");
-					var prev = new ConfigFile(Path.Combine(Paths.ConfigPath, "Symphony.BattleHotKey.cfg"), true);
-
-					BattleHotkey.Use_SkillPanel.Value = prev.Bind("BattleHotKey", "Use_SkillPanel", true).Value;
-					BattleHotkey.Key_SkillPanel[0].Value = prev.Bind("BattleHotKey", "Skill1", "Alpha1").Value;
-					BattleHotkey.Key_SkillPanel[1].Value = prev.Bind("BattleHotKey", "Skill2", "Alpha2").Value;
-					BattleHotkey.Key_SkillPanel[2].Value = prev.Bind("BattleHotKey", "Move", "Alpha3").Value;
-					BattleHotkey.Key_SkillPanel[3].Value = prev.Bind("BattleHotKey", "Wait", "Alpha4").Value;
-
-					BattleHotkey.Use_TeamGrid.Value = prev.Bind("BattleHotKey", "Use_TeamGrid", true).Value;
-					BattleHotkey.Key_TeamGrid[0].Value = prev.Bind("BattleHotKey", "Team1", "Z").Value;
-					BattleHotkey.Key_TeamGrid[1].Value = prev.Bind("BattleHotKey", "Team2", "X").Value;
-					BattleHotkey.Key_TeamGrid[2].Value = prev.Bind("BattleHotKey", "Team3", "C").Value;
-					BattleHotkey.Key_TeamGrid[3].Value = prev.Bind("BattleHotKey", "Team4", "A").Value;
-					BattleHotkey.Key_TeamGrid[4].Value = prev.Bind("BattleHotKey", "Team5", "S").Value;
-					BattleHotkey.Key_TeamGrid[5].Value = prev.Bind("BattleHotKey", "Team6", "D").Value;
-					BattleHotkey.Key_TeamGrid[6].Value = prev.Bind("BattleHotKey", "Team7", "Q").Value;
-					BattleHotkey.Key_TeamGrid[7].Value = prev.Bind("BattleHotKey", "Team8", "W").Value;
-					BattleHotkey.Key_TeamGrid[8].Value = prev.Bind("BattleHotKey", "Team9", "E").Value;
-
-					BattleHotkey.Use_EnemyGrid.Value = prev.Bind("BattleHotKey", "Use_EnemyGrid", true).Value;
-					BattleHotkey.Key_EnemyGrid[0].Value = prev.Bind("BattleHotKey", "Enemy1", "Keypad1").Value;
-					BattleHotkey.Key_EnemyGrid[1].Value = prev.Bind("BattleHotKey", "Enemy2", "Keypad2").Value;
-					BattleHotkey.Key_EnemyGrid[2].Value = prev.Bind("BattleHotKey", "Enemy3", "Keypad3").Value;
-					BattleHotkey.Key_EnemyGrid[3].Value = prev.Bind("BattleHotKey", "Enemy4", "Keypad4").Value;
-					BattleHotkey.Key_EnemyGrid[4].Value = prev.Bind("BattleHotKey", "Enemy5", "Keypad5").Value;
-					BattleHotkey.Key_EnemyGrid[5].Value = prev.Bind("BattleHotKey", "Enemy6", "Keypad6").Value;
-					BattleHotkey.Key_EnemyGrid[6].Value = prev.Bind("BattleHotKey", "Enemy7", "Keypad7").Value;
-					BattleHotkey.Key_EnemyGrid[7].Value = prev.Bind("BattleHotKey", "Enemy8", "Keypad8").Value;
-					BattleHotkey.Key_EnemyGrid[8].Value = prev.Bind("BattleHotKey", "Enemy9", "Keypad9").Value;
-
-					BattleHotkey.Use_PlayButton.Value = prev.Bind("BattleHotKey", "Use_PlayButton", true).Value;
-					BattleHotkey.Key_Play.Value = prev.Bind("BattleHotKey", "Play", "KeypadPlus").Value;
-
-					File.Delete(path);
+					File.Delete(path); // feature deleted, just delete file
 				}
 			}
 			#endregion
@@ -417,6 +349,13 @@ namespace Symphony {
 			}
 			#endregion
 
+			#region Migration removed Configs
+			{ // BattleHotkey
+				var entries = config.GetAllOrphanedEntries("BattleHotkey").ToArray();
+				foreach (var e in entries) config.RemoveAll(e);
+			}
+			#endregion
+
 			config.Save();
 		}
 	}
@@ -435,6 +374,16 @@ namespace Symphony {
 
 			value = (T)TomlTypeConverter.ConvertToValue(v, typeof(T));
 			return true;
+		}
+		public static IEnumerable<ConfigDefinition> GetAllOrphanedEntries(this ConfigFile config, string section = null, string key = null) {
+			var orphaned = (Dictionary<ConfigDefinition, string>)config.GetType()
+				.GetProperty("OrphanedEntries", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)
+				.GetValue(config);
+
+			return orphaned.Keys.Where(x =>
+				(section != null ? x.Section == section : true) &&
+				(key != null ? x.Key == key : true)
+			);
 		}
 		public static void RemoveAll(this ConfigFile config, ConfigDefinition def) {
 			config.Remove(def);

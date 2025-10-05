@@ -65,14 +65,6 @@ This modifies parts of the UI to make them easier to use.
 - Provides clearing all member in squad feature.
 - Provides accelerated scrolling via the mouse wheel.
 
-### BattleHotkey
-> This feature is deprecated, use `Key Mapping` in `Experimental` instead.
-
-Assigns keyboard shortcuts for the `Skill 1`, `Skill 2`, `Move`, `Standby`, `Select Enemy`, `Select Enemy Tile`, `Confirm (after selecting an enemy or tile)`, and `Start Action` buttons in battle.
-
-`Confirm (after selecting an enemy or tile)` works by pressing the key corresponding to the selected enemy or tile a second time.
-The numbering for enemies and tiles corresponds to the numpad layout (Enemy `1` is located at the bottom left).
-
 ### Notification
 This handles in-game push-notification as Windows Notification.
 
