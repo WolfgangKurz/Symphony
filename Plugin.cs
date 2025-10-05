@@ -24,6 +24,8 @@ namespace Symphony {
 
 		internal static readonly string VersionTag = $"v{Ver.Major}.{Ver.Minor}.{Ver.Build}";
 
+		internal static string GameDir { get; private set; }
+
 		internal static IntPtr hWnd => Helper.GetMainWindowHandle();
 
 		private ConfigPanel configPanel;
@@ -32,6 +34,9 @@ namespace Symphony {
 			// Plugin startup logic
 			Logger = base.Logger;
 			Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
+
+			// ~~~\LastOrigin_Data\Managed\UnityEngine.CoreModule.dll
+			GameDir = System.IO.Path.GetFullPath(@"./../../../", Assembly.GetCallingAssembly().Location);
 
 			try {
 				Enum.GetValues(typeof(ACTOR_CLASS)); // to test game assembly
@@ -43,6 +48,9 @@ namespace Symphony {
 			Conf.Migrate();
 
 			StartCoroutine(this.InitUI());
+
+			// AssetLoader
+			Symphony.Features.AssetLoader.Load();
 
 			var features = Assembly.GetExecutingAssembly().GetTypes()
 				.Where(x => x.GetCustomAttributes(typeof(FeatureAttribute), false).Length > 0);
