@@ -44,6 +44,7 @@ namespace Symphony.UI.Panels {
 			}
 			void Subpage_ListSorting(ref float offset) {
 				DrawToggle(ref offset, "소모품 목록 정렬", Conf.SimpleUI.Sort_Consumables);
+				DrawToggle(ref offset, "장비 목록 정렬 (전용 장비 우선)", Conf.SimpleUI.Sort_Equips_ExclusiveFirst);
 				offset += 10f;
 				DrawToggle(ref offset, "정렬 기준 추가", Conf.SimpleUI.Use_SortBy_Extra);
 			}

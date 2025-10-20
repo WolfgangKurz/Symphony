@@ -156,6 +156,29 @@ namespace Symphony.Features {
 			);
 			#endregion
 
+			#region Equipment List Sorting, Exclusive First
+			harmony.Patch(
+				AccessTools.Method(typeof(FilterItem), nameof(FilterItem.OnBtnSortRank)),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.EquipSort_Patch_Grade))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(FilterItem), nameof(FilterItem.OnBtnSortEnchantLevel)),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.EquipSort_Patch_EnchantLevel))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(FilterItem), nameof(FilterItem.OnBtnSortGetTime)),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.EquipSort_Patch_GetTime))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(FilterItem), nameof(FilterItem.OnBtnSortGetName)),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.EquipSort_Patch_Name))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(FilterItem), "FilterSetting"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.EquipSort_FilterSetting_post))
+			);
+			#endregion
+
 			#region Sort by XXX
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_PcWarehouse), "Awake"),
@@ -1079,6 +1102,160 @@ namespace Symphony.Features {
 			}
 
 			__result.Sort((x, y) => Array.IndexOf(ConsumableKeyList, x.ItemKeyString) - Array.IndexOf(ConsumableKeyList, y.ItemKeyString));
+		}
+		#endregion
+
+		#region Equipment List Sorting, Exclusive First
+		private static Comparison<IReuseCellData> EquipSort_Comparer_Grade = (a, b) => {
+			bool valid(string k) => !string.IsNullOrEmpty(k) && k != "0";
+			var invert = -SingleTon<GameManager>.Instance.InvertSort;
+
+			var _a = a as ItemCellInvenItem;
+			var _b = b as ItemCellInvenItem;
+			var c0a = valid(_a.itemInfo.TableItemEquip.PCLimit);
+			var c0b = valid(_b.itemInfo.TableItemEquip.PCLimit);
+			if (c0a != c0b) {
+				if (c0a) return -1;
+				return 1;
+			}
+
+			var c1 = a.GetGrade() - b.GetGrade();
+			if (c1 != 0) return c1 * invert;
+
+			var c2 = string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort);
+			if (c2 != 0) return c2;
+
+			var c3 = a.GetLevel() - b.GetLevel();
+			if (c3 != 0) return c3 * invert;
+
+			var c4 = a.GetTargetType() - b.GetTargetType();
+			if (c4 != 0) return c4 * invert;
+
+			var c5 = (int)((long)a.GetPCID() - (long)b.GetPCID());
+			if (c5 != 0) return c5 * invert;
+
+			return 0;
+		};
+		private static Comparison<IReuseCellData> EquipSort_Comparer_EnchantLevel = (a, b) => {
+			bool valid(string k) => !string.IsNullOrEmpty(k) && k != "0";
+			var invert = -SingleTon<GameManager>.Instance.InvertSort;
+
+			var _a = a as ItemCellInvenItem;
+			var _b = b as ItemCellInvenItem;
+			var c0a = valid(_a.itemInfo.TableItemEquip.PCLimit);
+			var c0b = valid(_b.itemInfo.TableItemEquip.PCLimit);
+			if (c0a != c0b) {
+				if (c0a) return -1;
+				return 1;
+			}
+
+			var c3 = a.GetLevel() - b.GetLevel();
+			if (c3 != 0) return c3 * invert;
+
+			var c1 = a.GetGrade() - b.GetGrade();
+			if (c1 != 0) return c1 * invert;
+
+			var c4 = a.GetTargetType() - b.GetTargetType();
+			if (c4 != 0) return c4 * invert;
+
+			var c2 = string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort);
+			if (c2 != 0) return c2;
+
+			var c5 = (int)((long)a.GetPCID() - (long)b.GetPCID());
+			if (c5 != 0) return c5 * invert;
+
+			return 0;
+		};
+		private static Comparison<IReuseCellData> EquipSort_Comparer_GetTime = (a, b) => {
+			bool valid(string k) => !string.IsNullOrEmpty(k) && k != "0";
+			var invert = -SingleTon<GameManager>.Instance.InvertSort;
+
+			var _a = a as ItemCellInvenItem;
+			var _b = b as ItemCellInvenItem;
+			var c0a = valid(_a.itemInfo.TableItemEquip.PCLimit);
+			var c0b = valid(_b.itemInfo.TableItemEquip.PCLimit);
+			if (c0a != c0b) {
+				if (c0a) return -1;
+				return 1;
+			}
+
+			var c6 = (int)((long)a.GetGetTime() - (long)b.GetGetTime());
+			if (c6 != 0) return c6 * invert;
+
+			var c1 = a.GetGrade() - b.GetGrade();
+			if (c1 != 0) return c1 * invert;
+
+			var c3 = a.GetLevel() - b.GetLevel();
+			if (c3 != 0) return c3 * invert;
+
+			var c2 = string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort);
+			if (c2 != 0) return c2;
+
+			return 0;
+		};
+		private static Comparison<IReuseCellData> EquipSort_Comparer_Name = (a, b) => {
+			bool valid(string k) => !string.IsNullOrEmpty(k) && k != "0";
+			var invert = -SingleTon<GameManager>.Instance.InvertSort;
+
+			var _a = a as ItemCellInvenItem;
+			var _b = b as ItemCellInvenItem;
+			var c0a = valid(_a.itemInfo.TableItemEquip.PCLimit);
+			var c0b = valid(_b.itemInfo.TableItemEquip.PCLimit);
+			if (c0a != c0b) {
+				if (c0a) return -1;
+				return 1;
+			}
+
+			var c2 = string.Compare(a.GetName(), b.GetName(), Common.GetCultureInfo(), CompareOptions.StringSort);
+			if (c2 != 0) return c2;
+
+			var c3 = a.GetLevel() - b.GetLevel();
+			if (c3 != 0) return c3 * invert;
+
+			var c5 = (int)((long)a.GetPCID() - (long)b.GetPCID());
+			if (c5 != 0) return c5 * invert;
+
+			return 0;
+		};
+
+		private static bool EquipSort_Patch_Grade(FilterItem __instance, GameObject lbl) {
+			if (!Conf.SimpleUI.Sort_Equips_ExclusiveFirst.Value) return true;
+
+			__instance.XGetMethodVoid<Comparison<IReuseCellData>>("Sorting")?.Invoke(EquipSort_Comparer_Grade);
+			__instance.XGetFieldValue<UILabel>("_lblSort").text = lbl.GetComponent<UILabel>().text;
+			return false;
+		}
+		private static bool EquipSort_Patch_EnchantLevel(FilterItem __instance, GameObject lbl) {
+			if (!Conf.SimpleUI.Sort_Equips_ExclusiveFirst.Value) return true;
+
+			__instance.XGetMethodVoid<Comparison<IReuseCellData>>("Sorting")?.Invoke(EquipSort_Comparer_EnchantLevel);
+			__instance.XGetFieldValue<UILabel>("_lblSort").text = lbl.GetComponent<UILabel>().text;
+			return false;
+		}
+		private static bool EquipSort_Patch_GetTime(FilterItem __instance, GameObject lbl) {
+			if (!Conf.SimpleUI.Sort_Equips_ExclusiveFirst.Value) return true;
+
+			__instance.XGetMethodVoid<Comparison<IReuseCellData>>("Sorting")?.Invoke(EquipSort_Comparer_GetTime);
+			__instance.XGetFieldValue<UILabel>("_lblSort").text = lbl.GetComponent<UILabel>().text;
+			return false;
+		}
+		private static bool EquipSort_Patch_Name(FilterItem __instance, GameObject lbl) {
+			if (!Conf.SimpleUI.Sort_Equips_ExclusiveFirst.Value) return true;
+
+			__instance.XGetMethodVoid<Comparison<IReuseCellData>>("Sorting")?.Invoke(EquipSort_Comparer_Name);
+			__instance.XGetFieldValue<UILabel>("_lblSort").text = lbl.GetComponent<UILabel>().text;
+			return false;
+		}
+		private static void EquipSort_FilterSetting_post(FilterItem __instance) {
+			var _toggleInfo = __instance.XGetFieldValue<ItemToggleInfo>("_toggleInfo");
+			var _itemSortFunc = new Comparison<IReuseCellData>[] { // custom comparers
+				EquipSort_Comparer_Grade,
+				EquipSort_Comparer_EnchantLevel,
+				EquipSort_Comparer_GetTime,
+				EquipSort_Comparer_Name
+			};
+			__instance.XGetFieldValue<UIReuseGrid>("_gridItemList").onCustomSort = _itemSortFunc[_toggleInfo.Sort];
+			__instance.RefreshItemList();
 		}
 		#endregion
 

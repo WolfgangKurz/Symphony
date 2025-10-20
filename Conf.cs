@@ -89,6 +89,8 @@ namespace Symphony {
 			#region ListSorting
 			public static readonly ConfigEntry<bool> Sort_Consumables = config.Bind("SimpleUI", "Sort_Consumables", false, "Sort consumable items");
 
+			public static readonly ConfigEntry<bool> Sort_Equips_ExclusiveFirst = config.Bind("SimpleUI", "Sort_Equips_ExclusiveFirst", false, "Sort equip items to show Exclusive equipment first");
+
 			public static readonly ConfigEntry<bool> Use_SortBy_Extra = config.Bind("SimpleUI", "Use_SortBy_Extra", false, "Add extra sorting filter to Character list");
 			#endregion
 
