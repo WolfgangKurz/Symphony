@@ -262,6 +262,17 @@ namespace Symphony.Features {
 				transpiler: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Exchange_ConsumableList))
 			);
 			#endregion
+
+			#region Better Facility Inventory
+			harmony.Patch(
+				AccessTools.Method(typeof(Scene_LivingStation), "GetFacilityNewMenuList"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.BetterFacilityInventory_FacilityInstallation_NewMenuList))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Scene_LivingStation), "GetFacilityStorageMenuList"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.BetterFacilityInventory_FacilityInstallation_StorageMenuList))
+			);
+			#endregion
 			#endregion
 
 			#region Squad Clear Button
@@ -557,8 +568,8 @@ namespace Symphony.Features {
 
 						SingleTon<GameManager>.Instance.MapInit();
 						SingleTon<GameManager>.Instance.MapChapter = chapter;
-							SingleTon<GameManager>.Instance.MapStage = map;
-SingleTon<GameManager>.Instance.PlayMapStage = map;
+						SingleTon<GameManager>.Instance.MapStage = map;
+						SingleTon<GameManager>.Instance.PlayMapStage = map;
 
 						if (string.IsNullOrEmpty(chapter?.Event_Category)) {
 							SingleTon<GameManager>.Instance.GameMode = GAME_MODE.STORY;
@@ -574,7 +585,7 @@ SingleTon<GameManager>.Instance.PlayMapStage = map;
 			}
 		}
 		private static void LastBattleMap_Panel_World_Start(Panel_World __instance) {
-						__instance.XGetMethodVoid<Table_MapChapter>("SetPanelChapter")
+			__instance.XGetMethodVoid<Table_MapChapter>("SetPanelChapter")
 				.Invoke(SingleTon<GameManager>.Instance.MapChapter);
 
 			var uiStage = __instance.GetComponentsInChildren<UIStage>()
@@ -2106,6 +2117,54 @@ SingleTon<GameManager>.Instance.PlayMapStage = map;
 			return ret.ToList();
 		}
 		#endregion
+
+
+		#region Better Facility Inventory
+		private static void BetterFacilityInventory_FacilityInstallation_NewMenuList(
+			Panel_FacilityInstallation __instance,
+			ref List<Table_Facility> __result
+		) {
+			if (!Conf.SimpleUI.Use_BetterFacilityInventory.Value) return;
+
+			__result.Sort((a, b) => {
+				var aName = a.Name.Localize();
+				var bName = b.Name.Localize();
+
+				var c1 = string.Compare(aName, bName, Common.GetCultureInfo(), CompareOptions.StringSort);
+				if (c1 != 0) return c1;
+
+				return a.Sort.CompareTo(b.Sort);
+			});
+		}
+		private static void BetterFacilityInventory_FacilityInstallation_StorageMenuList(
+			Panel_FacilityInstallation __instance,
+			ref List<Table_Facility> __result
+		) {
+			if (!Conf.SimpleUI.Use_BetterFacilityInventory.Value) return;
+
+			__result.Sort((a, b) => {
+				var c1 = -a.Lv.CompareTo(b.Lv);
+				if (c1 != 0) return c1;
+
+				var aName = a.Name.StartsWith("[c")
+					? a.Name.Substring(a.Name.IndexOf(" ") + 1)
+					: a.Name.Localize();
+				var bName = b.Name.StartsWith("[c")
+					? b.Name.Substring(b.Name.IndexOf(" ") + 1)
+					: b.Name.Localize();
+
+				var c2 = string.Compare(aName, bName, Common.GetCultureInfo(), CompareOptions.StringSort);
+				if (c2 != 0) return c2;
+
+				return a.Sort.CompareTo(b.Sort);
+			});
+			foreach (var item in __result) {
+				if (!item.Name.StartsWith("["))
+					item.Name = $"{Common.COLOR_BLUE}Lv.{item.Lv}[-][/c] {item.Name.Localize()}";
+			}
+		}
+		#endregion
+
 		#endregion
 
 		#region Squad Clear Button

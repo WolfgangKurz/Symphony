@@ -65,6 +65,11 @@ namespace Symphony.UI.Panels {
 
 				DrawToggle(ref offset, "교환소: 손도 깔끔", Conf.SimpleUI.Use_Exchange_NoMessyHand);
 				DrawLabel(ref offset, "교환소의 '품절된 상품 숨기기'를 체크상태로 변경하고,\n현재 보고있는 상품에 관련된 소모품만 목록에 표시합니다.", Color_description, 20);
+
+				offset += 10f;
+
+				DrawToggle(ref offset, "더 좋은 시설 인벤토리", Conf.SimpleUI.Use_BetterFacilityInventory);
+				DrawLabel(ref offset, "기지의 시설 목록이 레벨 및 이름순으로 정렬되고, 보유중인 시설은 레벨이 표시됩니다.", Color_description, 20);
 			}
 
 			var headingRect = new Rect(60, offset, WIDTH_FILL - 60, 20);
