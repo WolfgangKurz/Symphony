@@ -556,29 +556,30 @@ namespace Symphony.Features {
 						if (map == null) return;
 
 						SingleTon<GameManager>.Instance.MapInit();
-						if (string.IsNullOrEmpty(chapter?.Event_Category)) {
+						SingleTon<GameManager>.Instance.MapChapter = chapter;
 							SingleTon<GameManager>.Instance.MapStage = map;
+SingleTon<GameManager>.Instance.PlayMapStage = map;
+
+						if (string.IsNullOrEmpty(chapter?.Event_Category)) {
 							SingleTon<GameManager>.Instance.GameMode = GAME_MODE.STORY;
 						}
 						else {
 							SingleTon<GameManager>.Instance.MapEventChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
 							SingleTon<GameManager>.Instance.GameMode = GAME_MODE.EVENT;
 						}
+
 						Handler.Broadcast(new SceneChange(Const.Scene_World)); // __instance.ShowScene(Const.Scene_World);
 					}));
 				}
 			}
 		}
 		private static void LastBattleMap_Panel_World_Start(Panel_World __instance) {
-			Plugin.Logger.LogWarning(SingleTon<GameManager>.Instance.MapChapter.Key);
-			Plugin.Logger.LogWarning(SingleTon<GameManager>.Instance.MapChapter.ChapterName);
-			Plugin.Logger.LogWarning(SingleTon<GameManager>.Instance.MapChapter.ChapterString);
-			Plugin.Logger.LogWarning(SingleTon<GameManager>.Instance.MapChapter.Chapter_IDX);
-
-			__instance.XGetMethodVoid<Table_MapChapter>("SetPanelChapter")
+						__instance.XGetMethodVoid<Table_MapChapter>("SetPanelChapter")
 				.Invoke(SingleTon<GameManager>.Instance.MapChapter);
 
-			Plugin.Logger.LogWarning("OK");
+			var uiStage = __instance.GetComponentsInChildren<UIStage>()
+				.FirstOrDefault(x => x.tMapStage == SingleTon<GameManager>.Instance.PlayMapStage);
+			if(uiStage != null) uiStage.OnBtnStage();
 		}
 
 		private static void Memorize_LastBattleMap() {
