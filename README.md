@@ -52,6 +52,7 @@ This modifies parts of the UI to make them easier to use.
 - Provides instant search with the Enter key in some search input fields.
 ---
 - Provides a sorting for the consumable list.
+- Provides a option to display character's Exclusive equipment first for the equipment selection list.
 - Provides a extra sorting function for the character list.
 ---
 - Provides a Previous/Next button to character detail screen.
@@ -61,6 +62,7 @@ This modifies parts of the UI to make them easier to use.
 ---
 - Provides Scrapbook improvement feature - `Scrapbook Must Be Fancy`.
 - Provides improvements for Exchange screen - `Exchange: No messy hand`.
+- Provides improvements for Base facility list - `Better Facility List`
 ---
 - Provides clearing all member in squad feature.
 - Provides accelerated scrolling via the mouse wheel.
