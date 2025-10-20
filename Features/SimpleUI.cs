@@ -1084,9 +1084,9 @@ namespace Symphony.Features {
 
 		#region Sort by XXX
 		private static readonly (string id, string name, Comparison<IReuseCellData> fn)[] Patch_SortBy_Extra_List = [
-			("Name",  "이름",      Patch_SortBy_Name),
-			("Group", "소속 부대", Patch_SortBy_Group),
-			("Links", "링크 수",   Patch_SortBy_Links),
+			("Name",  "이름",      CharSort_Comparer_Name),
+			("Group", "소속 부대", CharSort_Comparer_GroupName),
+			("Links", "링크 수",   CharSort_Comparer_Links),
 		];
 
 		private static void Inject_SortByXXX_pre(Panel_BasePc __instance) {
@@ -1207,7 +1207,7 @@ namespace Symphony.Features {
 			}
 		}
 
-		static int Patch_SortBy_Name(IReuseCellData a, IReuseCellData b) {
+		static int CharSort_Comparer_Name(IReuseCellData a, IReuseCellData b) {
 			if (a.IsFirst() && !b.IsFirst()) return -1;
 			if (!a.IsFirst() && b.IsFirst()) return 1;
 			if (a.IsLast() && !b.IsLast()) return 1;
@@ -1221,7 +1221,7 @@ namespace Symphony.Features {
 
 			return a.GetPCID().CompareTo(b.GetPCID());
 		}
-		static int Patch_SortBy_Group(IReuseCellData a, IReuseCellData b) {
+		static int CharSort_Comparer_GroupName(IReuseCellData a, IReuseCellData b) {
 			if (a.IsFirst() && !b.IsFirst()) return -1;
 			if (!a.IsFirst() && b.IsFirst()) return 1;
 			if (a.IsLast() && !b.IsLast()) return 1;
@@ -1261,7 +1261,7 @@ namespace Symphony.Features {
 
 			return a.GetPCID().CompareTo(b.GetPCID());
 		}
-		static int Patch_SortBy_Links(IReuseCellData a, IReuseCellData b) {
+		static int CharSort_Comparer_Links(IReuseCellData a, IReuseCellData b) {
 			if (a.IsFirst() && !b.IsFirst()) return -1;
 			if (!a.IsFirst() && b.IsFirst()) return 1;
 			if (a.IsLast() && !b.IsLast()) return 1;
@@ -1315,9 +1315,9 @@ namespace Symphony.Features {
 			};
 			if (sortFunc == null && Conf.SimpleUI.Use_SortBy_Extra.Value) {
 				sortFunc = toggles.Sort switch {
-					12 => Patch_SortBy_Name,
-					13 => Patch_SortBy_Group,
-					14 => Patch_SortBy_Links,
+					12 => CharSort_Comparer_Name,
+					13 => CharSort_Comparer_GroupName,
+					14 => CharSort_Comparer_Links,
 					_ => null
 				};
 			}
@@ -2118,7 +2118,6 @@ namespace Symphony.Features {
 		}
 		#endregion
 
-
 		#region Better Facility Inventory
 		private static void BetterFacilityInventory_FacilityInstallation_NewMenuList(
 			Panel_FacilityInstallation __instance,
@@ -2164,7 +2163,6 @@ namespace Symphony.Features {
 			}
 		}
 		#endregion
-
 		#endregion
 
 		#region Squad Clear Button
