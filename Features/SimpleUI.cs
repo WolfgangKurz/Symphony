@@ -30,6 +30,8 @@ namespace Symphony.Features {
 
 		private static UIAtlas asset_masterAtlas = null;
 
+		public static Table_MapStage LastBattleMap_Target { get; private set; }
+
 		public void Start() {
 			var harmony = new Harmony("Symphony.SimpleUI");
 
@@ -499,6 +501,7 @@ namespace Symphony.Features {
 						uiBtn.onClick.Add(new(() => {
 							if (map == null) return;
 
+							SimpleUI.LastBattleMap_Target = map;
 							SingleTon<GameManager>.Instance.MapInit();
 							SingleTon<GameManager>.Instance.MapChapter = chapter;
 							SingleTon<GameManager>.Instance.MapStage = map;
@@ -589,6 +592,7 @@ namespace Symphony.Features {
 					uiBtn.onClick.Add(new(() => {
 						if (map == null) return;
 
+						SimpleUI.LastBattleMap_Target = map;
 						SingleTon<GameManager>.Instance.MapInit();
 						SingleTon<GameManager>.Instance.MapChapter = chapter;
 						SingleTon<GameManager>.Instance.MapStage = map;
@@ -611,9 +615,14 @@ namespace Symphony.Features {
 			__instance.XGetMethodVoid<Table_MapChapter>("SetPanelChapter")
 				.Invoke(SingleTon<GameManager>.Instance.MapChapter);
 
-			var uiStage = __instance.GetComponentsInChildren<UIStage>()
-				.FirstOrDefault(x => x.tMapStage == SingleTon<GameManager>.Instance.PlayMapStage);
-			if(uiStage != null) uiStage.OnBtnStage();
+			if (SimpleUI.LastBattleMap_Target != null) {
+				var uiStage = __instance.GetComponentsInChildren<UIStage>()
+					.FirstOrDefault(x => x.tMapStage == SimpleUI.LastBattleMap_Target);
+
+				if (uiStage != null) uiStage.OnBtnStage();
+
+				SimpleUI.LastBattleMap_Target = null;
+			}
 		}
 
 		private static void Memorize_LastBattleMap() {
