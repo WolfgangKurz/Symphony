@@ -10,10 +10,11 @@ using UnityEngine;
 using UnityEngine.SceneManagement;
 
 namespace Symphony.Features {
-	[Feature("SimpleTweaks")]
+		[Feature("SimpleTweaks")]
 	internal class SimpleTweaks : MonoBehaviour {
 		private class SimpleTweaks_Patch {
 			private static Helper.RECT? lastWindowRect = null;
+			private static bool cursorIgnoreInstalled = false;
 
 			public static IEnumerable<CodeInstruction> Patch_PanelBase_Update(MethodBase original, IEnumerable<CodeInstruction> instructions) {
 				Plugin.Logger.LogInfo("[Symphony::SimpleTweaks] Start to patch Panel_Base.Update to patch auto-next");
@@ -167,6 +168,14 @@ namespace Symphony.Features {
 
 				MuteOnBackgroundAction(!focus);
 				return false;
+			}
+
+			public static void Patch_CursorIgnore() {
+				if (cursorIgnoreInstalled) return;
+
+				cursorIgnoreInstalled = Helper.InstallCursorIgnore(Plugin.hWnd);
+				if (cursorIgnoreInstalled)
+					Plugin.Logger.LogInfo("[Symphony::SimpleTweaks] Window resize cursor fix installed");
 			}
 
 			public static void Patch_OfflineBattle_Options_SquadSelect(Panel_SquadSelectOfflineBattle __instance) {
@@ -368,6 +377,12 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Screen), nameof(Screen.SetResolution), [typeof(int), typeof(int), typeof(FullScreenMode), typeof(RefreshRate)]),
 				prefix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_Screen_SetResolution_Prefix)),
 				postfix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_Screen_SetResolution_Postfix))
+			);
+
+			// Windows border cursor fix
+			harmony.Patch(
+				AccessTools.Method(typeof(GameManager), "Update"),
+				postfix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_CursorIgnore))
 			);
 
 			// Story skip button patch

@@ -144,20 +144,27 @@ namespace Symphony {
 			private const int SW_SHOWNORMAL = 1;
 			private const int SW_SHOWMINIMIZED = 2;
 			private const int SW_SHOWMAXIMIZED = 3;
+
+			private const long PlacementCacheTick = TimeSpan.TicksPerMillisecond * 100;
+			private static long lastPlacementTick = 0L;
+			private static WINDOWPLACEMENT placement = new WINDOWPLACEMENT() { length = Marshal.SizeOf<WINDOWPLACEMENT>() };
+
 			public static bool IsWindowMaximized(IntPtr hWnd) {
 				if (hWnd == IntPtr.Zero) return false;
 
-				WINDOWPLACEMENT placement = new WINDOWPLACEMENT();
-				placement.length = Marshal.SizeOf(placement);
+				var curTick = DateTime.Now.Ticks;
+				if (curTick - lastPlacementTick > PlacementCacheTick) {
+					lastPlacementTick = curTick;
+					if (!GetWindowPlacement(hWnd, ref placement)) return false;
+				}
 
-				if (GetWindowPlacement(hWnd, ref placement))
-					return placement.showCmd == SW_SHOWMAXIMIZED;
-				return false;
+				return placement.showCmd == SW_SHOWMAXIMIZED;
 			}
 		}
 		public static bool IsWindowMaximized(IntPtr hWnd) => WindowMaximizedChecker.IsWindowMaximized(hWnd);
 
 		private static class WindowDisplayHelper {
+			private delegate IntPtr WndProcDelegate(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
 			[DllImport("user32.dll")]
 			private static extern IntPtr GetActiveWindow();
@@ -167,6 +174,18 @@ namespace Symphony {
 
 			[DllImport("user32.dll")]
 			private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
+			[DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", CharSet = CharSet.Unicode, SetLastError = true)]
+			private static extern IntPtr SetWindowLongPtr64(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+			[DllImport("user32.dll", EntryPoint = "SetWindowLongW", CharSet = CharSet.Unicode, SetLastError = true)]
+			private static extern int SetWindowLong32(IntPtr hWnd, int nIndex, int dwNewLong);
+
+			[DllImport("user32.dll", EntryPoint = "CallWindowProcW", CharSet = CharSet.Unicode)]
+			private static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+			[DllImport("user32.dll", EntryPoint = "DefWindowProcW", CharSet = CharSet.Unicode)]
+			private static extern IntPtr DefWindowProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
 
 			[DllImport("user32.dll", EntryPoint = "GetWindowRect")]
 			private static extern int GetWindowRect_API(IntPtr hWnd, out Helper.RECT rc);
@@ -178,11 +197,23 @@ namespace Symphony {
 			private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
 			private const int GWL_STYLE = -16;
+			private const int GWLP_WNDPROC = -4;
 			private const int WS_MAXIMIZEBOX = 0x00010000;
 			private const int WS_THICKFRAME = 0x00040000;
 			private const int SW_MAXIMIZE = 3;
+			private const uint WM_SETCURSOR = 0x0020;
+
+			private const int HTLEFT = 10;
+			private const int HTRIGHT = 11;
+			private const int HTTOP = 12;
+			private const int HTTOPLEFT = 13;
+			private const int HTTOPRIGHT = 14;
+			private const int HTBOTTOM = 15;
+			private const int HTBOTTOMLEFT = 16;
+			private const int HTBOTTOMRIGHT = 17;
 
 			private const int _WS_RESIZABLE = WS_THICKFRAME | WS_MAXIMIZEBOX;
+			private static IntPtr originalWndProc = IntPtr.Zero;
 
 			public static void MaximizeWindow(IntPtr hWnd) => ShowWindow(hWnd, SW_MAXIMIZE);
 			public static void ResizeWindow(IntPtr hWnd, RECT rc)
@@ -198,11 +229,69 @@ namespace Symphony {
 				);
 			}
 			public static bool GetWindowRect(IntPtr hWnd, out RECT rc) => GetWindowRect_API(hWnd, out rc) != 0;
+
+			private static IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong) {
+				if (IntPtr.Size == 8)
+					return SetWindowLongPtr64(hWnd, nIndex, dwNewLong);
+				return new IntPtr(SetWindowLong32(hWnd, nIndex, dwNewLong.ToInt32()));
+			}
+
+			private static int LOWORD(IntPtr value) => unchecked((ushort)value.ToInt64());
+
+			private static CursorType? GetResizeCursorType(int hitTest) {
+				switch (hitTest) {
+					case HTLEFT:
+					case HTRIGHT:
+						return CursorType.SizeWE;
+					case HTTOP:
+					case HTBOTTOM:
+						return CursorType.SizeNS;
+					case HTTOPLEFT:
+					case HTBOTTOMRIGHT:
+						return CursorType.SizeNWSE;
+					case HTTOPRIGHT:
+					case HTBOTTOMLEFT:
+						return CursorType.SIZENESW;
+				}
+				return null;
+			}
+
+			private static IntPtr CustomWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam) {
+				if (msg == WM_SETCURSOR &&
+					Screen.fullScreenMode == FullScreenMode.Windowed &&
+					!IsWindowMaximized(hWnd)
+				) {
+					var hitTest = LOWORD(lParam);
+					var cursorType = GetResizeCursorType(hitTest);
+					if (cursorType.HasValue) {
+						Helper.ChangeCursor(cursorType.Value);
+						return new IntPtr(1);
+					}
+				}
+
+				if (originalWndProc != IntPtr.Zero)
+					return CallWindowProc(originalWndProc, hWnd, msg, wParam, lParam);
+				return DefWindowProc(hWnd, msg, wParam, lParam);
+			}
+
+			public static bool InstallCursorIgnore(IntPtr hWnd) {
+				if (hWnd == IntPtr.Zero) return false;
+				if (originalWndProc != IntPtr.Zero) return true;
+
+				var wndProc = Marshal.GetFunctionPointerForDelegate(CustomWndProc);
+				var prevWndProc = SetWindowLongPtr(hWnd, GWLP_WNDPROC, wndProc);
+				if (prevWndProc == IntPtr.Zero)
+					return false;
+
+				originalWndProc = prevWndProc;
+				return true;
+			}
 		}
 		public static void MaximizeWindow(IntPtr hWnd) => WindowDisplayHelper.MaximizeWindow(hWnd);
 		public static void ResizeWindow(IntPtr hWnd, RECT rc) => WindowDisplayHelper.ResizeWindow(hWnd, rc);
 		public static void ResizableWindow(IntPtr hWnd, bool resizable) => WindowDisplayHelper.ResizableWindow(hWnd, resizable);
 		public static bool GetWindowRect(IntPtr hWnd, out RECT rc) => WindowDisplayHelper.GetWindowRect(hWnd, out rc);
+		public static bool InstallCursorIgnore(IntPtr hWnd) => WindowDisplayHelper.InstallCursorIgnore(hWnd);
 
 		[DllImport("user32.dll", EntryPoint = "SetWindowTextW", CharSet = CharSet.Unicode)]
 		private static extern bool SetWindowText(IntPtr hWnd, string lpString);
@@ -244,16 +333,21 @@ namespace Symphony {
 		}
 
 		private static class CursorHelper {
-			[DllImport("user32.dll", CharSet = CharSet.Ansi)]
-			private static extern IntPtr LoadImageA(IntPtr hInst, IntPtr name, uint type, int cx, int cy, uint fuLoad);
+			[DllImport("user32.dll")]
+			private static extern IntPtr LoadImage(IntPtr hInst, IntPtr name, uint type, int cx, int cy, uint fuLoad);
 			[DllImport("user32.dll")]
 			private static extern IntPtr SetCursor(IntPtr hCursor);
 
 			private const uint IMAGE_CURSOR = 2;
 			private const uint LR_SHARED = 0x8000;
 
+			private static Dictionary<CursorType, IntPtr> CursorCache = new();
+
 			public static void ChangeCursor(CursorType type) {
-				var cursor = LoadImageA(IntPtr.Zero, new IntPtr((ushort)type), IMAGE_CURSOR, 0, 0, LR_SHARED);
+				IntPtr cursor;
+				if (!CursorCache.TryGetValue(type, out cursor))
+					cursor = LoadImage(IntPtr.Zero, new IntPtr((ushort)type), IMAGE_CURSOR, 0, 0, LR_SHARED);
+
 				if (cursor != IntPtr.Zero)
 					SetCursor(cursor);
 			}
