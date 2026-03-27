@@ -122,7 +122,7 @@ namespace Symphony.Features {
 				}
 				return true;
 			}
-			public static void Patch_Screen_SetResolution_Prefix(int width, int height, FullScreenMode fullscreenMode, int preferredRefreshRate) {
+			public static void Patch_Screen_SetResolution_Prefix(int width, int height, FullScreenMode fullscreenMode, RefreshRate preferredRefreshRate) {
 				if (!Conf.SimpleTweaks.Use_IgnoreWindowReset.Value) return;
 
 				if (fullscreenMode != FullScreenMode.Windowed) { // Going to fullscreen
@@ -130,7 +130,7 @@ namespace Symphony.Features {
 						lastWindowRect = rc;
 				}
 			}
-			public static void Patch_Screen_SetResolution_Postfix(int width, int height, FullScreenMode fullscreenMode, int preferredRefreshRate) {
+			public static void Patch_Screen_SetResolution_Postfix(int width, int height, FullScreenMode fullscreenMode, RefreshRate preferredRefreshRate) {
 				if (!Conf.SimpleTweaks.Use_IgnoreWindowReset.Value) return;
 
 				if (fullscreenMode == FullScreenMode.Windowed && lastWindowRect.HasValue) { // Restored to windowed
@@ -365,7 +365,7 @@ namespace Symphony.Features {
 				prefix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.IsIgnoreWindowReset))
 			);
 			harmony.Patch( // prevent resetting window size & position after back from fullscreen
-				AccessTools.Method(typeof(Screen), nameof(Screen.SetResolution), [typeof(int), typeof(int), typeof(FullScreenMode), typeof(int)]),
+				AccessTools.Method(typeof(Screen), nameof(Screen.SetResolution), [typeof(int), typeof(int), typeof(FullScreenMode), typeof(RefreshRate)]),
 				prefix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_Screen_SetResolution_Prefix)),
 				postfix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_Screen_SetResolution_Postfix))
 			);
