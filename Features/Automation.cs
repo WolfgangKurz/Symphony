@@ -75,32 +75,35 @@ namespace Symphony.Features {
 				yield break;
 			}
 
-			var btn = GameObject.Instantiate(src);
+			var _children = src.transform.parent.GetComponentsInChildren<Transform>(true);
+			var btn = _children.FirstOrDefault(t => t.name == "CollectAllButton")?.gameObject;
+			if (!btn) {
+				Plugin.Logger.LogWarning("[Symphony.Automation] Failed to get CollectAllButton");
+				Destroy(btn);
+				yield break;
+			}
+			btn.SetActive(true);
 			GetAll_BtnGetAll = btn;
-			btn.name = "FacilityGetAllButton";
-			if (!btn.TryGetComponent<UIButton>(out var uiBtn)) {
-				Plugin.Logger.LogWarning("[Symphony.Automation] Failed to get UIButton component for cloned button");
+
+			UIButton uiBtn;
+			if (!btn.TryGetComponent<UIButton>(out uiBtn)) {
+				var srcCollider = src.GetComponent<BoxCollider>();
+				var collider = btn.AddComponent<BoxCollider>();
+				collider.center = srcCollider.center;
+				collider.size = srcCollider.size;
+
+				uiBtn = btn.AddComponent<UIButton>();
+
+				btn.transform.localPosition += new Vector3(0f, -160f);
+			}
+			if (!uiBtn) {
+				Plugin.Logger.LogWarning("[Symphony.Automation] Failed to create UIButton component for CollectAllButton");
 				Destroy(btn);
 				yield break;
 			}
 
-			btn.transform.SetParent(src.transform.parent);
-			btn.transform.localPosition = new Vector3(-112f, 150f);
-			btn.transform.localScale = Vector3.one;
-
-			uiBtn.normalSprite = "ui_Character_Info_Icon_book";
-
-			var loc = btn.GetComponentInChildren<UILocalize>();
-			if (loc != null) loc.enabled = false; // safe check
-
-			var label = btn.GetComponentInChildren<UILabel>(true);
-			if (label == null) {
-				Plugin.Logger.LogWarning("[Symphony.Automation] Failed to get UILabel component for cloned button");
-				Destroy(btn);
-				yield break;
-			}
-
-			label.text = "일괄 수령";
+			var deactivation = btn.transform.Find("Deactivation");
+			if (deactivation) deactivation.gameObject.SetActive(false);
 
 			uiBtn.onClick.Clear();
 			uiBtn.onClick.Add(new EventDelegate(() => {
