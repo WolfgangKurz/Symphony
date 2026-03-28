@@ -273,7 +273,7 @@ namespace Symphony {
 
 			private static IntPtr CustomWndProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam) {
 				if (msg == WM_SETCURSOR &&
-					Screen.fullScreenMode == FullScreenMode.Windowed &&
+					// Screen.fullScreenMode == FullScreenMode.Windowed &&
 					!IsWindowMaximized(hWnd)
 				) {
 					var hitTest = LOWORD(lParam);
