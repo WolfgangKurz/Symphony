@@ -16,7 +16,11 @@ namespace Symphony.UI {
 		private List<(UIPanelBase obj, Type type)> reservedToRemove = new();
 
 		private bool displayWelcome = false;
-		private float assetLoadedOpacity = 0f;
+		private bool assetLoaderStatisticsDisplay = false;
+
+		private readonly Color Color_AssetLoaderStatistics = new(0.06f, 0.06f, 0.06f, 0.54f);
+		private readonly Color Color_separator = new Color(0.94f, 0.94f, 0.94f, 0.54f);
+
 
 		public void Awake() {
 			StartCoroutine(this.WelcomeMessage());
@@ -69,17 +73,42 @@ namespace Symphony.UI {
 					GUIX.Label(new Rect(0, 16, cw - 8, 16), description);
 				});
 			}
-			if (this.assetLoadedOpacity != 0f) {
-				var total = AssetLoader.FilesFound.ToString();
-				var cw = GUIX.Label(total).x + 4 + 4;
+
+			if (this.assetLoaderStatisticsDisplay) {
+				var total = AssetLoader.AssetStatistics.Found.ToString();
+				var loaded = AssetLoader.AssetStatistics.Loaded.ToString();
+				var error = AssetLoader.AssetStatistics.Error.ToString();
+
+				var w_total = GUIX.Label(total).x;
+				var w_loaded = GUIX.Label(loaded).x;
+				var w_error = GUIX.Label(error).x;
+
+				var cw = Mathf.Max(
+					GUIX.Heading("AssetLoader").x,
+					w_total, w_loaded, w_error
+				) + 4 + 4;
 
 				var h = Screen.height;
-				GUIX.Fill(new Rect(5, h - 5 - (8 + 48)-8, cw, 8 + 48), GUIX.Colors.WindowBG);
-				GUIX.Group(new Rect(5 + 4, h - 5 - (8 + 48) - 4, cw, 48), () => {
-					GUIX.Heading(new Rect(0, 0, 80, 16), "Symphony", Color.yellow);
-					GUIX.Label(new Rect(0, 0, cw - 8, 16), total, Color.white);
-					GUIX.Label(new Rect(0, 16, cw - 8, 16), AssetLoader.FilesLoaded.ToString(), Color.green);
-					GUIX.Label(new Rect(0, 32, cw - 8, 16), AssetLoader.FilesError.ToString(), Color.red);
+				GUIX.Fill(new Rect(5, h - 5 - (8 + 32) - 8, cw, 32 + 8), Color_AssetLoaderStatistics);
+				GUIX.Group(new Rect(5 + 4, h - 5 - (8 + 32) - 4, cw, 32), () => {
+					GUIX.Heading(new Rect(0, 0, 80, 16), "AssetLoader", Color.yellow);
+
+					var x = 0f;
+					var sep = GUIX.Label(" / ").x;
+
+					GUIX.Label(new Rect(x, 16, w_total, 16), total, Color.white);
+					x += w_total;
+
+					GUIX.Label(new Rect(x, 16, sep, 16), " / ", Color_separator);
+					x += sep;
+
+					GUIX.Label(new Rect(x, 16, w_loaded, 16), loaded, Color.green);
+					x += w_loaded;
+
+					GUIX.Label(new Rect(x, 16, sep, 16), " / ", Color_separator);
+					x += sep;
+
+					GUIX.Label(new Rect(x, 16, w_error, 16), error, Color.red);
 				});
 			}
 		}
@@ -91,9 +120,9 @@ namespace Symphony.UI {
 		}
 
 		private IEnumerator DisplayAssetLoaded() {
-			this.assetLoadedOpacity= 1.0f;
+			this.assetLoaderStatisticsDisplay = true;
 			yield return new WaitForSeconds(5.0f);
-			yield return new WaitForSeconds(5.0f);
+			this.assetLoaderStatisticsDisplay = false;
 		}
 
 		public T GetPanel<T>() where T : UIPanelBase {

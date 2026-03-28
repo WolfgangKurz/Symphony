@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.1</TargetFramework>
+    <AssemblyName>Symphony.Utils</AssemblyName>
+    <RootNamespace>Symphony.Utils</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BCnEncoder.Net" Version="2.3.0" />
+    <PackageReference Include="K4os.Compression.LZ4" Version="1.*" />
+    <PackageReference Include="LZMA-SDK" Version="22.1.1" />
+  </ItemGroup>
+
+  <Target Name="EmbedNuGetDependencies" AfterTargets="ResolveReferences" BeforeTargets="CreateManifestResourceNames">
+    <ItemGroup>
+      <_EmbedCandidate Include="@(ReferencePath)" Condition="'%(Filename)%(Extension)' == 'BCnEncoder.dll' or '%(Filename)%(Extension)' == 'CommunityToolkit.HighPerformance.dll' or '%(Filename)%(Extension)' == 'K4os.Compression.LZ4.dll' or '%(Filename)%(Extension)' == 'SevenZip.dll'" />
+
+      <EmbeddedResource Include="@(_EmbedCandidate)">
+        <LogicalName>Symphony.Utils.Dependencies/%(Filename)%(Extension)</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+  </Target>
+
+</Project>

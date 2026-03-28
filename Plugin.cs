@@ -49,6 +49,19 @@ namespace Symphony {
 
 			StartCoroutine(this.InitUI());
 
+			// Dependencies
+			{
+				var asm = Assembly.GetExecutingAssembly();
+				var res = asm.GetManifestResourceNames().Where(x => x.StartsWith("Symphony.Dependencies/", StringComparison.Ordinal));
+				foreach (var name in res) {
+					try {
+						var loaded = Helper.RegisterAssemblyFromResource(asm, name);
+					} catch (Exception e) {
+						Plugin.Logger.LogError($"[Symphony::AssetLoader] Failed to load embedded dependency '{name}': {e}");
+					}
+				}
+			}
+
 			// AssetLoader
 			Symphony.Features.AssetLoader.Init();
 			Symphony.Features.AssetLoader.Load();

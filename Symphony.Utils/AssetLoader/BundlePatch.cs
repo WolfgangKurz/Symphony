@@ -8,13 +8,15 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace Symphony.Features.AssetLoaderPatch {
-	internal static class AssetLoader_BundlePatch {
+namespace Symphony.Utils {
+	public static class AssetBundleCompatibilityPatcher {
 		private const uint Windows64BuildTarget = 19;
 
-		public static bool TryPatchToWindows(byte[] bundleData, out byte[] patchedData, out string error) {
+		public static bool TryPatchToWindows(byte[] bundleData, out byte[] patchedData, out string error, Action<string> logInfo = null, Action<string> logWarning = null) {
 			patchedData = null;
 			error = null;
+			PatchLog.Info = logInfo;
+			PatchLog.Warning = logWarning;
 
 			try {
 				var bundle = UnityFsBundle.Read(bundleData);
@@ -39,7 +41,7 @@ namespace Symphony.Features.AssetLoaderPatch {
 						if (texturePatchedCount > 0) assetPatched = true;
 					}
 					else if (!string.IsNullOrEmpty(texturePatchError)) {
-						Plugin.Logger.LogWarning($"[Symphony::AssetLoader::BundlePatch] Texture patch skipped for '{directory.Name}': {texturePatchError}");
+						PatchLog.LogWarning($"[Symphony::AssetLoader::BundlePatch] Texture patch skipped for '{directory.Name}': {texturePatchError}");
 					}
 
 					if (!assetPatched) continue;
@@ -54,13 +56,24 @@ namespace Symphony.Features.AssetLoaderPatch {
 				}
 
 				patchedData = bundle.WriteUncompressed();
-				Plugin.Logger.LogMessage($"[Symphony::AssetLoader::BundlePatch] Patched {patchedAssetFiles} asset files, {patchedPlatforms} platform headers, {patchedTextures} textures");
+				PatchLog.LogInfo($"[Symphony::AssetLoader::BundlePatch] Patched {patchedAssetFiles} asset files, {patchedPlatforms} platform headers, {patchedTextures} textures");
 				return true;
 			} catch (Exception ex) {
 				error = ex.ToString();
 				return false;
+			} finally {
+				PatchLog.Info = null;
+				PatchLog.Warning = null;
 			}
 		}
+	}
+
+	internal static class PatchLog {
+		internal static Action<string> Info { get; set; }
+		internal static Action<string> Warning { get; set; }
+
+		internal static void LogInfo(string message) => Info?.Invoke(message);
+		internal static void LogWarning(string message) => Warning?.Invoke(message);
 	}
 
 	internal sealed class UnityFsBundle {
@@ -536,25 +549,25 @@ namespace Symphony.Features.AssetLoaderPatch {
 
 					var objectBytes = asset.GetObjectData(FileBytes, DataOffset);
 					if (!TextureTypeTreePatcher.TryRead(type.Nodes, objectBytes, BigEndian, out var texture, out var readError)) {
-						Plugin.Logger.LogWarning($"[Symphony::AssetLoader::BundlePatch] Failed to read Texture2D {asset.PathId}: {readError}");
+						PatchLog.LogWarning($"[Symphony::AssetLoader::BundlePatch] Failed to read Texture2D {asset.PathId}: {readError}");
 						continue;
 					}
 
-					if (!AssetLoader_TexturePatch.NeedsTranscode(texture.TextureFormat)) continue;
+					if (!TextureTranscoder.NeedsTranscode(texture.TextureFormat)) continue;
 
 					var sourceData = texture.ImageData;
 					if ((sourceData == null || sourceData.Length == 0) && !bundle.TryGetResourceData(texture.StreamPath, texture.StreamOffset, texture.StreamSize, out sourceData)) {
-						Plugin.Logger.LogWarning($"[Symphony::AssetLoader::BundlePatch] Failed to locate external texture data for Texture2D {asset.PathId}");
+						PatchLog.LogWarning($"[Symphony::AssetLoader::BundlePatch] Failed to locate external texture data for Texture2D {asset.PathId}");
 						continue;
 					}
 
-					if (!AssetLoader_TexturePatch.TryTranscode(new AssetLoader_TexturePatch.TextureTranscodeRequest(texture.Width, texture.Height, texture.TextureFormat, texture.MipCount, sourceData), out var transcoded, out var transcodeError)) {
-						Plugin.Logger.LogWarning($"[Symphony::AssetLoader::BundlePatch] Failed to transcode Texture2D {asset.PathId}: {transcodeError}");
+					if (!TextureTranscoder.TryTranscode(new TextureTranscoder.TextureTranscodeRequest(texture.Width, texture.Height, texture.TextureFormat, texture.MipCount, sourceData), out var transcoded, out var transcodeError)) {
+						PatchLog.LogWarning($"[Symphony::AssetLoader::BundlePatch] Failed to transcode Texture2D {asset.PathId}: {transcodeError}");
 						continue;
 					}
 
 					var overrides = new TextureObjectOverrides(
-						AssetLoader_TexturePatch.Dxt5TextureFormat,
+						TextureTranscoder.Dxt5TextureFormat,
 						transcoded.Data.Length,
 						transcoded.MipCount,
 						Array.Empty<byte>(),
@@ -564,7 +577,7 @@ namespace Symphony.Features.AssetLoaderPatch {
 						string.Empty
 					);
 					if (!TextureTypeTreePatcher.TryRewrite(type.Nodes, objectBytes, BigEndian, overrides, out var patchedBytes, out var writeError)) {
-						Plugin.Logger.LogWarning($"[Symphony::AssetLoader::BundlePatch] Failed to rewrite Texture2D {asset.PathId}: {writeError}");
+						PatchLog.LogWarning($"[Symphony::AssetLoader::BundlePatch] Failed to rewrite Texture2D {asset.PathId}: {writeError}");
 						continue;
 					}
 

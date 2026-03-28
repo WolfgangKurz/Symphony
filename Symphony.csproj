@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
@@ -26,9 +26,11 @@
 
   <ItemGroup>
     <Compile Remove="Symphony.Notification\**" />
+    <Compile Remove="Symphony.Utils\**" />
     <EmbeddedResource Remove="Symphony.Notification\**" />
+    <EmbeddedResource Remove="Symphony.Utils\**" />
     <None Remove="Symphony.Notification\**" />
-    <None Remove="ThirdParty\**" />
+    <None Remove="Symphony.Utils\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -36,9 +38,6 @@
     <PackageReference Include="BepInEx.Unity.Mono" Version="6.0.0-be.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" PrivateAssets="all" />
     <PackageReference Include="UnityEngine.Modules" Version="2021.3.9" PrivateAssets="all" />
-    <PackageReference Include="BCnEncoder.Net" Version="2.3.0" />
-    <PackageReference Include="K4os.Compression.LZ4" Version="1.*" />
-    <PackageReference Include="LZMA-SDK" Version="22.1.1" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
@@ -46,6 +45,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="Symphony.Utils\Symphony.Utils.csproj">
+      <Private>false</Private>
+    </ProjectReference>
     <Reference Include="Assembly-CSharp">
       <HintPath>ref\Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
@@ -89,14 +91,12 @@
 
   <Target Name="EmbedNuGetDependencies" AfterTargets="ResolveReferences" BeforeTargets="CreateManifestResourceNames">
     <ItemGroup>
-      <_EmbedCandidate Include="@(ReferencePath)" Condition="'%(Filename)%(Extension)' == 'BCnEncoder.dll' or '%(Filename)%(Extension)' == 'CommunityToolkit.HighPerformance.dll' or '%(Filename)%(Extension)' == 'K4os.Compression.LZ4.dll' or '%(Filename)%(Extension)' == 'SevenZip.dll'" />
+      <_EmbedCandidate Include="@(ReferencePath)" Condition="'%(Filename)%(Extension)' == 'Symphony.Utils.dll'" />
 
       <EmbeddedResource Include="@(_EmbedCandidate)">
         <LogicalName>Symphony.Dependencies/%(Filename)%(Extension)</LogicalName>
       </EmbeddedResource>
     </ItemGroup>
-
-    <Message Importance="High" Text="Embedding: %(_EmbedCandidate.Identity)" />
   </Target>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(OS)' == 'Windows_NT'">

@@ -1,8 +1,9 @@
-﻿using BepInEx.Logging;
+using BepInEx.Logging;
 
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -82,6 +83,20 @@ namespace Symphony {
 			return false;
 		}
 		public static bool IsLesserOrEqualVersion(string v1, string v2) => v1 == v2 || IsLesserVersion(v1, v2);
+		public static Assembly RegisterAssemblyFromResource(Assembly owner, string resourceName) {
+			using var stream = owner.GetManifestResourceStream(resourceName);
+			if (stream == null)
+				throw new FileNotFoundException($"Embedded dependency resource '{resourceName}' not found");
+
+			var loadedName = Path.GetFileNameWithoutExtension(resourceName.Replace('/', Path.DirectorySeparatorChar));
+			var alreadyLoaded = AppDomain.CurrentDomain.GetAssemblies()
+				.FirstOrDefault(x => string.Equals(x.GetName().Name, loadedName, StringComparison.Ordinal));
+			if (alreadyLoaded != null) return alreadyLoaded;
+
+			using var memory = new MemoryStream();
+			stream.CopyTo(memory);
+			return Assembly.Load(memory.ToArray());
+		}
 
 		#region Windows
 		private class WindowHandleFinder {

@@ -8,8 +8,8 @@ using BCnEncoder.Encoder;
 using System;
 using System.Linq;
 
-namespace Symphony.Features.AssetLoaderPatch {
-	internal static class AssetLoader_TexturePatch {
+namespace Symphony.Utils {
+	internal static class TextureTranscoder {
 		internal const int Dxt5TextureFormat = 12;
 
 		private static readonly BcEncoder Encoder = CreateEncoder();
