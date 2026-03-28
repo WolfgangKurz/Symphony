@@ -112,6 +112,8 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_Exchange_NoMessyHand = config.Bind("SimpleUI", "Use_Exchange_NoMessyHand", true, "Enable the 'Hide Sold Out' in Exchange by default, Display consumables only related to selling");
 
 			public static readonly ConfigEntry<bool> Use_BetterFacilityInventory = config.Bind("SimpleUI", "Use_BetterFacilityInventory", false, "Sort base facilities on installation");
+
+			public static readonly ConfigEntry<bool> Use_GiveMeBackLivingStationNavigation = config.Bind("SimpleUI", "Use_GiveMeBackLivingStationNavigation", false, "Rollback old design navigation button");
 			#endregion
 
 			public static readonly ConfigEntry<bool> Use_Squad_Clear = config.Bind("SimpleUI", "Use_Squad_Clear", false, "Add clear button to squad screen");

@@ -298,6 +298,18 @@ namespace Symphony.Features {
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.BetterFacilityInventory_FacilityInstallation_StorageMenuList))
 			);
 			#endregion
+
+			#region Give me back LivingStation navigation
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_LivingStation), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GiveMeBackLivingStationNavigation_Start))
+			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_LivingStation), "ShowBackMenu"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.GiveMeBackLivingStationNavigation_ShowBackMenu))
+			);
+			#endregion
 			#endregion
 
 			#region Squad Clear Button
@@ -2347,6 +2359,26 @@ namespace Symphony.Features {
 				if (!item.Name.StartsWith("["))
 					item.Name = $"{Common.COLOR_BLUE}Lv.{item.Lv}[-][/c] {item.Name.Localize()}";
 			}
+		}
+		#endregion
+
+		#region Give me back LivingStation navigation
+		private static void GiveMeBackLivingStationNavigation_Start(Panel_LivingStation __instance) {
+			if (!Conf.SimpleUI.Use_GiveMeBackLivingStationNavigation.Value) return;
+
+			var backBtn = __instance.XGetFieldValue<GameObject>("kBackButton")?.transform;
+			if(backBtn) backBtn.localPosition += new Vector3(-60f, 0f);
+
+			var guide = __instance.XGetFieldValue<GameObject>("kFacilityGuideButton")?.transform;
+			if(guide) guide.localPosition += new Vector3(160f, 0f);
+
+			var navi = __instance.XGetFieldValue<GameObject>("_goNaviMenuParent");
+			if(navi) navi.transform.localPosition += new Vector3(0f, -16f);
+		}
+		private static void GiveMeBackLivingStationNavigation_ShowBackMenu(Panel_LivingStation __instance) {
+			if (!Conf.SimpleUI.Use_GiveMeBackLivingStationNavigation.Value) return;
+
+			__instance.XGetFieldValue<GameObject>("_goNaviMenuParent")?.SetActive(true);
 		}
 		#endregion
 		#endregion
