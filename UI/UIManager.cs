@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Symphony.Features;
+
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
@@ -14,9 +16,11 @@ namespace Symphony.UI {
 		private List<(UIPanelBase obj, Type type)> reservedToRemove = new();
 
 		private bool displayWelcome = false;
+		private float assetLoadedOpacity = 0f;
 
 		public void Awake() {
 			StartCoroutine(this.WelcomeMessage());
+			StartCoroutine(this.DisplayAssetLoaded());
 			UIManager_Patch.Patch();
 		}
 
@@ -65,12 +69,31 @@ namespace Symphony.UI {
 					GUIX.Label(new Rect(0, 16, cw - 8, 16), description);
 				});
 			}
+			if (this.assetLoadedOpacity != 0f) {
+				var total = AssetLoader.FilesFound.ToString();
+				var cw = GUIX.Label(total).x + 4 + 4;
+
+				var h = Screen.height;
+				GUIX.Fill(new Rect(5, h - 5 - (8 + 48)-8, cw, 8 + 48), GUIX.Colors.WindowBG);
+				GUIX.Group(new Rect(5 + 4, h - 5 - (8 + 48) - 4, cw, 48), () => {
+					GUIX.Heading(new Rect(0, 0, 80, 16), "Symphony", Color.yellow);
+					GUIX.Label(new Rect(0, 0, cw - 8, 16), total, Color.white);
+					GUIX.Label(new Rect(0, 16, cw - 8, 16), AssetLoader.FilesLoaded.ToString(), Color.green);
+					GUIX.Label(new Rect(0, 32, cw - 8, 16), AssetLoader.FilesError.ToString(), Color.red);
+				});
+			}
 		}
 
 		private IEnumerator WelcomeMessage() {
 			this.displayWelcome = true;
 			yield return new WaitForSeconds(5.0f);
 			this.displayWelcome = false;
+		}
+
+		private IEnumerator DisplayAssetLoaded() {
+			this.assetLoadedOpacity= 1.0f;
+			yield return new WaitForSeconds(5.0f);
+			yield return new WaitForSeconds(5.0f);
 		}
 
 		public T GetPanel<T>() where T : UIPanelBase {

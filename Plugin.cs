@@ -50,6 +50,7 @@ namespace Symphony {
 			StartCoroutine(this.InitUI());
 
 			// AssetLoader
+			Symphony.Features.AssetLoader.Init();
 			Symphony.Features.AssetLoader.Load();
 
 			var features = Assembly.GetExecutingAssembly().GetTypes()

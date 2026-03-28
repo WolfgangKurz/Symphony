@@ -5,7 +5,7 @@
     <AssemblyName>Symphony</AssemblyName>
     <Product>Symphony</Product>
     <Description>Symphony is LastOrigin PC client BepInEx plugin for QoL</Description>
-    <Version>0.39.1</Version>
+    <Version>0.40.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <RestoreAdditionalProjectSources>
@@ -35,6 +35,8 @@
     <PackageReference Include="BepInEx.Unity.Mono" Version="6.0.0-be.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" PrivateAssets="all" />
     <PackageReference Include="UnityEngine.Modules" Version="2021.3.9" PrivateAssets="all" />
+    <PackageReference Include="K4os.Compression.LZ4" Version="1.*" />
+    <PackageReference Include="LZMA-SDK" Version="19.*" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
@@ -83,7 +85,19 @@
     <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
   </ItemGroup>
 
+  <Target Name="EmbedNuGetDependencies" AfterTargets="ResolveReferences" BeforeTargets="CreateManifestResourceNames">
+    <ItemGroup>
+      <_EmbedCandidate Include="@(ReferencePath)" Condition="'%(Filename)%(Extension)' == 'K4os.Compression.LZ4.dll' or '%(Filename)%(Extension)' == 'Sevenzip.dll'" />
+
+      <EmbeddedResource Include="@(_EmbedCandidate)">
+        <LogicalName>Symphony.Dependencies/%(Filename)%(Extension)</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+
+    <Message Importance="High" Text="Embedding: %(_EmbedCandidate.Identity)" />
+  </Target>
+
   <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(OS)' == 'Windows_NT'">
-    <Exec Command="COPY /Y &quot;$(TargetDir)Symphony.dll&quot; &quot;H:\VFUN\LastOrigin\BepInEx\plugins\Symphony.dll&quot;" />
+    <Exec Command="COPY /Y &quot;$(TargetDir)Symphony.dll&quot; &quot;G:\VFUN\LastOrigin\BepInEx\plugins\Symphony.dll&quot;" />
   </Target>
 </Project>

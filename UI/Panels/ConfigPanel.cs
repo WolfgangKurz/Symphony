@@ -548,6 +548,16 @@ namespace Symphony.UI.Panels {
 
 							DrawSeparator(ref offset);
 
+							DrawLabel(ref offset, "AssetLoader");
+							DrawLabel(ref offset, "AssetLoader는 항상 동작하며, 비 윈도우 타겟인 파일도 로드를 시도합니다.", Color_description, 20);
+							DrawLabel(ref offset, "비 윈도우 번들은 문제가 발생할 수 있습니다.", Color_description, 20);
+							DrawLabel(ref offset, "로드할 파일은 게임 폴더 내에 'AssetLoader' 내의 어느 경로에 두어도 됩니다.", Color_description, 20);
+							DrawLabel(ref offset, $" * 폴더 내 파일 수 : {AssetLoader.FilesFound}", Color_description, 20);
+							DrawLabel(ref offset, $" * 로드된 번들 수 : {AssetLoader.FilesLoaded}", Color_description, 20);
+							DrawLabel(ref offset, $" * 실패한 번들 수 : {AssetLoader.FilesError}", Color_description, 20);
+
+							DrawSeparator(ref offset);
+
 							DrawToggle(ref offset, "전투 프리징 수정", Conf.Experimental.Fix_BattleFreezing);
 							DrawLabel(ref offset, "특정 전투 상황에서 캐릭터/적의 움직임이 멈추고 다음으로 진행되지 않는 문제를 수정하는 기능입니다.\n모든 프리징이 수정되지 않을 수 있습니다.\n다음 프리징 문제가 해결됩니다.", Color_description, 20);
 
