@@ -139,8 +139,6 @@ namespace Symphony.Features {
 			FilesLoaded = loaded;
 			FilesError = errors;
 			Plugin.Logger.LogInfo($"[Symphony::AssetLoader] Loaded {loaded} files!");
-
-			//AssetLoaderPatch.AssetLoader_ShaderPatch.Patch();
 		}
 	}
 }
