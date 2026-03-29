@@ -46,7 +46,7 @@ namespace Symphony.Features {
 			SceneListener.Instance.OnEnter("Scene_LivingStation", () => {
 				if (!Conf.Automation.Use_Base_GetAll.Value) return;
 
-				Plugin.Logger.LogWarning("[Symphony.Automation] Scene_LivingStation detected");
+				Plugin.Logger.LogWarning("[Symphony::Automation] Scene_LivingStation detected");
 				StartCoroutine(this.SetupBase_GetAll());
 			});
 			#endregion
@@ -74,14 +74,14 @@ namespace Symphony.Features {
 
 			var src = GameObject.Find("FacilityEditButton");
 			if (src == null) {
-				Plugin.Logger.LogWarning("[Symphony.Automation] Failed to find Facility edit button");
+				Plugin.Logger.LogWarning("[Symphony::Automation] Failed to find Facility edit button");
 				yield break;
 			}
 
 			var _children = src.transform.parent.GetComponentsInChildren<Transform>(true);
 			var btn = _children.FirstOrDefault(t => t.name == "CollectAllButton")?.gameObject;
 			if (!btn) {
-				Plugin.Logger.LogWarning("[Symphony.Automation] Failed to get CollectAllButton");
+				Plugin.Logger.LogWarning("[Symphony::Automation] Failed to get CollectAllButton");
 				Destroy(btn);
 				yield break;
 			}
@@ -100,7 +100,7 @@ namespace Symphony.Features {
 				btn.transform.localPosition += new Vector3(0f, -160f);
 			}
 			if (!uiBtn) {
-				Plugin.Logger.LogWarning("[Symphony.Automation] Failed to create UIButton component for CollectAllButton");
+				Plugin.Logger.LogWarning("[Symphony::Automation] Failed to create UIButton component for CollectAllButton");
 				Destroy(btn);
 				yield break;
 			}
@@ -129,8 +129,8 @@ namespace Symphony.Features {
 				var facilitiesToWork = facilities
 					.Where(x => !charMakers.Contains(x.Packet.Facility_key))
 					.Where(x => x.GetState() == InstallationFacility.State.WorkComplete);
-				Plugin.Logger.LogDebug($"[Symphony.Automation] Facilities : {facilities.Length}");
-				Plugin.Logger.LogDebug($"[Symphony.Automation] Facilities to get : {facilitiesToWork.Count()}");
+				Plugin.Logger.LogDebug($"[Symphony::Automation] Facilities : {facilities.Length}");
+				Plugin.Logger.LogDebug($"[Symphony::Automation] Facilities to get : {facilitiesToWork.Count()}");
 				foreach (var fac in facilitiesToWork) {
 					if (fac.GetState() != InstallationFacility.State.WorkComplete) continue;
 
@@ -175,13 +175,13 @@ namespace Symphony.Features {
 						if (button != null) {
 							EventDelegate.Execute(button.onClick);
 						} else {
-							Plugin.Logger.LogWarning($"[Symphony.Automation] Failed to trigger restart button for facility {facilityUid}");
+							Plugin.Logger.LogWarning($"[Symphony::Automation] Failed to trigger restart button for facility {facilityUid}");
 							workDone = true;
 						}
 					};
 
 					try {
-						Plugin.Logger.LogDebug("[Symphony.Automation] Select facility");
+						Plugin.Logger.LogDebug("[Symphony::Automation] Select facility");
 						scene.kStation.GetType()
 							.GetField("mCurrentFacility", BindingFlags.Instance | BindingFlags.NonPublic)
 							.SetValue(scene.kStation, fac);
@@ -196,7 +196,7 @@ namespace Symphony.Features {
 							var closeButton = rewardPopup.GetComponentsInChildren<UIButton>().FirstOrDefault(x => x.name == "CloseButton");
 							if (closeButton != null) EventDelegate.Execute(closeButton.onClick);
 
-							Plugin.Logger.LogMessage("[Symphony.Automation] Not enough resources to restart facility");
+							Plugin.Logger.LogMessage("[Symphony::Automation] Not enough resources to restart facility");
 							continue; // Not enough resource to restart
 						}
 
@@ -207,7 +207,7 @@ namespace Symphony.Features {
 							if (button != null) {
 								EventDelegate.Execute(button.onClick);
 							} else {
-								Plugin.Logger.LogWarning($"[Symphony.Automation] Failed to trigger restart button for facility {facilityUid}");
+								Plugin.Logger.LogWarning($"[Symphony::Automation] Failed to trigger restart button for facility {facilityUid}");
 								continue;
 							}
 						}
@@ -226,18 +226,18 @@ namespace Symphony.Features {
 			} finally {
 				GetAll_GettingAll = false;
 
-				Plugin.Logger.LogDebug($"[Symphony.Automation] RewardTotal.AddMetal : {this.GetAll_RewardTotal.AddMetal}");
-				Plugin.Logger.LogDebug($"[Symphony.Automation] RewardTotal.AddNutrient : {this.GetAll_RewardTotal.AddNutrient}");
-				Plugin.Logger.LogDebug($"[Symphony.Automation] RewardTotal.AddPower : {this.GetAll_RewardTotal.AddPower}");
-				Plugin.Logger.LogDebug($"[Symphony.Automation] RewardTotal.AddCash : {this.GetAll_RewardTotal.AddCash}");
-				Plugin.Logger.LogDebug($"[Symphony.Automation] RewardTotal.PCRewardList :");
+				Plugin.Logger.LogDebug($"[Symphony::Automation] RewardTotal.AddMetal : {this.GetAll_RewardTotal.AddMetal}");
+				Plugin.Logger.LogDebug($"[Symphony::Automation] RewardTotal.AddNutrient : {this.GetAll_RewardTotal.AddNutrient}");
+				Plugin.Logger.LogDebug($"[Symphony::Automation] RewardTotal.AddPower : {this.GetAll_RewardTotal.AddPower}");
+				Plugin.Logger.LogDebug($"[Symphony::Automation] RewardTotal.AddCash : {this.GetAll_RewardTotal.AddCash}");
+				Plugin.Logger.LogDebug($"[Symphony::Automation] RewardTotal.PCRewardList :");
 				foreach (var pc in this.GetAll_RewardTotal.PCRewardList) {
 					var chr = SingleTon<DataManager>.Instance.GetTableCharCollection(pc.Index);
 					Plugin.Logger.LogDebug($"     {chr.Char_Name}");
 				}
-				Plugin.Logger.LogDebug($"[Symphony.Automation] CostTotal.AddMetal : {this.GetAll_RewardTotal.AddMetal}");
-				Plugin.Logger.LogDebug($"[Symphony.Automation] CostTotal.AddNutrient : {this.GetAll_RewardTotal.AddNutrient}");
-				Plugin.Logger.LogDebug($"[Symphony.Automation] CostTotal.AddPower : {this.GetAll_RewardTotal.AddPower}");
+				Plugin.Logger.LogDebug($"[Symphony::Automation] CostTotal.AddMetal : {this.GetAll_RewardTotal.AddMetal}");
+				Plugin.Logger.LogDebug($"[Symphony::Automation] CostTotal.AddNutrient : {this.GetAll_RewardTotal.AddNutrient}");
+				Plugin.Logger.LogDebug($"[Symphony::Automation] CostTotal.AddPower : {this.GetAll_RewardTotal.AddPower}");
 
 				if (this.GetAll_RewardTotal.AddMetal > 0 || this.GetAll_RewardTotal.AddNutrient > 0 || this.GetAll_RewardTotal.AddPower > 0 ||
 					this.GetAll_RewardTotal.AddCash > 0 || this.GetAll_RewardTotal.PCRewardList.Count > 0 ||
