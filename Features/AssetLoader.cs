@@ -7,6 +7,7 @@ using Symphony.Utils;
 using System;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 using UnityEngine;
@@ -69,7 +70,17 @@ namespace Symphony.Features {
 				.Where(x => {
 					if (Path.GetFileName(x) == "__info") return false;
 					if (File.Exists(x + ".patched")) return false; // Already patched cache
-					return true;
+
+					try {
+						using var stream = File.OpenRead(x);
+						var buffer = new byte[7];
+						stream.Read(buffer, 0, 7);
+
+						var str = Encoding.UTF8.GetString(buffer);
+						return str == "UnityFS";
+					} catch {
+						return false;
+					}
 				})
 				.ToArray();
 

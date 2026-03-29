@@ -3,6 +3,9 @@
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>Symphony.Utils</AssemblyName>
+    <Product>Symphony.Utils</Product>
+    <Description>Utils for Symphony Plugin</Description>
+    <Version>0.1.0</Version>
     <RootNamespace>Symphony.Utils</RootNamespace>
     <LangVersion>latest</LangVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
