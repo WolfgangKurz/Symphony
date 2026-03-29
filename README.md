@@ -63,6 +63,7 @@ This modifies parts of the UI to make them easier to use.
 - Provides Scrapbook improvement feature - `Scrapbook Must Be Fancy`.
 - Provides improvements for Exchange screen - `Exchange: No messy hand`.
 - Provides improvements for Base facility list - `Better Facility List`
+- Provides navigation button for Base screen - `Give me back LivingStation navigation`
 ---
 - Provides clearing all member in squad feature.
 - Provides accelerated scrolling via the mouse wheel.
@@ -87,8 +88,17 @@ Please use with caution.
 ### Experimental
 A collection of experimental features.
 
-- Key mapping
 - Fix a Freezing issue in certain situations during Battle
+- Fast Loading that skips loading unnecessary assets
+
+### KeyMapping
+Touch/Click simulation by pressing keyboards feature.
+
+- Key mapping
+
+### AssetLoader
+A Custom AssetBundle loader, supports non-windows targeted.
+Will be loaded and works always.
 
 ## Updates
 If the plugin requires an update, the following message will be displayed when the game starts.
