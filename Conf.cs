@@ -152,6 +152,8 @@ namespace Symphony {
 			public static readonly ConfigEntry<string> KeyMapping_Active = config.Bind("Experimental", "KeyMapping_Active", "Default", "Currently activated Key Mapping Group");
 
 			public static readonly ConfigEntry<bool> Fix_BattleFreezing = config.Bind("Experimental", "Fix_BattleFreezing", true, "Fix a Freezing issue in certain situations during Battle");
+
+			public static readonly ConfigEntry<bool> Use_FastLoading = config.Bind("Experimental", "Use_FastLoading", false, "Skips loading unnecessary files on startup");
 		}
 
 		public static void Migrate() {

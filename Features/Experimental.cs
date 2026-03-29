@@ -1,4 +1,6 @@
-﻿using GlobalDefines;
+﻿using AssetBundles;
+
+using GlobalDefines;
 
 using HarmonyLib;
 
@@ -9,10 +11,11 @@ using Symphony.UI.Panels;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
+using System.Threading;
 
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.Networking;
 
 namespace Symphony.Features {
@@ -31,6 +34,31 @@ namespace Symphony.Features {
 			);
 
 			KeyMappingConf.Load();
+
+			if (Conf.Experimental.Use_FastLoading.Value) {
+				harmony.Patch(
+					AccessTools.Method(typeof(ResourceManager), nameof(ResourceManager.CoLoadAssetBundles)),
+					prefix: new HarmonyMethod(
+						typeof(Experimental),
+						nameof(Experimental.Patch_ResourceManager_CoLoadAssetBundles)
+					)
+				);
+
+				LoadedAssetBundlesTarget = AssetBundleManager.LoadedAssetBundles;
+				harmony.Patch(
+					AccessTools.PropertyGetter(typeof(Dictionary<string, LoadedAssetBundle>), "Item"),
+					prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_AssetBundleManager_DictGetter))
+				);
+				harmony.Patch(
+					AccessTools.Method(
+						typeof(Dictionary<string, LoadedAssetBundle>),
+						nameof(Dictionary<string, LoadedAssetBundle>.TryGetValue),
+						[typeof(string), typeof(LoadedAssetBundle).MakeByRefType()]
+					),
+					prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_AssetBundleManager_DictTryGet))
+				);
+			}
+
 		}
 
 		#region Key Mapping
@@ -335,6 +363,385 @@ namespace Symphony.Features {
 			}
 		}
 		#endregion
+		#endregion
+
+		#region FastLoading
+		private static bool Patch_ResourceManager_CoLoadAssetBundles(ResourceManager __instance, ref IEnumerator __result) {
+			var lazyLoadList = new List<string>();
+			IEnumerator LazyLoadAssets() {
+				var _time = 0L;
+				var timeGap = TimeSpan.TicksPerMillisecond * 200;
+
+				var serverURL = SingleTon<DataManager>.Instance.BundleAddress;
+				var bundleWWWManifest = AssetBundleManager.AssetBundleManifestObject;
+				var AssetPlatformManifestObject = __instance.XGetFieldValue<AssetPlatformManifest>("AssetPlatformManifestObject");
+
+				var assetList = new List<UnityWebRequest>();
+				foreach (var bundleName in lazyLoadList) {
+					var uriBundle = serverURL + bundleName;
+					var hash = bundleWWWManifest.GetAssetBundleHash(bundleName);
+
+					var result = 0U;
+					var assetFileManifest = AssetPlatformManifestObject.list.Find(x => x.fileName == bundleName);
+					if (assetFileManifest != null && assetFileManifest.fileName.StartsWith("char_"))
+						uint.TryParse(assetFileManifest.crc, out result);
+
+					var assetBundle = UnityWebRequestAssetBundle.GetAssetBundle(uriBundle, hash, result);
+					assetBundle.SendWebRequest();
+
+					assetList.Add(assetBundle);
+
+					var now = DateTime.Now.Ticks;
+					if (now - _time >= timeGap) {
+						_time = now;
+						yield return null;
+					}
+				}
+
+				var isLoadingComplete = true;
+				var assetSet = new HashSet<UnityWebRequest>(assetList);
+				while (assetSet.Count > 0) {
+					var itemsToRemove = new HashSet<UnityWebRequest>();
+
+					foreach (var req in assetSet) {
+						if (req.error != null) {
+							__instance.needDownloadDelegate(true, 0, 0L, null);
+							isLoadingComplete = false;
+							Debug.LogError("Request Error!");
+							break;
+						}
+
+						if (!req.isDone) continue; // next asset
+
+						var loadedAssetBundle = new LoadedAssetBundle(DownloadHandlerAssetBundle.GetContent(req));
+						AssetBundleManager.LoadedAssetBundles.TryAdd(loadedAssetBundle.m_AssetBundle.name, loadedAssetBundle);
+
+						yield return null;
+
+						itemsToRemove.Add(req);
+						req.Dispose();
+					}
+
+					if (!isLoadingComplete) break;
+
+					foreach (var r in itemsToRemove) assetSet.Remove(r);
+					yield return null;
+				}
+
+				__instance.XSetFieldValue<AssetPlatformManifest>("AssetPlatformManifestObject", null);
+			}
+			IEnumerator Fn() {
+				var resourceManager = __instance;
+
+				var serverURL = SingleTon<DataManager>.Instance.BundleAddress;
+				Debug.Log("serverURL : " + serverURL);
+				resourceManager.chkServerURLFlag = true;
+				Debug.Log("Waiting.. AssetBundleManifestObject...");
+
+				while (AssetBundleManager.AssetBundleManifestObject == null)
+					yield return null;
+
+				Debug.Log("Waiting.. Caching...");
+				while (!Caching.ready)
+					yield return null;
+
+				Debug.Log("Download.. Bundle List...");
+				var bundleWWWManifest = AssetBundleManager.AssetBundleManifestObject;
+
+				var uriAssetVersion = serverURL + "assetVersion.json";
+				Debug.Log("assetVersion URL Path : " + uriAssetVersion);
+				var request = UnityWebRequestAssetBundle.GetAssetBundle(uriAssetVersion);
+
+				request.downloadHandler = new DownloadHandlerBuffer();
+				yield return request.SendWebRequest();
+
+				if (request.isDone)
+					resourceManager.XSetFieldValue(
+						"AssetPlatformManifestObject",
+						JsonUtility.FromJson<AssetPlatformManifest>(request.downloadHandler.text)
+					);
+
+				var AssetPlatformManifestObject = resourceManager.XGetFieldValue<AssetPlatformManifest>("AssetPlatformManifestObject");
+
+				request = null;
+
+				var noneDownloadList = new List<string>();
+				var needPatchFileList = new List<AssetFileManifest>();
+				var bundlerVersion = AssetPlatformManifestObject.version;
+				CrashReporter.SetBundleMetaData(bundlerVersion);
+
+				var labelUpdater = new FrameLimit(0.05f);
+				var uePatchCheck = new UnityEvent<string, float>();
+				uePatchCheck.AddListener((label, ratio) => resourceManager.onUpdateAssetLoading.Invoke("업데이트 검사중...", ratio));
+				var ueLazyUpdateLoading = new UnityEvent<string, float>();
+				ueLazyUpdateLoading.AddListener((label, ratio) => {
+					if (labelUpdater.Valid())
+						resourceManager.onUpdateAssetLoading.Invoke(label, ratio);
+				});
+
+				IEnumerator CheckPatchCoroutine() {
+					var en = AssetPlatformManifestObject.PatchCheckCoroutine(
+						serverURL,
+						bundleWWWManifest,
+						needPatchFileList,
+						noneDownloadList,
+						uePatchCheck
+					);
+					while (en.MoveNext()) {
+						if (labelUpdater.Valid())
+							yield return en.Current;
+					}
+				}
+
+				yield return resourceManager.StartCoroutine(CheckPatchCoroutine());
+				resourceManager.XSetFieldValue("networkBroken", false);
+
+				var Wait0_5 = new WaitForSeconds(0.5f);
+
+				var maxCount = 0;
+				if (needPatchFileList.Count > 0) {
+					var totalsize = AssetBundles.Utility.GetPatchFileSizeTotal(needPatchFileList);
+
+					resourceManager.isConfirmDownload = false;
+					resourceManager.XSetFieldValue<long>("totalsize", totalsize);
+					resourceManager.needDownloadDelegate(false, needPatchFileList.Count, totalsize, null);
+
+					while (!resourceManager.isConfirmDownload)
+						yield return Wait0_5;
+
+					maxCount = SingleTon<DataManager>.Instance.BundleMaxDownloadCount;
+					Debug.Log($"<color=cyan>BundleMaxCount : {maxCount}</color>");
+					if (maxCount < 1) maxCount = 1;
+
+					var runningCount = 0;
+					var downloadQueue = new Queue<AssetFileManifest>(needPatchFileList);
+					while (downloadQueue.Count > 0 || runningCount > 0) {
+						while (runningCount < maxCount && downloadQueue.Count > 0) {
+							AssetFileManifest manifestItem = downloadQueue.Dequeue();
+							string bundleName = manifestItem.fileName;
+							string savePath = serverURL + bundleName;
+							runningCount++;
+							resourceManager.StartCoroutine(
+								(IEnumerator)AccessTools.Method(typeof(ResourceManager), "DownloadBundleWithRetry")
+								.Invoke(resourceManager, [
+									bundleWWWManifest,
+									savePath,
+									bundleName,
+									(Action<bool>)(isSuccess => {
+										--runningCount;
+										if (!isSuccess)
+											downloadQueue.Enqueue(manifestItem);
+										else
+											Debug.Log("다운로드 완료: " + bundleName);
+									})
+								])
+							);
+						}
+						yield return null;
+					}
+				}
+
+				var _coDownLoad = resourceManager.XGetFieldValue<List<UnityWebRequest>>("_coDownLoad");
+				foreach (UnityWebRequest unityWebRequest in _coDownLoad)
+					unityWebRequest.Dispose();
+
+				_coDownLoad.Clear();
+				var _coNoneDownloadList = resourceManager.XGetFieldValue<List<UnityWebRequest>>("_coNoneDownloadList");
+				if (!resourceManager.IsCoDownloadPaused) {
+					maxCount = -1;
+
+					var _time = 0L;
+					var timeGap = TimeSpan.TicksPerMillisecond * 200;
+
+					lazyLoadList = noneDownloadList
+						.Where(x => x.StartsWith("char_")) // Player/Enemy SD characters dependency
+						.ToList();
+
+					noneDownloadList = noneDownloadList
+						.Where(x => x.StartsWith("novelbgtexture_ui_") || x.StartsWith("table_")) // Lobby BG & DB
+						.Concat(["lastoneshader", "atlas", "sfx", "fxeffect", "bulleteffect", "localization"]) // Common assets
+						.ToList();
+					for (var i = 0; i < noneDownloadList.Count; ++i) {
+						var bundleName = noneDownloadList[i];
+						var uriBundle = serverURL + bundleName;
+						var hash = bundleWWWManifest.GetAssetBundleHash(bundleName);
+
+						var result = 0U;
+						var assetFileManifest = AssetPlatformManifestObject.list.Find(x => x.fileName == bundleName);
+						if (assetFileManifest != null && assetFileManifest.fileName.StartsWith("char_"))
+							uint.TryParse(assetFileManifest.crc, out result);
+
+						var assetBundle = UnityWebRequestAssetBundle.GetAssetBundle(uriBundle, hash, result);
+						assetBundle.SendWebRequest();
+
+						_coNoneDownloadList.Add(assetBundle);
+
+						var curCount = (int)(i * 100f / noneDownloadList.Count);
+						if (curCount != maxCount) {
+							var progress = i / (float)noneDownloadList.Count;
+							ueLazyUpdateLoading.Invoke($"필수 에셋 요청중... ({i} / {noneDownloadList.Count})", progress);
+							maxCount = curCount;
+
+							var now = DateTime.Now.Ticks;
+							if (now - _time >= timeGap) {
+								_time = now;
+								yield return null;
+							}
+						}
+					}
+
+					var _panel_puzzle = resourceManager.XGetFieldValue<Panel_Puzzle>("_panel_puzzle");
+					_panel_puzzle.GetProgressLb().text = Localization.Get("10");
+
+					var isLoadingComplete = true;
+					var noneDownloadSet = new HashSet<UnityWebRequest>(_coNoneDownloadList);
+					while (noneDownloadSet.Count > 0) {
+						var itemsToRemove = new HashSet<UnityWebRequest>();
+
+						foreach (var req in noneDownloadSet) {
+							if (req.error != null) {
+								resourceManager.needDownloadDelegate(true, 0, 0L, null);
+								isLoadingComplete = false;
+								Debug.LogError("Request Error!");
+								break;
+							}
+
+							if (!req.isDone) continue; // next asset
+
+							var loadedAssetBundle = new LoadedAssetBundle(DownloadHandlerAssetBundle.GetContent(req));
+							AssetBundleManager.LoadedAssetBundles.TryAdd(loadedAssetBundle.m_AssetBundle.name, loadedAssetBundle);
+
+							var loaded = noneDownloadList.Count - (noneDownloadSet.Count - itemsToRemove.Count);
+							var progress = (float)loaded / noneDownloadList.Count;
+							ueLazyUpdateLoading.Invoke($"필수 에셋 로드중... ({loaded} / {noneDownloadList.Count})", progress);
+							yield return null;
+
+							itemsToRemove.Add(req);
+							req.Dispose();
+						}
+
+						if (!isLoadingComplete) break;
+
+						foreach (var r in itemsToRemove) noneDownloadSet.Remove(r);
+						yield return null;
+					}
+
+					if (isLoadingComplete) {
+						yield return new WaitForEndOfFrame();
+
+						resourceManager.loadComplete = true;
+
+						Localization.LoadExcel(resourceManager.LoadLocalizationPatch("LocalizationPatch"), true);
+						SingleTon<DataManager>.Instance.LoadTable();
+						SaveManager.BundleVersionSave(bundlerVersion);
+						resourceManager.XSetFieldValue("init", true);
+					}
+				}
+
+				resourceManager.XSetFieldValue<Panel_Puzzle>("_panel_puzzle", null);
+				resourceManager.XSetPropertyValue<NeedDownloadDelegate>("needDownloadDelegate", null);
+				resourceManager.onUpdateAssetLoading.Invoke("Receiving...", -1f);
+
+				resourceManager.StartCoroutine(LazyLoadAssets());
+			}
+			__result = Fn();
+			return false;
+		}
+
+		private static bool InstantiateGameObjectAsync(
+			ResourceManager __instance,
+			string assetBundleName,
+			string assetName,
+			Transform parent,
+			bool reset_scale,
+			ref IEnumerator __result
+		) {
+			IEnumerator Fn() {
+				assetBundleName = assetBundleName.ToLower();
+				var request = AssetBundleManager.LoadAssetAsync(assetBundleName, assetName, typeof(GameObject));
+				if (request != null) {
+					yield return __instance.StartCoroutine(request);
+					GameObject asset = request.GetAsset<GameObject>();
+					__instance.LoadObject(asset, parent, reset_scale);
+				}
+			}
+			__result = Fn();
+			return false;
+		}
+
+		private static Dictionary<string, LoadedAssetBundle> LoadedAssetBundlesTarget = null;
+		private static bool Patch_AssetBundleManager_DictGetter(
+			Dictionary<string, LoadedAssetBundle> __instance,
+			ref LoadedAssetBundle __result,
+			string key
+		) {
+			if (__instance != LoadedAssetBundlesTarget) return true;
+
+			LoadedAssetBundle Internal_Get(string key) {
+				var i = __instance.XGetMethod<string, int>("FindEntry").Invoke(key);
+				if (i >= 0) { // Dictionary raw indexer getter implement
+					var entries = AccessTools.Field(__instance.GetType(), "_entries").GetValue(__instance);
+					var get = AccessTools.Method(entries.GetType(), "GetValue", [typeof(int)]);
+					var entry = get.Invoke(entries, [i]);
+					return AccessTools.Field(entry.GetType(), "value").GetValue<LoadedAssetBundle>(entry);
+				}
+				return null;
+			}
+
+			if (__instance.ContainsKey(key)) {
+				// Plugin.Logger.LogWarning($"[Symphony::LazyLoad] Cached {key}, return it");
+				__result = Internal_Get(key);
+				return false;
+			}
+
+			if (AssetBundleManager.AssetBundleManifestObject == null) {
+				__result = null;
+				return false;
+			}
+
+			Plugin.Logger.LogInfo($"[Symphony::LazyLoad] Requesting {key}");
+
+			var url = SingleTon<DataManager>.Instance.BundleAddress + key;
+			var hash = AssetBundleManager.AssetBundleManifestObject.GetAssetBundleHash(key);
+			if (!Caching.IsVersionCached(url, hash)) {
+				Plugin.Logger.LogWarning($"[Symphony::LazyLoad] {key} is not version-cached");
+				__result = null;
+				return false;
+			}
+
+			using (UnityWebRequest uwr = UnityWebRequestAssetBundle.GetAssetBundle(url, hash, 0)) {
+				var asyncOperation = uwr.SendWebRequest();
+
+				while (!asyncOperation.isDone)
+					Thread.Sleep(0);
+
+				if (uwr.result == UnityWebRequest.Result.Success) {
+					var ret = new LoadedAssetBundle(DownloadHandlerAssetBundle.GetContent(uwr));
+					__instance[key] = ret;
+					__result = ret;
+					return false;
+				}
+				else {
+					Plugin.Logger.LogError($"[Symphony::LazyLoad] Failed to async-load AssetBundle that cached: {uwr.error}");
+					__result = null;
+					return false;
+				}
+			}
+		}
+		private static bool Patch_AssetBundleManager_DictTryGet(
+			Dictionary<string, LoadedAssetBundle> __instance,
+			ref bool __result,
+			string key,
+			ref LoadedAssetBundle value
+		) {
+			if (__instance != LoadedAssetBundlesTarget) return true;
+
+			LoadedAssetBundle ret = null;
+			Patch_AssetBundleManager_DictGetter(__instance, ref ret, key);
+			value = ret;
+			__result = value != null;
+			return false;
+		}
 		#endregion
 	}
 }
