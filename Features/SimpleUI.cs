@@ -286,6 +286,10 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Panel_ExShop), "RefreshConsumableView"),
 				transpiler: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Exchange_ConsumableList))
 			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_ExShopBuyMsg), nameof(Panel_ExShopBuyMsg.SetExShopData), [typeof(Table_ExShop), typeof(Panel_ExShop)]),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Exchange_ShopPopup))
+			);
 			#endregion
 
 			#region Better Facility Inventory
@@ -2319,6 +2323,20 @@ namespace Symphony.Features {
 			ret.AddRange(list.Where(x => shopItems.Contains(x.ItemKeyString)));
 			return ret.ToList();
 		}
+		
+		private static void Patch_Exchange_ShopPopup(Panel_ExShopBuyMsg __instance, Table_ExShop exShopData, Panel_ExShop panelExShop) {
+			if (!Conf.SimpleUI.Use_Exchange_NoMessyHand.Value) return;
+
+			if (exShopData.SellItemKeyString.StartsWith("Equip_")) return;
+
+			var item = SingleTon<DataManager>.Instance.GetItem(exShopData.SellItemKeyString);
+			if (item == null) return;
+
+			var lbl = __instance.XGetFieldValue<UILabel>("_lblShopName");
+			if (!lbl) return;
+
+			lbl.text += $"  {Common.COLOR_BLUE}(x {item.StackCount.ToString("#,###")}){Common.COLOR_END}";
+		}
 		#endregion
 
 		#region Better Facility Inventory
@@ -2362,7 +2380,7 @@ namespace Symphony.Features {
 			});
 			foreach (var item in __result) {
 				if (!item.Name.StartsWith("["))
-					item.Name = $"{Common.COLOR_BLUE}Lv.{item.Lv}[-][/c] {item.Name.Localize()}";
+					item.Name = $"{Common.COLOR_BLUE}Lv.{item.Lv}{Common.COLOR_END} {item.Name.Localize()}";
 			}
 		}
 		#endregion
