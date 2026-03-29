@@ -554,12 +554,13 @@ namespace Symphony.Features {
 					var timeGap = TimeSpan.TicksPerMillisecond * 200;
 
 					lazyLoadList = noneDownloadList
-						.Where(x => x.StartsWith("char_")) // Player/Enemy SD characters dependency
+						// Lobby BG, Player/Enemy SD characters dependency
+						.Where(x => x.StartsWith("novelbgtexture_ui_") || x.StartsWith("char_"))
+						.Concat(["lastoneshader", "atlas", "sfx", "fxeffect", "bulleteffect"]) // Common assets
 						.ToList();
 
 					noneDownloadList = noneDownloadList
-						.Where(x => x.StartsWith("novelbgtexture_ui_") || x.StartsWith("table_")) // Lobby BG & DB
-						.Concat(["lastoneshader", "atlas", "sfx", "fxeffect", "bulleteffect", "localization"]) // Common assets
+						.Where(x => x.StartsWith("table_") || x == "localization") // DB
 						.ToList();
 					for (var i = 0; i < noneDownloadList.Count; ++i) {
 						var bundleName = noneDownloadList[i];
