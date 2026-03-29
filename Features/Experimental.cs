@@ -4,10 +4,6 @@ using GlobalDefines;
 
 using HarmonyLib;
 
-using Symphony.Features.KeyMapping;
-using Symphony.UI;
-using Symphony.UI.Panels;
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -21,9 +17,12 @@ using UnityEngine.Networking;
 namespace Symphony.Features {
 	[Feature("Experimental")]
 	internal class Experimental : MonoBehaviour {
+		private static bool FastLoaded = false;
+
 		public void Start() {
 			var harmony = new Harmony("Symphony.Experimental");
 
+			#region Freezing fixers
 			harmony.Patch(
 				AccessTools.Method(typeof(Creature), nameof(Creature.DisappearBuffEffectParticleAll)),
 				prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_Creature_DisappearBuffEffectParticleAll))
@@ -33,130 +32,29 @@ namespace Symphony.Features {
 				postfix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_Creature_PlayAnimation))
 			);
 
-			KeyMappingConf.Load();
-
-			if (Conf.Experimental.Use_FastLoading.Value) {
-				harmony.Patch(
-					AccessTools.Method(typeof(ResourceManager), nameof(ResourceManager.CoLoadAssetBundles)),
-					prefix: new HarmonyMethod(
-						typeof(Experimental),
-						nameof(Experimental.Patch_ResourceManager_CoLoadAssetBundles)
-					)
-				);
-
-				LoadedAssetBundlesTarget = AssetBundleManager.LoadedAssetBundles;
-				harmony.Patch(
-					AccessTools.PropertyGetter(typeof(Dictionary<string, LoadedAssetBundle>), "Item"),
-					prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_AssetBundleManager_DictGetter))
-				);
-				harmony.Patch(
-					AccessTools.Method(
-						typeof(Dictionary<string, LoadedAssetBundle>),
-						nameof(Dictionary<string, LoadedAssetBundle>.TryGetValue),
-						[typeof(string), typeof(LoadedAssetBundle).MakeByRefType()]
-					),
-					prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_AssetBundleManager_DictTryGet))
-				);
-			}
-
-		}
-
-		#region Key Mapping
-		private const float KEY_MAP_CIRCLE = 13f;
-		private static Queue<int> KeyMapping_SimulatingTouchQueue = new();
-		IEnumerator KeyMapping_SimulateTouch(float rX, float rY) {
-			var uid = UnityEngine.Random.RandomRangeInt(0, int.MaxValue);
-			KeyMapping_SimulatingTouchQueue.Enqueue(uid);
-
-			yield return new WaitUntil(() => KeyMapping_SimulatingTouchQueue.Peek() == uid); // wait available turn
-
-			var pt = new Vector2(rX, rY) * new Vector2(Screen.width, Screen.height);
-
-			UICamera.GetInputTouchCount = () => 1;
-			UICamera.GetInputTouch = (i) => {
-				var t = new UICamera.Touch();
-				t.phase = TouchPhase.Began;
-				t.fingerId = 0;
-				t.position = pt;
-				t.tapCount = 1;
-				return t;
-			};
-
-			{
-				var go = Instantiate(PrefabLoader.GetPrefab("UI_click_FX"));
-				go.transform.parent = this.transform;
-				go.transform.position = UICamera.mainCamera.ScreenToWorldPoint(pt);
-				if (
-					SingleTon<GameManager>.Instance.CurrentSceneType == eSceneType.LOBBY ||
-					SingleTon<GameManager>.Instance.CurrentSceneType == eSceneType.CHARACTERDETAILS
+			harmony.Patch(
+				AccessTools.Method(typeof(ResourceManager), nameof(ResourceManager.CoLoadAssetBundles)),
+				prefix: new HarmonyMethod(
+					typeof(Experimental),
+					nameof(Experimental.Patch_ResourceManager_CoLoadAssetBundles)
 				)
-					go.transform.SetChildLayerBookDetail(LayerMask.NameToLayer("UI2"));
-			}
-
-			yield return null; // ensure next frame
-
-			UICamera.GetInputTouch = (i) => {
-				var t = new UICamera.Touch();
-				t.phase = TouchPhase.Ended;
-				t.fingerId = 0;
-				t.position = pt;
-				t.tapCount = 1;
-				return t;
-			};
-
-			yield return null; // ensure next frame
-
-			UICamera.GetInputTouch = null;
-			UICamera.GetInputTouchCount = null;
-
-			KeyMapping_SimulatingTouchQueue.Dequeue();
-		}
-		#endregion
-
-		public void Update() {
-			#region KeyMapping
-			if (Conf.Experimental.Use_KeyMapping.Value) {
-				try {
-					var act = Conf.Experimental.KeyMapping_Active.Value;
-					if (KeyMappingConf.KeyMaps.ContainsKey(act)) {
-						var maps = KeyMappingConf.KeyMaps[act];
-						foreach (var map in maps) {
-							if (Helper.KeyCodeParse(map.Key, out var kc) && Input.GetKeyDown(kc))
-								StartCoroutine(KeyMapping_SimulateTouch(map.X, map.Y));
-						}
-					}
-				} catch (Exception e) {
-					Plugin.Logger.LogError(e);
-				}
-			}
+			);
 			#endregion
-		}
 
-		public void OnGUI() {
-			#region KeyMapping
-			if (UIManager.Instance?.GetPanel<KeyMapPanel>() == null && Conf.Experimental.Use_KeyMapping.Value) {
-				var KeyMap_Alpha = Conf.Experimental.KeyMapping_Opacity.Value;
-				if (KeyMap_Alpha > 0f) {
-					var act = Conf.Experimental.KeyMapping_Active.Value;
-					if (KeyMappingConf.KeyMaps.ContainsKey(act)) {
-						var maps = KeyMappingConf.KeyMaps[act];
-						for (var i = 0; i < maps.Length; i++) {
-							var map = maps[i];
-							var rcBase = new Rect(map.X * Screen.width, (1f - map.Y) * Screen.height, 0, 0);
-							var rcCircle = rcBase.Expand(KEY_MAP_CIRCLE);
-
-							var dup = maps.Any((x, y) => y != i && x.Key == map.Key);
-
-							GUIX.Circle(rcCircle, dup ? new Color(0.94f, 0.42f, 0.42f, KeyMap_Alpha) : new Color(0.2f, 0.65f, 0.94f, KeyMap_Alpha));
-							GUIX.Label(
-								rcCircle, map.Key,
-								new Color(1f, 1f, 1f, KeyMap_Alpha), fontSize: 12, fontStyle: FontStyle.Bold,
-								alignment: TextAnchor.MiddleCenter
-							);
-						}
-					}
-				}
-			}
+			#region FastLoading(LazyLoad)
+			LoadedAssetBundlesTarget = AssetBundleManager.LoadedAssetBundles;
+			harmony.Patch(
+				AccessTools.PropertyGetter(typeof(Dictionary<string, LoadedAssetBundle>), "Item"),
+				prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_AssetBundleManager_DictGetter))
+			);
+			harmony.Patch(
+				AccessTools.Method(
+					typeof(Dictionary<string, LoadedAssetBundle>),
+					nameof(Dictionary<string, LoadedAssetBundle>.TryGetValue),
+					[typeof(string), typeof(LoadedAssetBundle).MakeByRefType()]
+				),
+				prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_AssetBundleManager_DictTryGet))
+			);
 			#endregion
 		}
 
@@ -367,71 +265,14 @@ namespace Symphony.Features {
 
 		#region FastLoading
 		private static bool Patch_ResourceManager_CoLoadAssetBundles(ResourceManager __instance, ref IEnumerator __result) {
-			var lazyLoadList = new List<string>();
-			IEnumerator LazyLoadAssets() {
-				var _time = 0L;
-				var timeGap = TimeSpan.TicksPerMillisecond * 200;
+			if (!Conf.Experimental.Use_FastLoading.Value) return true;
 
-				var serverURL = SingleTon<DataManager>.Instance.BundleAddress;
-				var bundleWWWManifest = AssetBundleManager.AssetBundleManifestObject;
-				var AssetPlatformManifestObject = __instance.XGetFieldValue<AssetPlatformManifest>("AssetPlatformManifestObject");
+			Experimental.FastLoaded = true;
 
-				var assetList = new List<UnityWebRequest>();
-				foreach (var bundleName in lazyLoadList) {
-					var uriBundle = serverURL + bundleName;
-					var hash = bundleWWWManifest.GetAssetBundleHash(bundleName);
-
-					var result = 0U;
-					var assetFileManifest = AssetPlatformManifestObject.list.Find(x => x.fileName == bundleName);
-					if (assetFileManifest != null && assetFileManifest.fileName.StartsWith("char_"))
-						uint.TryParse(assetFileManifest.crc, out result);
-
-					var assetBundle = UnityWebRequestAssetBundle.GetAssetBundle(uriBundle, hash, result);
-					assetBundle.SendWebRequest();
-
-					assetList.Add(assetBundle);
-
-					var now = DateTime.Now.Ticks;
-					if (now - _time >= timeGap) {
-						_time = now;
-						yield return null;
-					}
-				}
-
-				var isLoadingComplete = true;
-				var assetSet = new HashSet<UnityWebRequest>(assetList);
-				while (assetSet.Count > 0) {
-					var itemsToRemove = new HashSet<UnityWebRequest>();
-
-					foreach (var req in assetSet) {
-						if (req.error != null) {
-							__instance.needDownloadDelegate(true, 0, 0L, null);
-							isLoadingComplete = false;
-							Debug.LogError("Request Error!");
-							break;
-						}
-
-						if (!req.isDone) continue; // next asset
-
-						var loadedAssetBundle = new LoadedAssetBundle(DownloadHandlerAssetBundle.GetContent(req));
-						AssetBundleManager.LoadedAssetBundles.TryAdd(loadedAssetBundle.m_AssetBundle.name, loadedAssetBundle);
-
-						yield return null;
-
-						itemsToRemove.Add(req);
-						req.Dispose();
-					}
-
-					if (!isLoadingComplete) break;
-
-					foreach (var r in itemsToRemove) assetSet.Remove(r);
-					yield return null;
-				}
-
-				__instance.XSetFieldValue<AssetPlatformManifest>("AssetPlatformManifestObject", null);
-			}
 			IEnumerator Fn() {
 				var resourceManager = __instance;
+
+				var labelUpdater = new FrameLimit(0.1f);
 
 				var serverURL = SingleTon<DataManager>.Instance.BundleAddress;
 				Debug.Log("serverURL : " + serverURL);
@@ -465,14 +306,70 @@ namespace Symphony.Features {
 
 				request = null;
 
+				#region For lazy-pre-load
+				var lazyLoadList = new List<string>();
+				IEnumerator LazyLoadAssets() {
+					var assetList = new List<UnityWebRequest>();
+					foreach (var bundleName in lazyLoadList) {
+						var uriBundle = serverURL + bundleName;
+						var hash = bundleWWWManifest.GetAssetBundleHash(bundleName);
+
+						var result = 0U;
+						var assetFileManifest = AssetPlatformManifestObject.list.Find(x => x.fileName == bundleName);
+						if (assetFileManifest != null && assetFileManifest.fileName.StartsWith("char_"))
+							uint.TryParse(assetFileManifest.crc, out result);
+
+						var assetBundle = UnityWebRequestAssetBundle.GetAssetBundle(uriBundle, hash, result);
+						assetBundle.SendWebRequest();
+
+						assetList.Add(assetBundle);
+
+						if (labelUpdater.Valid())
+							yield return null;
+					}
+
+					var isLoadingComplete = true;
+					var assetSet = new HashSet<UnityWebRequest>(assetList);
+					while (assetSet.Count > 0) {
+						var itemsToRemove = new HashSet<UnityWebRequest>();
+
+						foreach (var req in assetSet) {
+							if (req.error != null) {
+								__instance.needDownloadDelegate(true, 0, 0L, null);
+								isLoadingComplete = false;
+								Debug.LogError("Request Error!");
+								break;
+							}
+
+							if (!req.isDone) continue; // next asset
+
+							var loadedAssetBundle = new LoadedAssetBundle(DownloadHandlerAssetBundle.GetContent(req));
+							AssetBundleManager.LoadedAssetBundles.TryAdd(loadedAssetBundle.m_AssetBundle.name, loadedAssetBundle);
+
+							yield return null;
+
+							itemsToRemove.Add(req);
+							req.Dispose();
+						}
+
+						if (!isLoadingComplete) break;
+
+						foreach (var r in itemsToRemove) assetSet.Remove(r);
+						yield return null;
+					}
+
+					__instance.XSetFieldValue<AssetPlatformManifest>("AssetPlatformManifestObject", null);
+				}
+				#endregion
+
 				var noneDownloadList = new List<string>();
 				var needPatchFileList = new List<AssetFileManifest>();
 				var bundlerVersion = AssetPlatformManifestObject.version;
 				CrashReporter.SetBundleMetaData(bundlerVersion);
 
-				var labelUpdater = new FrameLimit(0.05f);
 				var uePatchCheck = new UnityEvent<string, float>();
 				uePatchCheck.AddListener((label, ratio) => resourceManager.onUpdateAssetLoading.Invoke("업데이트 검사중...", ratio));
+
 				var ueLazyUpdateLoading = new UnityEvent<string, float>();
 				ueLazyUpdateLoading.AddListener((label, ratio) => {
 					if (labelUpdater.Valid())
@@ -498,7 +395,6 @@ namespace Symphony.Features {
 
 				var Wait0_5 = new WaitForSeconds(0.5f);
 
-				var maxCount = 0;
 				if (needPatchFileList.Count > 0) {
 					var totalsize = AssetBundles.Utility.GetPatchFileSizeTotal(needPatchFileList);
 
@@ -509,50 +405,46 @@ namespace Symphony.Features {
 					while (!resourceManager.isConfirmDownload)
 						yield return Wait0_5;
 
-					maxCount = SingleTon<DataManager>.Instance.BundleMaxDownloadCount;
-					Debug.Log($"<color=cyan>BundleMaxCount : {maxCount}</color>");
-					if (maxCount < 1) maxCount = 1;
+					var maxConcurrentDownload = SingleTon<DataManager>.Instance.BundleMaxDownloadCount;
+					Debug.Log($"<color=cyan>BundleMaxCount : {maxConcurrentDownload}</color>");
+					if (maxConcurrentDownload < 1) maxConcurrentDownload = 1;
 
 					var runningCount = 0;
 					var downloadQueue = new Queue<AssetFileManifest>(needPatchFileList);
 					while (downloadQueue.Count > 0 || runningCount > 0) {
-						while (runningCount < maxCount && downloadQueue.Count > 0) {
-							AssetFileManifest manifestItem = downloadQueue.Dequeue();
-							string bundleName = manifestItem.fileName;
-							string savePath = serverURL + bundleName;
+						while (runningCount < maxConcurrentDownload && downloadQueue.Count > 0) {
+							var manifestItem = downloadQueue.Dequeue();
+							var bundleName = manifestItem.fileName;
+							var savePath = serverURL + bundleName;
+
 							runningCount++;
 							resourceManager.StartCoroutine(
 								(IEnumerator)AccessTools.Method(typeof(ResourceManager), "DownloadBundleWithRetry")
-								.Invoke(resourceManager, [
-									bundleWWWManifest,
-									savePath,
-									bundleName,
-									(Action<bool>)(isSuccess => {
-										--runningCount;
-										if (!isSuccess)
-											downloadQueue.Enqueue(manifestItem);
-										else
-											Debug.Log("다운로드 완료: " + bundleName);
-									})
-								])
+									.Invoke(resourceManager, [
+										bundleWWWManifest,
+										savePath,
+										bundleName,
+										(Action<bool>)(isSuccess => {
+											--runningCount;
+											if (!isSuccess)
+												downloadQueue.Enqueue(manifestItem);
+											else
+												Debug.Log("다운로드 완료: " + bundleName);
+										})
+									])
 							);
 						}
 						yield return null;
 					}
 				}
 
+				// Clean up
 				var _coDownLoad = resourceManager.XGetFieldValue<List<UnityWebRequest>>("_coDownLoad");
-				foreach (UnityWebRequest unityWebRequest in _coDownLoad)
-					unityWebRequest.Dispose();
-
+				foreach (var req in _coDownLoad) req.Dispose();
 				_coDownLoad.Clear();
+
 				var _coNoneDownloadList = resourceManager.XGetFieldValue<List<UnityWebRequest>>("_coNoneDownloadList");
 				if (!resourceManager.IsCoDownloadPaused) {
-					maxCount = -1;
-
-					var _time = 0L;
-					var timeGap = TimeSpan.TicksPerMillisecond * 200;
-
 					lazyLoadList = noneDownloadList
 						// Lobby BG, Player/Enemy SD characters dependency
 						.Where(x => x.StartsWith("novelbgtexture_ui_") || x.StartsWith("char_"))
@@ -562,6 +454,7 @@ namespace Symphony.Features {
 					noneDownloadList = noneDownloadList
 						.Where(x => x.StartsWith("table_") || x == "localization") // DB
 						.ToList();
+
 					for (var i = 0; i < noneDownloadList.Count; ++i) {
 						var bundleName = noneDownloadList[i];
 						var uriBundle = serverURL + bundleName;
@@ -577,18 +470,11 @@ namespace Symphony.Features {
 
 						_coNoneDownloadList.Add(assetBundle);
 
-						var curCount = (int)(i * 100f / noneDownloadList.Count);
-						if (curCount != maxCount) {
-							var progress = i / (float)noneDownloadList.Count;
-							ueLazyUpdateLoading.Invoke($"필수 에셋 요청중... ({i} / {noneDownloadList.Count})", progress);
-							maxCount = curCount;
+						var progress = i / (float)noneDownloadList.Count;
+						ueLazyUpdateLoading.Invoke($"필수 에셋 요청중... ({i} / {noneDownloadList.Count})", progress);
 
-							var now = DateTime.Now.Ticks;
-							if (now - _time >= timeGap) {
-								_time = now;
-								yield return null;
-							}
-						}
+						if (labelUpdater.Valid())
+							yield return null;
 					}
 
 					var _panel_puzzle = resourceManager.XGetFieldValue<Panel_Puzzle>("_panel_puzzle");
@@ -641,30 +527,9 @@ namespace Symphony.Features {
 
 				resourceManager.XSetFieldValue<Panel_Puzzle>("_panel_puzzle", null);
 				resourceManager.XSetPropertyValue<NeedDownloadDelegate>("needDownloadDelegate", null);
-				resourceManager.onUpdateAssetLoading.Invoke("Receiving...", -1f);
+				resourceManager.onUpdateAssetLoading.Invoke("네트워크 통신중...", -1f);
 
 				resourceManager.StartCoroutine(LazyLoadAssets());
-			}
-			__result = Fn();
-			return false;
-		}
-
-		private static bool InstantiateGameObjectAsync(
-			ResourceManager __instance,
-			string assetBundleName,
-			string assetName,
-			Transform parent,
-			bool reset_scale,
-			ref IEnumerator __result
-		) {
-			IEnumerator Fn() {
-				assetBundleName = assetBundleName.ToLower();
-				var request = AssetBundleManager.LoadAssetAsync(assetBundleName, assetName, typeof(GameObject));
-				if (request != null) {
-					yield return __instance.StartCoroutine(request);
-					GameObject asset = request.GetAsset<GameObject>();
-					__instance.LoadObject(asset, parent, reset_scale);
-				}
 			}
 			__result = Fn();
 			return false;
@@ -677,6 +542,7 @@ namespace Symphony.Features {
 			string key
 		) {
 			if (__instance != LoadedAssetBundlesTarget) return true;
+			if (!Experimental.FastLoaded) return true;
 
 			LoadedAssetBundle Internal_Get(string key) {
 				var i = __instance.XGetMethod<string, int>("FindEntry").Invoke(key);
@@ -736,6 +602,7 @@ namespace Symphony.Features {
 			ref LoadedAssetBundle value
 		) {
 			if (__instance != LoadedAssetBundlesTarget) return true;
+			if (!Experimental.FastLoaded) return true;
 
 			LoadedAssetBundle ret = null;
 			Patch_AssetBundleManager_DictGetter(__instance, ref ret, key);

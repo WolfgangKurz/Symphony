@@ -28,7 +28,7 @@ namespace Symphony.UI.Panels {
 		private Rect panelViewport = new Rect(0, 0, 248, 0);
 		private Vector2 panelScroll = Vector2.zero;
 
-		private string experimental_KeyMapping_NewName = "";
+		private string keyMapping_NewName = "";
 
 		private enum IconKey : int {
 			None,
@@ -54,6 +54,7 @@ namespace Symphony.UI.Panels {
 			(IconKey.Presets, "Presets", null),
 			(IconKey.Robot, "Automation", null),
 			(IconKey.Construction, "Experimental", null),
+			(IconKey.Keyboard, "KeyMapping", null),
 			(IconKey.None, "AssetLoader", null)
 		];
 		private string SelectedFeature = "QuickConfig";
@@ -415,7 +416,7 @@ namespace Symphony.UI.Panels {
 								);
 							}
 
-							DrawLabel(ref offset, "'설정 안함'으로 설정하는 경우,\n위 'FPS 제한하기'의 설정을 따릅니다.", Color_description, 20);
+							DrawLabel(ref offset, "'설정 안함'으로 설정하는 경우,\n위 'FPS 제한하기'의 설정을 따릅니다.", Color_description, 12);
 							break;
 
 						#endregion
@@ -446,12 +447,12 @@ namespace Symphony.UI.Panels {
 							DrawSeparator(ref offset);
 
 							DrawToggle(ref offset, "백그라운드 재생 동작 변경", Conf.SimpleTweaks.MuteOnBackgroundFix);
-							DrawLabel(ref offset, "사운드 설정에서 '백그라운드 재생'을 켰을 경우, 백그라운드에서 오디오가 일시정지 되는 동작 대신 음소거가 되도록 하는 옵션입니다.\n'백그라운드 재생'이 꺼져있을 경우, 동작하지 않습니다.", Color_description, 20);
+							DrawLabel(ref offset, "사운드 설정에서 '백그라운드 재생'을 켰을 경우, 백그라운드에서 오디오가 일시정지 되는 동작 대신 음소거가 되도록 하는 옵션입니다.\n'백그라운드 재생'이 꺼져있을 경우, 동작하지 않습니다.", Color_description, 12);
 
 							DrawSeparator(ref offset);
 
 							DrawToggle(ref offset, "마지막 자율 전투 설정 기억하기", Conf.SimpleTweaks.Use_OfflineBattle_Memorize);
-							DrawLabel(ref offset, "전투원 및 장비 분해 설정과 시간을 기억합니다.", Color_description, 20);
+							DrawLabel(ref offset, "전투원 및 장비 분해 설정과 시간을 기억합니다.", Color_description, 12);
 
 							DrawSeparator(ref offset);
 
@@ -468,7 +469,7 @@ namespace Symphony.UI.Panels {
 							DrawSeparator(ref offset);
 
 							DrawToggle(ref offset, "BGM 초기화 방지하기", Conf.SimpleTweaks.Use_ContinueBGM);
-							DrawLabel(ref offset, "사운드 장치 등이 변경되었을 때, BGM이 초기화되어 처음부터 재생되는 것을 방지하고, 재생되던 위치부터 이어서 재생되도록 합니다.", Color_description, 20);
+							DrawLabel(ref offset, "사운드 장치 등이 변경되었을 때, BGM이 초기화되어 처음부터 재생되는 것을 방지하고, 재생되던 위치부터 이어서 재생되도록 합니다.", Color_description, 12);
 							#endregion
 							break;
 
@@ -551,36 +552,50 @@ namespace Symphony.UI.Panels {
 							DrawSeparator(ref offset);
 
 							DrawToggle(ref offset, "전투 프리징 수정", Conf.Experimental.Fix_BattleFreezing);
-							DrawLabel(ref offset, "특정 전투 상황에서 캐릭터/적의 움직임이 멈추고 다음으로 진행되지 않는 문제를 수정하는 기능입니다.\n모든 프리징이 수정되지 않을 수 있습니다.\n다음 프리징 문제가 해결됩니다.", Color_description, 20);
+							DrawLabel(ref offset, "특정 전투 상황에서 캐릭터/적의 움직임이 멈추고 다음으로 진행되지 않는 문제를 수정하는 기능입니다.\n모든 프리징이 수정되지 않을 수 있습니다.\n다음 프리징 문제가 해결됩니다.", Color_description, 12);
 
-							DrawLabel(ref offset, " * 프레데터, 블라인드 프린세스 등 파티클 관련 프리징 문제", Color_description, 20);
-							DrawLabel(ref offset, " * 치이 아루엘 회피 프리징 문제", Color_description, 20);
-							DrawLabel(ref offset, " * 이나비 스킨 2스킬 프리징 문제", Color_description, 20);
+							DrawLabel(ref offset, " * 프레데터, 블라인드 프린세스 등 파티클 관련 프리징 문제", Color_description, 12);
+							DrawLabel(ref offset, " * 치이 아루엘 회피 프리징 문제", Color_description, 12);
+							DrawLabel(ref offset, " * 이나비 스킨 2스킬 프리징 문제", Color_description, 12);
 
 							DrawSeparator(ref offset);
 
-							DrawToggle(ref offset, "키 맵핑 사용하기", Conf.Experimental.Use_KeyMapping, rightMargin: 90);
-							DrawSlider(ref offset, "키 맵 불투명도", Conf.Experimental.KeyMapping_Opacity, labelWidth: 100f);
-							DrawLabel(ref offset, "설정한 키를 누르면 화면의 특정 영역을 클릭한 것과 같은 동작을 만드는 기능입니다.\n앱플레이어 등에서 '가상키'로 불리는 동작입니다.", Color_description, 20);
+							DrawToggle(ref offset, "빠른 로딩 사용하기", Conf.Experimental.Use_FastLoading);
+							DrawLabel(ref offset, "로딩 시, 구동에 불필요한 에셋을 건너뛰어 시작을 빠르게 합니다.\n사용 시, 게임 플레이에 문제가 생길 수 있습니다.", Color_description, 12);
+							#endregion
+							break;
+
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
+
+						case "KeyMapping":
+							#region KeyMapping
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Keyboard]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "KeyMapping");
+							offset += 20 + 8;
+
+							DrawToggle(ref offset, "키 맵핑 사용하기", Conf.KeyMapping.Use_KeyMapping, rightMargin: 90);
+							DrawSlider(ref offset, "키 맵 불투명도", Conf.KeyMapping.Opacity, labelWidth: 100f);
+							DrawLabel(ref offset, "설정한 키를 누르면 화면의 특정 영역을 클릭한 것과 같은 동작을 만드는 기능입니다.\n앱플레이어 등에서 '가상키'로 불리는 동작입니다.", Color_description, 12);
 
 							var groupToRemove = "";
 							foreach (var g in KeyMappingConf.KeyMaps) {
 								KeepOffset(ref offset, () => {
-									DrawRadio(ref offset, new() { { g.Key, "" } }, Conf.Experimental.KeyMapping_Active);
+									DrawRadio(ref offset, new() { { g.Key, "" } }, Conf.KeyMapping.Activated);
 								});
 
 								if (g.Key != "Default") {
 									KeepOffset(ref offset, () => {
 										DrawLineButton(ref offset, "X", () => {
-											if (g.Key == Conf.Experimental.KeyMapping_Active.Value)
-												Conf.Experimental.KeyMapping_Active.Value = "Default";
+											if (g.Key == Conf.KeyMapping.Activated.Value)
+												Conf.KeyMapping.Activated.Value = "Default";
 
 											groupToRemove = g.Key;
 										}, WIDTH_FILL - 20);
 									});
 								}
 
-								if (Conf.Experimental.KeyMapping_Active.Value == g.Key) {
+								if (Conf.KeyMapping.Activated.Value == g.Key) {
 									KeepOffset(ref offset, () => {
 										DrawLineButton(ref offset, "편집하기", () => {
 											UIManager.Instance.AddPanel(new KeyMapPanel(this.instance));
@@ -593,32 +608,29 @@ namespace Symphony.UI.Panels {
 							}
 							if (groupToRemove.Length > 0) KeyMappingConf.RemoveGroup(groupToRemove);
 
-							this.experimental_KeyMapping_NewName = GUIX.TextField(
+							this.keyMapping_NewName = GUIX.TextField(
 								new Rect(0, offset, WIDTH_FILL - 85, 20),
-								this.experimental_KeyMapping_NewName,
-								fontStyle: KeyMappingConf.KeyMaps.Keys.Contains(this.experimental_KeyMapping_NewName)
+								this.keyMapping_NewName,
+								fontStyle: KeyMappingConf.KeyMaps.Keys.Contains(this.keyMapping_NewName)
 									? FontStyle.Italic
 									: FontStyle.Normal
 							);
 							DrawLineButton(ref offset, "추가하기", () => {
-								var n = this.experimental_KeyMapping_NewName;
+								var n = this.keyMapping_NewName;
 								if (
 									string.IsNullOrWhiteSpace(n) ||
 									KeyMappingConf.KeyMaps.Keys.Contains(n)
 								) return;
 
 								KeyMappingConf.Save(n, []);
-								Conf.Experimental.KeyMapping_Active.Value = n;
-								this.experimental_KeyMapping_NewName = "";
+								Conf.KeyMapping.Activated.Value = n;
+								this.keyMapping_NewName = "";
 							}, WIDTH_FILL - 80);
-
 							#endregion
 							break;
 
-						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-						//offset += 1 + 4;
-
 						case "AssetLoader":
+							#region AssetLoader
 							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "AssetLoader", Color.yellow);
 							offset += 20 + 8;
 
@@ -649,6 +661,7 @@ namespace Symphony.UI.Panels {
 									Application.OpenURL(path);
 								} catch { } // Ignore
 							}, 8, 8);
+							#endregion
 							break;
 					}
 				});

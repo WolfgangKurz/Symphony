@@ -147,13 +147,14 @@ namespace Symphony {
 			public static readonly ConfigEntry<byte> OfflineBattle_Last_EquipDiscomp = config.Bind("Automation", "OfflineBattle_Last_EquipDiscomp", (byte)1);
 		}
 		internal class Experimental {
-			public static readonly ConfigEntry<bool> Use_KeyMapping = config.Bind("Experimental", "Use_KeyMapping", false, "Use KeyMapping feature");
-			public static readonly ConfigEntry<float> KeyMapping_Opacity = config.Bind("Experimental", "KeyMapping_Opacity", 0.25f);
-			public static readonly ConfigEntry<string> KeyMapping_Active = config.Bind("Experimental", "KeyMapping_Active", "Default", "Currently activated Key Mapping Group");
-
 			public static readonly ConfigEntry<bool> Fix_BattleFreezing = config.Bind("Experimental", "Fix_BattleFreezing", true, "Fix a Freezing issue in certain situations during Battle");
 
 			public static readonly ConfigEntry<bool> Use_FastLoading = config.Bind("Experimental", "Use_FastLoading", false, "Skips loading unnecessary files on startup");
+		}
+		internal class KeyMapping {
+			public static readonly ConfigEntry<bool> Use_KeyMapping = config.Bind("KeyMapping", "Use_KeyMapping", false, "Use KeyMapping feature");
+			public static readonly ConfigEntry<float> Opacity = config.Bind("KeyMapping", "Opacity", 0.25f);
+			public static readonly ConfigEntry<string> Activated = config.Bind("KeyMapping", "Activated", "Default", "Currently activated Key Mapping Group");
 		}
 
 		public static void Migrate() {
@@ -353,6 +354,28 @@ namespace Symphony {
 					config.RemoveAll(new ConfigDefinition("SimpleUI", "Use_SortByName"));
 					config.RemoveAll(new ConfigDefinition("SimpleUI", "Use_SortByGroup"));
 					config.RemoveAll(new ConfigDefinition("SimpleUI", "Use_SortByLinks"));
+				}
+			}
+
+			{ // Experimental.*KeyMapping* -> KeyMapping.*
+				bool value_bool;
+				float value_float;
+				string value_string;
+
+				if (config.TryGetOrphanedEntry("Experimental", "Use_KeyMapping", out value_bool)) {
+					Plugin.Logger.LogMessage("[Symphony] Experimental.Use_KeyMapping configuration detected, migrate it.");
+					KeyMapping.Use_KeyMapping.Value = value_bool;
+					config.RemoveAll(new ConfigDefinition("Experimental", "Use_KeyMapping"));
+				}
+				if (config.TryGetOrphanedEntry("Experimental", "KeyMapping_Opacity", out value_float)) {
+					Plugin.Logger.LogMessage("[Symphony] Experimental.KeyMapping_Opacity configuration detected, migrate it.");
+					KeyMapping.Opacity.Value = value_float;
+					config.RemoveAll(new ConfigDefinition("Experimental", "KeyMapping_Opacity"));
+				}
+				if (config.TryGetOrphanedEntry("Experimental", "KeyMapping_Active", out value_string)) {
+					Plugin.Logger.LogMessage("[Symphony] Experimental.KeyMapping_Active configuration detected, migrate it.");
+					KeyMapping.Activated.Value = value_string;
+					config.RemoveAll(new ConfigDefinition("Experimental", "KeyMapping_Active"));
 				}
 			}
 			#endregion

@@ -32,7 +32,7 @@ namespace Symphony.UI.Panels {
 			"　 　　키 우클릭 : 키 삭제 　　　"
 		]);
 
-		private string activeKey => Conf.Experimental.KeyMapping_Active.Value;
+		private string activeKey => Conf.KeyMapping.Activated.Value;
 		private KeyMappingData[] CurrentKeyMap => KeyMappingConf.KeyMaps[activeKey];
 
 		public KeyMapPanel(MonoBehaviour instance) : base(instance) { }
