@@ -63,8 +63,10 @@ namespace Symphony {
 			}
 
 			// AssetLoader
+			Helper.SetWindowTitle(Plugin.hWnd, "LastOrigin_VFUNKR - AssetLoader loading");
 			Symphony.Features.AssetLoader.Init();
 			Symphony.Features.AssetLoader.Load();
+			Helper.SetWindowTitle(Plugin.hWnd, "LastOrigin_VFUNKR");
 
 			var features = Assembly.GetExecutingAssembly().GetTypes()
 				.Where(x => x.GetCustomAttributes(typeof(FeatureAttribute), false).Length > 0);

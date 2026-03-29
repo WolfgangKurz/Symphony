@@ -56,7 +56,6 @@ namespace Symphony.Features {
 				Plugin.Logger.LogWarning("[Symphony::AssetLoader] AssetLoader's Load method already called. Current call ignored");
 				return;
 			}
-
 			Loaded = true;
 
 			if (!Directory.Exists(AssetLoaderDirectory)) {
@@ -65,8 +64,13 @@ namespace Symphony.Features {
 			}
 
 			var _pathRegex = new Regex(@"[\\/]", RegexOptions.Compiled);
+			var _patchedPostfixRegex = new Regex(@"\.patched$", RegexOptions.Compiled);
 			var files = Directory.GetFiles(AssetLoaderDirectory, "*", SearchOption.AllDirectories)
-				.Where(x => Path.GetFileName(x) != "__info")
+				.Where(x => {
+					if (Path.GetFileName(x) == "__info") return false;
+					if (File.Exists(x + ".patched")) return false; // Already patched cache
+					return true;
+				})
 				.ToArray();
 
 			Plugin.Logger.LogInfo($"[Symphony::AssetLoader] Found {files.Length} files to load in AssetLoader directory");
@@ -74,7 +78,7 @@ namespace Symphony.Features {
 			var loaded = 0;
 			var errors = 0;
 			foreach (var file in files) {
-				var fname = Path.GetFileName(file);
+				var fname = _patchedPostfixRegex.Replace(Path.GetFileName(file), "");
 
 				if (fname == "__data")
 					fname = _pathRegex.Replace(Path.GetDirectoryName(Path.GetRelativePath(AssetLoaderDirectory, file)), "__");
@@ -90,6 +94,9 @@ namespace Symphony.Features {
 							bundle = AssetBundle.LoadFromMemory(patchedMemory);
 							if (bundle == null)
 								throw new PlatformNotSupportedException($"Patch succeeded but failed to load bundle '{fname}'");
+
+							// Save as cache
+							File.WriteAllBytes(file + ".patched", patchedMemory);
 
 							AssetBundleManager.LoadedAssetBundles.Add(fname, new LoadedAssetBundle(bundle));
 							loaded++;
