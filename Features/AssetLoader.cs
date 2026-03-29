@@ -32,6 +32,7 @@ namespace Symphony.Features {
 
 		private static bool Loaded = false;
 		private static bool Inited = false;
+		private static Shader[] PreloadedShaders = [];
 
 		public static void Init() {
 			if (Inited) {
@@ -41,10 +42,26 @@ namespace Symphony.Features {
 			Inited = true;
 
 			var harmony = new Harmony("Symphony.AssetLoader");
+
+			// AssetBundle loading fix
 			harmony.Patch(
 				AccessTools.Method(typeof(DownloadHandlerAssetBundle), nameof(DownloadHandlerAssetBundle.GetContent)),
 				prefix: new HarmonyMethod(typeof(AssetLoader), nameof(AssetLoader.Patch_Initial_AssetBundle_Loading))
 			);
+
+			// Broken shader patch
+			harmony.Patch(
+				AccessTools.Method(typeof(ResourceManager), nameof(ResourceManager.LoadObject)),
+				prefix: new HarmonyMethod(typeof(AssetLoader), nameof(AssetLoader.Patch_ResourceManager_LoadObject))
+			);
+
+			try {
+				var ab = AssetBundle.LoadFromMemory(Resource.AssetBundle_SpineShaders);
+				PreloadedShaders = ab.LoadAllAssets<Shader>();
+				Plugin.Logger.LogInfo($"[Symphony::AssetLoader] {PreloadedShaders.Length} Spine shaders loaded");
+			} catch {
+				Plugin.Logger.LogError("[Symphony::AssetLoader] Failed to load Spine shaders");
+			}
 
 			SymphonyUtils.Initialize(Helper.RegisterAssemblyFromResource);
 		}
@@ -137,7 +154,7 @@ namespace Symphony.Features {
 			Plugin.Logger.LogInfo($"[Symphony::AssetLoader] Loaded {loaded} files!");
 		}
 
-		#region Initial AssetBundle Loading fix
+		#region AssetBundle loading fix
 		private static bool Patch_Initial_AssetBundle_Loading(UnityWebRequest www, ref AssetBundle __result) {
 			var target_name = Path.GetFileName(www.url);
 			__result = AssetBundle.GetAllLoadedAssetBundles().FirstOrDefault(x => x.name == target_name);
@@ -148,6 +165,24 @@ namespace Symphony.Features {
 				Plugin.Logger.LogInfo($"[Symphony::AssetLoader] Tried to load AssetBundle '{target_name}' that already loaded, return it from memory");
 
 			return false;
+		}
+		#endregion
+
+		#region Broken shader patch
+		private static void Patch_ResourceManager_LoadObject(GameObject obj) {
+			if (obj == null) return;
+
+			var renderers = obj.GetComponentsInChildren<Renderer>(true);
+			foreach (var ren in renderers) {
+				foreach (var mat in ren.sharedMaterials) {
+					if (mat?.shader == null) continue;
+					if (mat.shader.isSupported) continue;
+					if (string.IsNullOrEmpty(mat.shader.name)) continue;
+
+					var s = PreloadedShaders.FirstOrDefault(x => x.name == mat.shader.name);
+					if (s != null) mat.shader = s;
+				}
+			}
 		}
 		#endregion
 	}
