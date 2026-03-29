@@ -1268,6 +1268,11 @@ namespace Symphony.Features {
 			return false;
 		}
 		private static void EquipSort_FilterSetting_post(FilterItem __instance) {
+			if (!Conf.SimpleUI.Sort_Equips_ExclusiveFirst.Value) return;
+
+			// No sorting
+			if (__instance.XGetFieldValue<FilterItemOption>("_filterOption") == FilterItemOption.NotUseSort) return;
+
 			var _toggleInfo = __instance.XGetFieldValue<ItemToggleInfo>("_toggleInfo");
 			var _itemSortFunc = new Comparison<IReuseCellData>[] { // custom comparers
 				EquipSort_Comparer_Grade,
