@@ -20,7 +20,10 @@ namespace Symphony.Features {
 		private WebGiveRewardInfo GetAll_CostTotal = null;
 		private Dictionary<string, int> GetAll_RewardItemDictionary = new();
 		private bool GetAll_DisplayGetAllResult = false;
-		private long GetAll_LastPacketFor = 0;
+		private long GetAll_CurrentFacilityUid = 0;
+		private Action<Panel_FacilityRewardResult> GetAll_OnRewardPopup = null;
+		private Action<W2C_FACILITY_REWARD> GetAll_OnRewardPacket = null;
+		private Action<W2C_FACILITY_WORK> GetAll_OnWorkPacket = null;
 
 		private static GameObject GetAll_BtnGetAll = null;
 
@@ -111,6 +114,8 @@ namespace Symphony.Features {
 			}));
 		}
 		private IEnumerator OnClickGetAll() {
+			if (GetAll_GettingAll) yield break;
+
 			try {
 				this.GetAll_RewardTotal = new WebGiveRewardInfo();
 				this.GetAll_CostTotal = new WebGiveRewardInfo();
@@ -129,33 +134,94 @@ namespace Symphony.Features {
 				foreach (var fac in facilitiesToWork) {
 					if (fac.GetState() != InstallationFacility.State.WorkComplete) continue;
 
-					Plugin.Logger.LogDebug("[Symphony.Automation] Select facility");
-					scene.kStation.GetType()
-						.GetField("mCurrentFacility", BindingFlags.Instance | BindingFlags.NonPublic)
-						.SetValue(scene.kStation, fac);
-					fac.OnSelected();
+					var facilityUid = fac.Packet.Facility_uid;
+					Panel_FacilityRewardResult rewardPopup = null;
+					bool rewardDone = false;
+					bool workDone = false;
+					bool restartRequested = false;
+					bool restartTriggered = false;
 
-					this.GetAll_LastPacketFor = 0;
-					yield return new WaitUntil(() => GetAll_LastPacketFor == fac.Packet.Facility_uid);
+					this.GetAll_CurrentFacilityUid = facilityUid;
+					this.GetAll_OnRewardPacket = w2CFacilityReward => {
+						var result = w2CFacilityReward.result;
+						if (result.Facility_uid != this.GetAll_CurrentFacilityUid) return;
 
-					if (fac.Table.MetalCost > SingleTon<DataManager>.Instance.Metal &&
-						fac.Table.NutrientCost > SingleTon<DataManager>.Instance.Nutrient &&
-						fac.Table.PowerCost > SingleTon<DataManager>.Instance.Power
-					) {
-						Plugin.Logger.LogMessage("[Symphony.Automation] Not enough resources to restart facility");
-						continue; // Not enough resource to restart
+						var res = result.RewardInfo;
+						this.GetAll_RewardTotal.PCRewardList.AddRange(res.PCRewardList ?? []);
+						this.GetAll_RewardTotal.AddMetal += res.AddMetal;
+						this.GetAll_RewardTotal.AddNutrient += res.AddNutrient;
+						this.GetAll_RewardTotal.AddPower += res.AddPower;
+						this.GetAll_RewardTotal.AddCash += res.AddCash;
+						this.GetAll_RewardTotal.ItemRewardList.AddRange(res.ItemRewardList ?? []);
+
+						rewardDone = true;
+					};
+					this.GetAll_OnWorkPacket = w2CFacilityWork => {
+						var result = w2CFacilityWork.result;
+						if (result.Facility_uid != this.GetAll_CurrentFacilityUid) return;
+
+						this.GetAll_CostTotal.AddMetal += (uint)fac.Table.MetalCost;
+						this.GetAll_CostTotal.AddNutrient += (uint)fac.Table.NutrientCost;
+						this.GetAll_CostTotal.AddPower += (uint)fac.Table.PowerCost;
+
+						workDone = true;
+					};
+					this.GetAll_OnRewardPopup = popup => {
+						rewardPopup = popup;
+						if (!restartRequested || restartTriggered) return;
+
+						var button = popup.GetComponentsInChildren<UIButton>().FirstOrDefault(x => x.name == "RestartButton");
+						restartTriggered = button != null;
+						if (button != null) {
+							EventDelegate.Execute(button.onClick);
+						} else {
+							Plugin.Logger.LogWarning($"[Symphony.Automation] Failed to trigger restart button for facility {facilityUid}");
+							workDone = true;
+						}
+					};
+
+					try {
+						Plugin.Logger.LogDebug("[Symphony.Automation] Select facility");
+						scene.kStation.GetType()
+							.GetField("mCurrentFacility", BindingFlags.Instance | BindingFlags.NonPublic)
+							.SetValue(scene.kStation, fac);
+
+						fac.OnSelected();
+						yield return new WaitUntil(() => rewardDone);
+
+						if (fac.Table.MetalCost > SingleTon<DataManager>.Instance.Metal ||
+							fac.Table.NutrientCost > SingleTon<DataManager>.Instance.Nutrient ||
+							fac.Table.PowerCost > SingleTon<DataManager>.Instance.Power
+						) {
+							var closeButton = rewardPopup.GetComponentsInChildren<UIButton>().FirstOrDefault(x => x.name == "CloseButton");
+							if (closeButton != null) EventDelegate.Execute(closeButton.onClick);
+
+							Plugin.Logger.LogMessage("[Symphony.Automation] Not enough resources to restart facility");
+							continue; // Not enough resource to restart
+						}
+
+						restartRequested = true;
+						if (rewardPopup != null && !restartTriggered) {
+							var button = rewardPopup.GetComponentsInChildren<UIButton>().FirstOrDefault(x => x.name == "RestartButton");
+							restartTriggered = button != null;
+							if (button != null) {
+								EventDelegate.Execute(button.onClick);
+							} else {
+								Plugin.Logger.LogWarning($"[Symphony.Automation] Failed to trigger restart button for facility {facilityUid}");
+								continue;
+							}
+						}
+
+						yield return new WaitUntil(() => workDone);
+						//yield return new WaitForSecondsRealtime(1f);
+						//yield return new WaitForSecondsRealtime(0.155f);
+					} finally {
+						scene.kStation.SelectFacilityRelease();
+						this.GetAll_CurrentFacilityUid = 0;
+						this.GetAll_OnRewardPopup = null;
+						this.GetAll_OnRewardPacket = null;
+						this.GetAll_OnWorkPacket = null;
 					}
-
-					this.GetAll_CostTotal.AddMetal += (uint)fac.Table.MetalCost;
-					this.GetAll_CostTotal.AddNutrient += (uint)fac.Table.NutrientCost;
-					this.GetAll_CostTotal.AddPower += (uint)fac.Table.PowerCost;
-
-					this.GetAll_LastPacketFor = 0;
-					yield return new WaitUntil(() => GetAll_LastPacketFor == fac.Packet.Facility_uid);
-					//yield return new WaitForSecondsRealtime(1f);
-					//yield return new WaitForSecondsRealtime(0.155f);
-
-					scene.kStation.SelectFacilityRelease();
 				}
 			} finally {
 				GetAll_GettingAll = false;
@@ -204,27 +270,17 @@ namespace Symphony.Features {
 			W2C_FACILITY_REWARD w2CFacilityReward = obj as W2C_FACILITY_REWARD;
 			if (w2CFacilityReward.result.ErrorCode != 0) return;
 			if (!GetAll_GettingAll) return;
-			if (this.GetAll_RewardTotal == null) return;
+			if (this.GetAll_OnRewardPacket == null) return;
 
-			// stack results
-			var result = w2CFacilityReward.result;
-			var res = result.RewardInfo;
-			this.GetAll_RewardTotal.PCRewardList.AddRange(res.PCRewardList ?? []);
-			this.GetAll_RewardTotal.AddMetal += res.AddMetal;
-			this.GetAll_RewardTotal.AddNutrient += res.AddNutrient;
-			this.GetAll_RewardTotal.AddPower += res.AddPower;
-			this.GetAll_RewardTotal.AddCash += res.AddCash;
-			this.GetAll_RewardTotal.ItemRewardList.AddRange(res.ItemRewardList ?? []);
-
-			this.GetAll_LastPacketFor = result.Facility_uid;
+			this.GetAll_OnRewardPacket(w2CFacilityReward);
 		}
 		private void OnFacilityWorkPakcet(WebResponseState obj) {
 			W2C_FACILITY_WORK w2CFacilityWork = obj as W2C_FACILITY_WORK;
 			if (w2CFacilityWork.result.ErrorCode != 0) return;
 			if (!GetAll_GettingAll) return;
+			if (this.GetAll_OnWorkPacket == null) return;
 
-			var result = w2CFacilityWork.result;
-			this.GetAll_LastPacketFor = result.Facility_uid;
+			this.GetAll_OnWorkPacket(w2CFacilityWork);
 		}
 		private static void Panel_LivingStation_ShowSideMenu(bool _isEdit, bool _isGuide) {
 			if(GetAll_BtnGetAll != null)
@@ -234,12 +290,13 @@ namespace Symphony.Features {
 			if (!GetAll_GettingAll) return;
 
 			IEnumerator FacilityRewardResult_Awake_Coroutine(Panel_FacilityRewardResult __instance) {
-				var button = __instance.GetComponentsInChildren<UIButton>().FirstOrDefault(x => x.name == "RestartButton");
-				if (button == null) yield break;
-
 				yield return null; // safety wait
 
-				EventDelegate.Execute(button.onClick);
+				var automation = GameObject.FindObjectOfType<Automation>();
+				if (automation == null) yield break;
+				if (automation.GetAll_OnRewardPopup == null) yield break;
+
+				automation.GetAll_OnRewardPopup(__instance);
 			}
 			__instance.StartCoroutine(FacilityRewardResult_Awake_Coroutine(__instance));
 		}
