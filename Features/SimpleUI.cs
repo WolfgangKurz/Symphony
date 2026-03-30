@@ -356,6 +356,17 @@ namespace Symphony.Features {
 			);
 			#endregion
 
+			#region Scrollable Consumable Description
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_MaterialWarehouse), nameof(Panel_MaterialWarehouse.Start)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Consumable_Description_Patch))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_MaterialWarehouse), nameof(Panel_MaterialWarehouse.RefreshData)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Consumable_Description_Patch_RefreshData))
+			);
+			#endregion
+
 			#region ---- Invalidate UILabel after screen size changed
 			harmony.Patch(
 				AccessTools.Method(typeof(WindowsGameManager), "CustomWndProc"),
@@ -2517,6 +2528,228 @@ namespace Symphony.Features {
 				label.text = text;
 			}
 			__result = Fn();
+		}
+		#endregion
+
+		#region Scrollable Consumable Description
+		private sealed class ConsumableDescriptionScrollMarker : MonoBehaviour {
+			public float BaseLocalY;
+			public float ViewHeight;
+		}
+		private static float Consumable_Description_GetCenterOffsetY(UILabel label, float viewHeight) {
+			if (!label) return 0f;
+
+			var b = NGUIMath.CalculateRelativeWidgetBounds(label.transform);
+			var ch = Mathf.Max(0f, b.size.y);
+			if (ch >= viewHeight) return 0f;
+
+			return (viewHeight - ch) * 0.5f;
+		}
+		private static void Consumable_Description_RefreshLayout(UILabel label, UIScrollView sv) {
+			if (!label || !sv) return;
+
+			var marker = sv.GetComponent<ConsumableDescriptionScrollMarker>();
+			if (marker == null) return;
+
+			var tf = label.transform;
+			var localPos = tf.localPosition;
+			localPos.y = marker.BaseLocalY - Consumable_Description_GetCenterOffsetY(label, marker.ViewHeight);
+			tf.localPosition = localPos;
+
+			sv.ResetPosition();
+		}
+		private static void Consumable_Description_Patch(Panel_MaterialWarehouse __instance) {
+			if (!Conf.SimpleUI.Use_ScrollableConsumableDescription.Value) return;
+
+			UIScrollView WrapUILabel(UILabel el) {
+				if (el == null) return null;
+
+				var patched = el.GetComponentInParent<UIScrollView>();
+				if (patched != null) return patched;
+
+				var tf = el.transform;
+				var p = tf.parent;
+				if (p == null) return null;
+
+				var pPanel = el.GetComponentInParent<UIPanel>();
+
+				const int extraVisibleHeight = 100;
+				var w = Mathf.Max(1, el.width);
+				var originalHeight = Mathf.Max(1, el.height);
+				var h = originalHeight + extraVisibleHeight;
+				var pv = el.pivot;
+				var oZ = tf.localPosition.z;
+
+				Vector2 GetPivotOffset(UIWidget.Pivot pivot, float width, float height) {
+					switch (pivot) {
+						case UIWidget.Pivot.TopLeft:
+							return new(width * 0.5f, -height * 0.5f);
+						case UIWidget.Pivot.Top:
+							return new(0f, -height * 0.5f);
+						case UIWidget.Pivot.TopRight:
+							return new(-width * 0.5f, -height * 0.5f);
+						case UIWidget.Pivot.Left:
+							return new(width * 0.5f, 0f);
+						case UIWidget.Pivot.Center:
+							return Vector2.zero;
+						case UIWidget.Pivot.Right:
+							return new(-width * 0.5f, 0f);
+						case UIWidget.Pivot.BottomLeft:
+							return new(width * 0.5f, height * 0.5f);
+						case UIWidget.Pivot.Bottom:
+							return new(0f, height * 0.5f);
+						case UIWidget.Pivot.BottomRight:
+							return new(-width * 0.5f, height * 0.5f);
+						default:
+							return Vector2.zero;
+					}
+				}
+
+				var clipOffset = GetPivotOffset(pv, w, originalHeight);
+				clipOffset.y -= extraVisibleHeight * 0.5f;
+
+				var cont = new GameObject($"{el.name}_ScrollContainer");
+				cont.layer = el.gameObject.layer;
+
+				var contTf = cont.transform;
+				contTf.SetParent(p);
+				contTf.localPosition = tf.localPosition;
+				contTf.localRotation = tf.localRotation;
+				contTf.localScale = tf.localScale;
+				contTf.SetSiblingIndex(tf.GetSiblingIndex());
+
+				var svGo = new GameObject("ScrollView");
+				svGo.layer = cont.layer;
+
+				var svTf = svGo.transform;
+				svTf.SetParent(contTf);
+				svTf.localPosition = new Vector3(clipOffset.x, clipOffset.y, 0f);
+				svTf.localRotation = Quaternion.identity;
+				svTf.localScale = Vector3.one;
+
+				var panel = svGo.AddComponent<UIPanel>();
+				panel.depth = pPanel != null ? pPanel.depth + 1 : 0;
+				panel.clipping = UIDrawCall.Clipping.SoftClip;
+				panel.baseClipRegion = new Vector4(0f, 0f, w, h);
+
+				var sv = svGo.AddComponent<UIScrollView>();
+				sv.movement = UIScrollView.Movement.Vertical;
+				sv.restrictWithinPanel = true;
+				sv.disableDragIfFits = true;
+
+				var marker = svGo.AddComponent<ConsumableDescriptionScrollMarker>();
+				marker.BaseLocalY = -clipOffset.y;
+				marker.ViewHeight = h;
+
+				tf.SetParent(svTf, false);
+				tf.localPosition = new Vector3(-clipOffset.x, marker.BaseLocalY, oZ);
+				tf.localRotation = Quaternion.identity;
+				tf.localScale = Vector3.one;
+
+				var anchor = el.GetComponent<UIAnchor>();
+				if (anchor != null)
+					anchor.enabled = false;
+
+				el.leftAnchor.target = null;
+				el.rightAnchor.target = null;
+				el.bottomAnchor.target = null;
+				el.topAnchor.target = null;
+				el.updateAnchors = UIRect.AnchorUpdate.OnEnable;
+				el.ResetAnchors();
+
+				el.overflowMethod = UILabel.Overflow.ResizeHeight;
+				el.width = w;
+				el.height = originalHeight;
+				el.autoResizeBoxCollider = false;
+				el.MarkAsChanged();
+				el.ProcessText();
+				el.Invalidate(false);
+				el.CreatePanel();
+				panel.SetDirty();
+
+				var drag = new GameObject("DragArea");
+				drag.layer = cont.layer;
+
+				var dragTf = drag.transform;
+				dragTf.SetParent(contTf);
+				dragTf.localPosition = new Vector3(clipOffset.x, clipOffset.y, 0f);
+				dragTf.localRotation = Quaternion.identity;
+				dragTf.localScale = Vector3.one;
+
+				var dragWidget = drag.AddComponent<UIWidget>();
+				dragWidget.pivot = UIWidget.Pivot.Center;
+				dragWidget.width = w;
+				dragWidget.height = h;
+
+				var collider = drag.AddComponent<BoxCollider>();
+				collider.size = new Vector3(w, h, 1f);
+				collider.center = Vector3.zero;
+
+				var dragView = drag.AddComponent<UIDragScrollView>();
+				dragView.scrollView = sv;
+
+				Consumable_Description_RefreshLayout(el, sv);
+				return sv;
+			}
+
+			var desc = __instance.XGetFieldValue<UILabel>("_lblItemDesc");
+			if (!desc) {
+				Plugin.Logger.LogWarning("_lblItemDesc not found");
+				return;
+			}
+
+			var sv = WrapUILabel(desc);
+				Plugin.Logger.LogWarning("patched Scrollview");
+			Patch_MaterialWarehouse_ListItem_OnClick(__instance, sv);
+		}
+		private static void Consumable_Description_Patch_RefreshData(Panel_MaterialWarehouse __instance) {
+			var desc = __instance.XGetFieldValue<UILabel>("_lblItemDesc");
+			if (!desc) {
+				Plugin.Logger.LogWarning("_lblItemDesc not found");
+				return;
+			}
+
+			var sv = desc.GetComponentInParent<UIScrollView>();
+			if (!sv) {
+				Plugin.Logger.LogWarning("ScrollView not found");
+				return;
+			}
+
+			Patch_MaterialWarehouse_ListItem_OnClick(__instance, sv);
+		}
+		private static void Patch_MaterialWarehouse_ListItem_OnClick(Panel_MaterialWarehouse __instance, UIScrollView sv) {
+			IEnumerator Consumable_Description_ResetScrollNextFrame(UILabel label, UIScrollView sv) {
+				if (!label || !sv) yield break;
+
+				yield return null;
+
+				Consumable_Description_RefreshLayout(label, sv);
+			}
+
+			var _listCellData = __instance.XGetFieldValue<List<ItemCellMaterialData>>("_listCellData");
+			if (_listCellData == null || _listCellData.Count == 0) {
+				Plugin.Logger.LogWarning("cellListData null or empty");
+				return;
+			}
+
+			var _reGrid = __instance.XGetFieldValue<UIReuseGrid>("_reGrid");
+			if (!_reGrid) {
+				Plugin.Logger.LogWarning("reGrid null");
+				return;
+			}
+
+			foreach (var cell in _listCellData) {
+				var ori = cell.callback;
+				cell.callback = delegate (UIMaterialWarehouse s) {
+					Plugin.Logger.LogWarning("Item clicked, Reposition ScrollView");
+					ori(s);
+
+					var desc = __instance.XGetFieldValue<UILabel>("_lblItemDesc");
+					__instance.StartCoroutine(Consumable_Description_ResetScrollNextFrame(desc, sv));
+				};
+			}
+			_reGrid.UpdateAllCellData();
+			Plugin.Logger.LogWarning("@@@");
 		}
 		#endregion
 

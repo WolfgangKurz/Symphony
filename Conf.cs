@@ -121,6 +121,8 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_AccelerateScrollDelta = config.Bind("SimpleUI", "Use_MultiplyScrollDelta", false, "Multiply scroll amount for scrollable list");
 
 			public static readonly ConfigEntry<bool> Use_NovelDialog_LabelFix = config.Bind("SimpleUI", "Use_NovelDialog_LabelFix", false, "Fix Story Viewer's label invalid displaying");
+
+			public static readonly ConfigEntry<bool> Use_ScrollableConsumableDescription= config.Bind("SimpleUI", "Use_ConsumableDescriptionScrollable", false, "Wrap consumable description with ScrollView");
 		}
 		internal class Notification {
 			public static readonly ConfigEntry<bool> Handle_Notification = config.Bind("Notification", "Handle_Notification", true, "Handle in-game push notification as windows notification.");
