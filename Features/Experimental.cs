@@ -7,8 +7,10 @@ using HarmonyLib;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
 using UnityEngine;
 using UnityEngine.Events;
@@ -272,7 +274,7 @@ namespace Symphony.Features {
 			IEnumerator Fn() {
 				var resourceManager = __instance;
 
-				var labelUpdater = new FrameLimit(0.1f);
+				var labelUpdater = new FrameLimit(0.05f);
 
 				var serverURL = SingleTon<DataManager>.Instance.BundleAddress;
 				Debug.Log("serverURL : " + serverURL);
@@ -368,7 +370,7 @@ namespace Symphony.Features {
 				CrashReporter.SetBundleMetaData(bundlerVersion);
 
 				var uePatchCheck = new UnityEvent<string, float>();
-				uePatchCheck.AddListener((label, ratio) => resourceManager.onUpdateAssetLoading.Invoke("업데이트 검사중...", ratio));
+				uePatchCheck.AddListener((label, ratio) => resourceManager.onUpdateAssetLoading.Invoke(label, ratio));
 
 				var ueLazyUpdateLoading = new UnityEvent<string, float>();
 				ueLazyUpdateLoading.AddListener((label, ratio) => {
@@ -377,7 +379,8 @@ namespace Symphony.Features {
 				});
 
 				IEnumerator CheckPatchCoroutine() {
-					var en = AssetPlatformManifestObject.PatchCheckCoroutine(
+					var en = Patch_AssetPlatformManifestObject_PatchCheckCoroutine(
+						AssetPlatformManifestObject,
 						serverURL,
 						bundleWWWManifest,
 						needPatchFileList,
@@ -533,6 +536,72 @@ namespace Symphony.Features {
 			}
 			__result = Fn();
 			return false;
+		}
+
+		private static IEnumerator Patch_AssetPlatformManifestObject_PatchCheckCoroutine(
+			AssetPlatformManifest manifest,
+			string serverURL,
+			AssetBundleManifest bundleWWWManifest,
+			List<AssetFileManifest> needPatchFileList,
+			List<string> noneDownloadList,
+			UnityEvent<string, float> progressCallback
+		) {
+			var labelUpdater = new FrameLimit(0.05f);
+
+			for (var i = 0; i < manifest.list.Count; i++) {
+				var item = manifest.list[i];
+				var assetBundleHash = bundleWWWManifest.GetAssetBundleHash(item.fileName);
+
+				Caching.ClearOtherCachedVersions(item.fileName, assetBundleHash);
+
+				var loaded = AssetBundleManager.LoadedAssetBundles.ContainsKey(item.fileName);
+				if (!Caching.IsVersionCached(item.fileName, assetBundleHash)) {
+					if (loaded) AssetBundleManager.UnloadAssetBundle(item.fileName);
+
+					Caching.ClearAllCachedVersions(item.fileName); // Version mismatch
+					needPatchFileList.Add(item);
+					Debug.Log("<color=cyan> NeedPatch Bundle Name : " + item.fileName + "</color>");
+				}
+				else if (!loaded) {
+					noneDownloadList.Add(item.fileName);
+					Caching.MarkAsUsed(item.fileName, assetBundleHash);
+				}
+
+				var ratio = (float)i / manifest.list.Count;
+				if (labelUpdater.Valid()) {
+					progressCallback?.Invoke("업데이트 검사중...", ratio);
+					yield return null;
+				}
+			}
+
+			string[] cachedBundleNames = [];
+			string cachedRootPath;
+			{
+				var list = new List<string>();
+				Caching.GetAllCachePaths(list);
+
+				cachedRootPath = list.FirstOrDefault();
+				if (Directory.Exists(cachedRootPath))
+					cachedBundleNames = Directory.GetDirectories(cachedRootPath)
+						.Select(Path.GetFileName)
+						.ToArray();
+			}
+
+			var fileNameSet = new HashSet<string>(manifest.list.Select(x => x.fileName));
+			Task.Run(() => {
+				foreach (var cachedName in cachedBundleNames) {
+					if (!fileNameSet.Contains(cachedName)) {
+						var path = Path.Combine(cachedRootPath, cachedName);
+						if (Directory.Exists(path) && !Directory.EnumerateFiles(path).Any()) {
+							try {
+								Directory.Delete(path, recursive: true);
+							} catch { } // Ignore errors
+						}
+					}
+				}
+			});
+
+			Debug.Log("<color=cyan> NeedPatch Bundle Total Count : " + needPatchFileList.Count + "</color>");
 		}
 
 		private static Dictionary<string, LoadedAssetBundle> LoadedAssetBundlesTarget = null;
