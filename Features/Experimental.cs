@@ -31,7 +31,9 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Creature), nameof(Creature.PlayAnimation)),
 				postfix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_Creature_PlayAnimation))
 			);
+			#endregion
 
+			#region FastLoading(LazyLoad)
 			harmony.Patch(
 				AccessTools.Method(typeof(ResourceManager), nameof(ResourceManager.CoLoadAssetBundles)),
 				prefix: new HarmonyMethod(
@@ -39,9 +41,7 @@ namespace Symphony.Features {
 					nameof(Experimental.Patch_ResourceManager_CoLoadAssetBundles)
 				)
 			);
-			#endregion
 
-			#region FastLoading(LazyLoad)
 			LoadedAssetBundlesTarget = AssetBundleManager.LoadedAssetBundles;
 			harmony.Patch(
 				AccessTools.PropertyGetter(typeof(Dictionary<string, LoadedAssetBundle>), "Item"),
