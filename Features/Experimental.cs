@@ -378,22 +378,16 @@ namespace Symphony.Features {
 						resourceManager.onUpdateAssetLoading.Invoke(label, ratio);
 				});
 
-				IEnumerator CheckPatchCoroutine() {
-					var en = Patch_AssetPlatformManifestObject_PatchCheckCoroutine(
+				yield return resourceManager.StartCoroutine(
+					Patch_AssetPlatformManifestObject_PatchCheckCoroutine(
 						AssetPlatformManifestObject,
 						serverURL,
 						bundleWWWManifest,
 						needPatchFileList,
 						noneDownloadList,
 						uePatchCheck
-					);
-					while (en.MoveNext()) {
-						if (labelUpdater.Valid())
-							yield return en.Current;
-					}
-				}
-
-				yield return resourceManager.StartCoroutine(CheckPatchCoroutine());
+					)
+				);
 				resourceManager.XSetFieldValue("networkBroken", false);
 
 				var Wait0_5 = new WaitForSeconds(0.5f);
