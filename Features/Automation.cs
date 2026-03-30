@@ -16,14 +16,15 @@ namespace Symphony.Features {
 	[Feature("Automation")]
 	internal class Automation : MonoBehaviour {
 		private static bool GetAll_GettingAll = false;
-		private WebGiveRewardInfo GetAll_RewardTotal = null;
-		private WebGiveRewardInfo GetAll_CostTotal = null;
-		private Dictionary<string, int> GetAll_RewardItemDictionary = new();
-		private bool GetAll_DisplayGetAllResult = false;
-		private long GetAll_CurrentFacilityUid = 0;
-		private Action<Panel_FacilityRewardResult> GetAll_OnRewardPopup = null;
-		private Action<W2C_FACILITY_REWARD> GetAll_OnRewardPacket = null;
-		private Action<W2C_FACILITY_WORK> GetAll_OnWorkPacket = null;
+
+		private static WebGiveRewardInfo GetAll_RewardTotal = null;
+		private static WebGiveRewardInfo GetAll_CostTotal = null;
+		private static Dictionary<string, int> GetAll_RewardItemDictionary = new();
+		private static bool GetAll_DisplayGetAllResult = false;
+		private static long GetAll_CurrentFacilityUid = 0;
+		private static Action<Panel_FacilityRewardResult> GetAll_OnRewardPopup = null;
+		private static Action<W2C_FACILITY_REWARD> GetAll_OnRewardPacket = null;
+		private static Action<W2C_FACILITY_WORK> GetAll_OnWorkPacket = null;
 
 		private static GameObject GetAll_BtnGetAll = null;
 
@@ -32,8 +33,8 @@ namespace Symphony.Features {
 
 			#region Base GetAll
 			harmony.Patch(
-				AccessTools.Method(typeof(Panel_FacilityRewardResult), "Awake"),
-				postfix: new HarmonyMethod(typeof(Automation), nameof(Automation.FacilityRewardResult_Awake))
+				AccessTools.Method(typeof(Panel_FacilityRewardResult), "ResourceUpdate"),
+				postfix: new HarmonyMethod(typeof(Automation), nameof(Automation.FacilityRewardResult_Ready))
 			);
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_LivingStation), "ShowSideMenu"),
@@ -117,10 +118,10 @@ namespace Symphony.Features {
 			if (GetAll_GettingAll) yield break;
 
 			try {
-				this.GetAll_RewardTotal = new WebGiveRewardInfo();
-				this.GetAll_CostTotal = new WebGiveRewardInfo();
+				GetAll_RewardTotal = new WebGiveRewardInfo();
+				GetAll_CostTotal = new WebGiveRewardInfo();
 				GetAll_GettingAll = true;
-				this.GetAll_DisplayGetAllResult = false;
+				GetAll_DisplayGetAllResult = false;
 
 				var scene = GameObject.FindObjectOfType<Scene_LivingStation>();
 
@@ -141,32 +142,32 @@ namespace Symphony.Features {
 					bool restartRequested = false;
 					bool restartTriggered = false;
 
-					this.GetAll_CurrentFacilityUid = facilityUid;
-					this.GetAll_OnRewardPacket = w2CFacilityReward => {
+					GetAll_CurrentFacilityUid = facilityUid;
+					GetAll_OnRewardPacket = w2CFacilityReward => {
 						var result = w2CFacilityReward.result;
-						if (result.Facility_uid != this.GetAll_CurrentFacilityUid) return;
+						if (result.Facility_uid != GetAll_CurrentFacilityUid) return;
 
 						var res = result.RewardInfo;
-						this.GetAll_RewardTotal.PCRewardList.AddRange(res.PCRewardList ?? []);
-						this.GetAll_RewardTotal.AddMetal += res.AddMetal;
-						this.GetAll_RewardTotal.AddNutrient += res.AddNutrient;
-						this.GetAll_RewardTotal.AddPower += res.AddPower;
-						this.GetAll_RewardTotal.AddCash += res.AddCash;
-						this.GetAll_RewardTotal.ItemRewardList.AddRange(res.ItemRewardList ?? []);
+						GetAll_RewardTotal.PCRewardList.AddRange(res.PCRewardList ?? []);
+						GetAll_RewardTotal.AddMetal += res.AddMetal;
+						GetAll_RewardTotal.AddNutrient += res.AddNutrient;
+						GetAll_RewardTotal.AddPower += res.AddPower;
+						GetAll_RewardTotal.AddCash += res.AddCash;
+						GetAll_RewardTotal.ItemRewardList.AddRange(res.ItemRewardList ?? []);
 
 						rewardDone = true;
 					};
-					this.GetAll_OnWorkPacket = w2CFacilityWork => {
+					GetAll_OnWorkPacket = w2CFacilityWork => {
 						var result = w2CFacilityWork.result;
-						if (result.Facility_uid != this.GetAll_CurrentFacilityUid) return;
+						if (result.Facility_uid != GetAll_CurrentFacilityUid) return;
 
-						this.GetAll_CostTotal.AddMetal += (uint)fac.Table.MetalCost;
-						this.GetAll_CostTotal.AddNutrient += (uint)fac.Table.NutrientCost;
-						this.GetAll_CostTotal.AddPower += (uint)fac.Table.PowerCost;
+						GetAll_CostTotal.AddMetal += (uint)fac.Table.MetalCost;
+						GetAll_CostTotal.AddNutrient += (uint)fac.Table.NutrientCost;
+						GetAll_CostTotal.AddPower += (uint)fac.Table.PowerCost;
 
 						workDone = true;
 					};
-					this.GetAll_OnRewardPopup = popup => {
+					GetAll_OnRewardPopup = popup => {
 						rewardPopup = popup;
 						if (!restartRequested || restartTriggered) return;
 
@@ -186,8 +187,12 @@ namespace Symphony.Features {
 							.GetField("mCurrentFacility", BindingFlags.Instance | BindingFlags.NonPublic)
 							.SetValue(scene.kStation, fac);
 
+						Plugin.Logger.LogDebug("[Symphony::Automation] Click facility to get reward");
 						fac.OnSelected();
+						Plugin.Logger.LogDebug("[Symphony::Automation] Waiting reward packet");
 						yield return new WaitUntil(() => rewardDone);
+						Plugin.Logger.LogDebug("[Symphony::Automation] Waiting reward popup");
+						yield return new WaitUntil(() => rewardPopup != null);
 
 						if (fac.Table.MetalCost > SingleTon<DataManager>.Instance.Metal ||
 							fac.Table.NutrientCost > SingleTon<DataManager>.Instance.Nutrient ||
@@ -200,54 +205,46 @@ namespace Symphony.Features {
 							continue; // Not enough resource to restart
 						}
 
+						Plugin.Logger.LogDebug("[Symphony::Automation] Test restart");
 						restartRequested = true;
-						if (rewardPopup != null && !restartTriggered) {
+						if (!restartTriggered) {
 							var button = rewardPopup.GetComponentsInChildren<UIButton>().FirstOrDefault(x => x.name == "RestartButton");
 							restartTriggered = button != null;
 							if (button != null) {
+								Plugin.Logger.LogDebug("[Symphony::Automation] Click restart button");
 								EventDelegate.Execute(button.onClick);
-							} else {
+							}
+							else {
 								Plugin.Logger.LogWarning($"[Symphony::Automation] Failed to trigger restart button for facility {facilityUid}");
 								continue;
 							}
 						}
 
+						Plugin.Logger.LogDebug("[Symphony::Automation] Waiting restart packet");
 						yield return new WaitUntil(() => workDone);
+						Plugin.Logger.LogDebug("[Symphony::Automation] OK");
 						//yield return new WaitForSecondsRealtime(1f);
 						//yield return new WaitForSecondsRealtime(0.155f);
 					} finally {
 						scene.kStation.SelectFacilityRelease();
-						this.GetAll_CurrentFacilityUid = 0;
-						this.GetAll_OnRewardPopup = null;
-						this.GetAll_OnRewardPacket = null;
-						this.GetAll_OnWorkPacket = null;
+						GetAll_CurrentFacilityUid = 0;
+						GetAll_OnRewardPopup = null;
+						GetAll_OnRewardPacket = null;
+						GetAll_OnWorkPacket = null;
 					}
 				}
 			} finally {
 				GetAll_GettingAll = false;
 
-				Plugin.Logger.LogDebug($"[Symphony::Automation] RewardTotal.AddMetal : {this.GetAll_RewardTotal.AddMetal}");
-				Plugin.Logger.LogDebug($"[Symphony::Automation] RewardTotal.AddNutrient : {this.GetAll_RewardTotal.AddNutrient}");
-				Plugin.Logger.LogDebug($"[Symphony::Automation] RewardTotal.AddPower : {this.GetAll_RewardTotal.AddPower}");
-				Plugin.Logger.LogDebug($"[Symphony::Automation] RewardTotal.AddCash : {this.GetAll_RewardTotal.AddCash}");
-				Plugin.Logger.LogDebug($"[Symphony::Automation] RewardTotal.PCRewardList :");
-				foreach (var pc in this.GetAll_RewardTotal.PCRewardList) {
-					var chr = SingleTon<DataManager>.Instance.GetTableCharCollection(pc.Index);
-					Plugin.Logger.LogDebug($"     {chr.Char_Name}");
-				}
-				Plugin.Logger.LogDebug($"[Symphony::Automation] CostTotal.AddMetal : {this.GetAll_RewardTotal.AddMetal}");
-				Plugin.Logger.LogDebug($"[Symphony::Automation] CostTotal.AddNutrient : {this.GetAll_RewardTotal.AddNutrient}");
-				Plugin.Logger.LogDebug($"[Symphony::Automation] CostTotal.AddPower : {this.GetAll_RewardTotal.AddPower}");
-
-				if (this.GetAll_RewardTotal.AddMetal > 0 || this.GetAll_RewardTotal.AddNutrient > 0 || this.GetAll_RewardTotal.AddPower > 0 ||
-					this.GetAll_RewardTotal.AddCash > 0 || this.GetAll_RewardTotal.PCRewardList.Count > 0 ||
-					this.GetAll_CostTotal.AddMetal > 0 || this.GetAll_CostTotal.AddNutrient > 0 || this.GetAll_CostTotal.AddPower > 0
+				if (GetAll_RewardTotal.AddMetal > 0 || GetAll_RewardTotal.AddNutrient > 0 || GetAll_RewardTotal.AddPower > 0 ||
+					GetAll_RewardTotal.AddCash > 0 || GetAll_RewardTotal.PCRewardList.Count > 0 ||
+					GetAll_CostTotal.AddMetal > 0 || GetAll_CostTotal.AddNutrient > 0 || GetAll_CostTotal.AddPower > 0
 				) {
 					this.gui_GetAll_ResultViewport.height = 0f;
 					this.gui_GetAll_ResultScroll = Vector2.zero;
 
 					var dict = new Dictionary<string, int>();
-					foreach (var item in this.GetAll_RewardTotal.ItemRewardList) {
+					foreach (var item in GetAll_RewardTotal.ItemRewardList) {
 						var info = SingleTon<DataManager>.Instance.GetItem(item.Info.ItemSN);
 						if (info != null && info.ItemType != 0 && info.ItemType != 1 && info.ItemType != 2) {
 							var target = SingleTon<DataManager>.Instance.GetTableItemConsumable(info.ItemKeyString);
@@ -259,9 +256,9 @@ namespace Symphony.Features {
 								dict.Add(itemName, itemCount);
 						}
 					}
-					this.GetAll_RewardItemDictionary = dict;
+					GetAll_RewardItemDictionary = dict;
 
-					this.GetAll_DisplayGetAllResult = true;
+					GetAll_DisplayGetAllResult = true;
 					InstantPanel.Wait(true, true);
 				}
 			}
@@ -270,35 +267,31 @@ namespace Symphony.Features {
 			W2C_FACILITY_REWARD w2CFacilityReward = obj as W2C_FACILITY_REWARD;
 			if (w2CFacilityReward.result.ErrorCode != 0) return;
 			if (!GetAll_GettingAll) return;
-			if (this.GetAll_OnRewardPacket == null) return;
+			if (GetAll_OnRewardPacket == null) return;
 
-			this.GetAll_OnRewardPacket(w2CFacilityReward);
+			GetAll_OnRewardPacket(w2CFacilityReward);
 		}
 		private void OnFacilityWorkPakcet(WebResponseState obj) {
 			W2C_FACILITY_WORK w2CFacilityWork = obj as W2C_FACILITY_WORK;
 			if (w2CFacilityWork.result.ErrorCode != 0) return;
 			if (!GetAll_GettingAll) return;
-			if (this.GetAll_OnWorkPacket == null) return;
+			if (GetAll_OnWorkPacket == null) return;
 
-			this.GetAll_OnWorkPacket(w2CFacilityWork);
+			GetAll_OnWorkPacket(w2CFacilityWork);
 		}
 		private static void Panel_LivingStation_ShowSideMenu(bool _isEdit, bool _isGuide) {
 			if(GetAll_BtnGetAll != null)
 				GetAll_BtnGetAll.SetActive(_isEdit);
 		}
-		private static void FacilityRewardResult_Awake(Panel_FacilityRewardResult __instance) {
+		private static void FacilityRewardResult_Ready(Panel_FacilityRewardResult __instance) {
 			if (!GetAll_GettingAll) return;
 
-			IEnumerator FacilityRewardResult_Awake_Coroutine(Panel_FacilityRewardResult __instance) {
+			IEnumerator Fn() {
 				yield return null; // safety wait
 
-				var automation = GameObject.FindObjectOfType<Automation>();
-				if (automation == null) yield break;
-				if (automation.GetAll_OnRewardPopup == null) yield break;
-
-				automation.GetAll_OnRewardPopup(__instance);
+				GetAll_OnRewardPopup?.Invoke(__instance);
 			}
-			__instance.StartCoroutine(FacilityRewardResult_Awake_Coroutine(__instance));
+			__instance.StartCoroutine(Fn());
 		}
 		#endregion
 
@@ -469,7 +462,7 @@ namespace Symphony.Features {
 
 		private void OnGUI() {
 			#region GetAll Result Popup
-			if (this.GetAll_DisplayGetAllResult) {
+			if (GetAll_DisplayGetAllResult) {
 				void PanelContent(int id) {
 					var _offset = 0f;
 
@@ -481,39 +474,39 @@ namespace Symphony.Features {
 						GUIX.Group(new Rect(4, 4, 200 - 8, this.gui_GetAll_ResultViewport.height - 4), () => {
 							var offset = 0f;
 
-							if (this.GetAll_RewardTotal.AddMetal > 0) {
+							if (GetAll_RewardTotal.AddMetal > 0) {
 								GUIX.Label(
 									new Rect(10, offset, 292, 20),
-									$"부품 {this.GetAll_RewardTotal.AddMetal:#,##0}",
+									$"부품 {GetAll_RewardTotal.AddMetal:#,##0}",
 									new Color(0.941f, 0.941f, 0.702f)
 								);
 								offset += 20f;
 							}
-							if (this.GetAll_RewardTotal.AddNutrient > 0) {
+							if (GetAll_RewardTotal.AddNutrient > 0) {
 								GUIX.Label(
 									new Rect(10, offset, 292, 20),
-									$"영양 {this.GetAll_RewardTotal.AddNutrient:#,##0}",
+									$"영양 {GetAll_RewardTotal.AddNutrient:#,##0}",
 									new Color(0.259f, 1f, 0.384f)
 								);
 								offset += 20f;
 							}
-							if (this.GetAll_RewardTotal.AddPower > 0) {
+							if (GetAll_RewardTotal.AddPower > 0) {
 								GUIX.Label(
 									new Rect(10, offset, 292, 20),
-									$"전력 {this.GetAll_RewardTotal.AddPower:#,##0}",
+									$"전력 {GetAll_RewardTotal.AddPower:#,##0}",
 									new Color(0.255f, 1f, 0.871f)
 								);
 								offset += 20f;
 							}
-							if (this.GetAll_RewardTotal.AddCash > 0) {
+							if (GetAll_RewardTotal.AddCash > 0) {
 								GUIX.Label(
 									new Rect(10, offset, 292, 20),
-									$"참치 {this.GetAll_RewardTotal.AddCash:#,##0}"
+									$"참치 {GetAll_RewardTotal.AddCash:#,##0}"
 								);
 								offset += 20f;
 							}
-							if (this.GetAll_RewardTotal.PCRewardList.Count > 0) {
-								foreach (var pc in this.GetAll_RewardTotal.PCRewardList) {
+							if (GetAll_RewardTotal.PCRewardList.Count > 0) {
+								foreach (var pc in GetAll_RewardTotal.PCRewardList) {
 									var chr = SingleTon<DataManager>.Instance.GetTableCharCollection(pc.Index);
 									if (chr != null) {
 										GUIX.Label(
@@ -524,8 +517,8 @@ namespace Symphony.Features {
 									}
 								}
 							}
-							if (this.GetAll_RewardItemDictionary.Count > 0) {
-								foreach (var kv in this.GetAll_RewardItemDictionary) {
+							if (GetAll_RewardItemDictionary.Count > 0) {
+								foreach (var kv in GetAll_RewardItemDictionary) {
 									GUIX.Label(new Rect(10, offset, 292, 20), $"{kv.Key} {kv.Value:#,##0}");
 									offset += 20f;
 								}
@@ -536,26 +529,26 @@ namespace Symphony.Features {
 						GUIX.Group(new Rect(204, 4, 200 - 8, this.gui_GetAll_ResultViewport.height - 4), () => {
 							var offset = 0f;
 
-							if (this.GetAll_CostTotal.AddMetal > 0) {
+							if (GetAll_CostTotal.AddMetal > 0) {
 								GUIX.Label(
 									new Rect(10, offset, 292, 20),
-									$"부품 {this.GetAll_CostTotal.AddMetal:#,##0}",
+									$"부품 {GetAll_CostTotal.AddMetal:#,##0}",
 									new Color(0.941f, 0.941f, 0.702f)
 								);
 								offset += 20f;
 							}
-							if (this.GetAll_CostTotal.AddNutrient > 0) {
+							if (GetAll_CostTotal.AddNutrient > 0) {
 								GUIX.Label(
 									new Rect(10, offset, 292, 20),
-									$"영양 {this.GetAll_CostTotal.AddNutrient:#,##0}",
+									$"영양 {GetAll_CostTotal.AddNutrient:#,##0}",
 									new Color(0.259f, 1f, 0.384f)
 								);
 								offset += 20f;
 							}
-							if (this.GetAll_CostTotal.AddPower > 0) {
+							if (GetAll_CostTotal.AddPower > 0) {
 								GUIX.Label(
 									new Rect(10, offset, 292, 20),
-									$"전력 {this.GetAll_CostTotal.AddPower:#,##0}",
+									$"전력 {GetAll_CostTotal.AddPower:#,##0}",
 									new Color(0.255f, 1f, 0.871f)
 								);
 								offset += 20f;
@@ -567,7 +560,7 @@ namespace Symphony.Features {
 					this.gui_GetAll_ResultViewport.height = _offset;
 
 					if (GUIX.Button(new Rect(200 - 50, (300 - 18) - 40 - 5, 100, 40), "닫기")) {
-						this.GetAll_DisplayGetAllResult = false;
+						GetAll_DisplayGetAllResult = false;
 						InstantPanel.Wait(show: false);
 					}
 				}
