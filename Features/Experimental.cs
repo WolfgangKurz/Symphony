@@ -313,28 +313,47 @@ namespace Symphony.Features {
 				}
 				var AssetPlatformManifestTable = AssetPlatformManifestObject.list.ToDictionary(x => x.fileName);
 
-				#region For lazy-pre-load
-				var lazyLoadList = new List<string>();
-				IEnumerator LazyLoadAssets() {
-					var loadQueue = new Queue<string>(lazyLoadList);
-					var loadedCount = 0;
-					IEnumerator LoadFn(string uriBundle, Hash128 hash, string bundleName, Action onComplete) {
-						var result = 0U;
-						if (AssetPlatformManifestTable.TryGetValue(bundleName, out var assetFileManifest) && assetFileManifest.fileName.StartsWith("char_"))
-							uint.TryParse(assetFileManifest.crc, out result);
+				uint GetBundleCrc(string bundleName) {
+					if (!AssetPlatformManifestTable.TryGetValue(bundleName, out var assetFileManifest)) return 0U;
+					if (!assetFileManifest.fileName.StartsWith("char_")) return 0U;
+					return uint.TryParse(assetFileManifest.crc, out var result) ? result : 0U;
+				}
 
+				IEnumerator LoadAssetBundlesConcurrent(
+					IEnumerable<string> bundleNames,
+					Func<int, int, IEnumerator> onProgress = null,
+					Action onError = null,
+					Func<string, uint> crcSelector = null,
+					bool stopOnError = true
+				) {
+					var loadQueue = new Queue<string>(bundleNames);
+					var totalCount = loadQueue.Count;
+					var loadedCount = 0;
+					var errored = false;
+
+					if (onProgress != null)
+						yield return onProgress(loadedCount, totalCount);
+
+					IEnumerator LoadFn(string bundleName, Action onComplete) {
 						LoadedAssetBundle loadedAssetBundle;
 
-						var target_name = Path.GetFileName(uriBundle);
-						if (loadedBundles.TryGetValue(target_name, out var cachedBundle)) {
+						if (loadedBundles.TryGetValue(bundleName, out var cachedBundle)) {
 							loadedAssetBundle = cachedBundle;
 						} else {
-							var req = UnityWebRequestAssetBundle.GetAssetBundle(uriBundle, hash, result);
+							var req = UnityWebRequestAssetBundle.GetAssetBundle(
+								serverURL + bundleName,
+								bundleWWWManifest.GetAssetBundleHash(bundleName),
+								crcSelector?.Invoke(bundleName) ?? 0U
+							);
 							yield return req.SendWebRequest();
 
 							if (req.error != null) {
 								Debug.LogError("Request Error!");
 								req.Dispose();
+								if (stopOnError)
+									errored = true;
+								onError?.Invoke();
+								onComplete?.Invoke();
 								yield break;
 							}
 
@@ -345,40 +364,36 @@ namespace Symphony.Features {
 						AssetBundleManager.LoadedAssetBundles.TryAdd(loadedAssetBundle.m_AssetBundle.name, loadedAssetBundle);
 						loadedCount++;
 
+						if (onProgress != null)
+							yield return onProgress(loadedCount, totalCount);
+
 						onComplete?.Invoke();
 					}
 
 					var runningCount = 0;
 					while (loadQueue.Count > 0 || runningCount > 0) {
-						while (runningCount < maxConcurrentDownload && loadQueue.Count > 0) {
+						while (!errored && runningCount < maxConcurrentDownload && loadQueue.Count > 0) {
 							var bundleName = loadQueue.Dequeue();
-							var hash = bundleWWWManifest.GetAssetBundleHash(bundleName);
 
 							runningCount++;
-							resourceManager.StartCoroutine(LoadFn(serverURL + bundleName, hash, bundleName, () => {
+							resourceManager.StartCoroutine(LoadFn(bundleName, () => {
 								runningCount--;
 							}));
 						}
+
+						if (errored) break;
 						yield return null;
 					}
-
-					__instance.XSetFieldValue<AssetPlatformManifest>("AssetPlatformManifestObject", null);
 				}
-				#endregion
 
-				var noneDownloadList = new List<string>();
-				var needPatchFileList = new List<AssetFileManifest>();
 				var bundlerVersion = AssetPlatformManifestObject.version;
 				CrashReporter.SetBundleMetaData(bundlerVersion);
 
-				var uePatchCheck = new UnityEvent<string, float>();
-				uePatchCheck.AddListener((label, ratio) => resourceManager.onUpdateAssetLoading.Invoke(label, ratio));
+				var noneDownloadList = new List<string>();
+				var needPatchFileList = new List<AssetFileManifest>();
 
-				var ueLazyUpdateLoading = new UnityEvent<string, float>();
-				ueLazyUpdateLoading.AddListener((label, ratio) => {
-					if (labelUpdater.Valid())
-						resourceManager.onUpdateAssetLoading.Invoke(label, ratio);
-				});
+				var ueUpdateLabel = new UnityEvent<string, float>();
+				ueUpdateLabel.AddListener((label, ratio) => resourceManager.onUpdateAssetLoading.Invoke(label, ratio));
 
 				yield return resourceManager.StartCoroutine(
 					Patch_AssetPlatformManifestObject_PatchCheckCoroutine(
@@ -387,7 +402,7 @@ namespace Symphony.Features {
 						bundleWWWManifest,
 						needPatchFileList,
 						noneDownloadList,
-						uePatchCheck
+						ueUpdateLabel
 					)
 				);
 				resourceManager.XSetFieldValue("networkBroken", false);
@@ -443,72 +458,38 @@ namespace Symphony.Features {
 
 				var _coNoneDownloadList = resourceManager.XGetFieldValue<List<UnityWebRequest>>("_coNoneDownloadList");
 				if (!resourceManager.IsCoDownloadPaused) {
-					lazyLoadList = noneDownloadList
-						// Lobby BG, Player/Enemy SD characters dependency
-						.Where(x => x.StartsWith("novelbgtexture_ui_") || x.StartsWith("char_"))
-						.Concat(["lastoneshader", "atlas", "sfx", "fxeffect", "bulleteffect"]) // Common assets
-						.ToList();
+					#region For lazy-pre-load
+					IEnumerator LazyLoadAssets(IEnumerable<string> bundleNames) {
+						yield return new WaitUntil(() => resourceManager.loadComplete);
+						yield return LoadAssetBundlesConcurrent(bundleNames, crcSelector: GetBundleCrc, stopOnError: false);
 
-					noneDownloadList = noneDownloadList
-						.Where(x => x.StartsWith("table_") || x == "localization") // DB
-						.ToList();
+						__instance.XSetFieldValue<AssetPlatformManifest>("AssetPlatformManifestObject", null);
+					}
 
-					var loadQueue = new Queue<string>(noneDownloadList);
-					var loadedCount = 0;
-					var errored = false;
-					IEnumerator UpdateLabel() {
-						if (labelUpdater.Valid()) {
-							var cur = loadedCount;
-							var progress = cur / (float)noneDownloadList.Count;
-							ueLazyUpdateLoading.Invoke($"필수 에셋 로드중... ({cur} / {noneDownloadList.Count})", progress);
+					resourceManager.StartCoroutine(LazyLoadAssets(
+						noneDownloadList
+							// Lobby BG, Player/Enemy SD characters dependency
+							.Where(x => x.StartsWith("novelbgtexture_ui_") || x.StartsWith("char_"))
+							.Concat(["lastoneshader", "atlas", "sfx", "fxeffect", "bulleteffect"]) // Common assets
+					));
+					#endregion
+
+					IEnumerator UpdateLabel(int loadedCount, int totalCount) {
+						if (labelUpdater.Valid() && totalCount > 0) {
+							var progress = loadedCount / (float)totalCount;
+							ueUpdateLabel.Invoke($"필수 에셋 로드중... ({loadedCount} / {totalCount})", progress);
 							yield return null;
 						}
 					}
-					IEnumerator LoadFn(string uriBundle, Hash128 hash, string bundleName, Action onComplete) {
-						LoadedAssetBundle loadedAssetBundle;
-
-						var target_name = Path.GetFileName(uriBundle);
-						if (loadedBundles.TryGetValue(target_name, out var cachedBundle)) {
-							loadedAssetBundle = cachedBundle;
-						} else {
-							var req = UnityWebRequestAssetBundle.GetAssetBundle(uriBundle, hash, 0);
-							yield return req.SendWebRequest();
-
-							if (req.error != null) {
-								Debug.LogError("Request Error!");
-								resourceManager.needDownloadDelegate(true, 0, 0L, null);
-								errored = true;
-								req.Dispose();
-								yield break;
-							}
-
-							loadedAssetBundle = new LoadedAssetBundle(DownloadHandlerAssetBundle.GetContent(req));
-							req.Dispose();
+					var errored = false;
+					yield return LoadAssetBundlesConcurrent(
+						noneDownloadList.Where(x => x.StartsWith("table_") || x == "localization") // DB,
+						onProgress: UpdateLabel,
+						onError: () => {
+							resourceManager.needDownloadDelegate(true, 0, 0L, null);
+							errored = true;
 						}
-
-						AssetBundleManager.LoadedAssetBundles.TryAdd(loadedAssetBundle.m_AssetBundle.name, loadedAssetBundle);
-						loadedCount++;
-
-						yield return UpdateLabel();
-
-						onComplete?.Invoke();
-					}
-					yield return UpdateLabel();
-
-					var runningCount = 0;
-					while (loadQueue.Count > 0 || runningCount > 0) {
-						while (runningCount < maxConcurrentDownload && loadQueue.Count > 0) {
-							var bundleName = loadQueue.Dequeue();
-							var hash = bundleWWWManifest.GetAssetBundleHash(bundleName);
-
-							runningCount++;
-							resourceManager.StartCoroutine(LoadFn(serverURL + bundleName, hash, bundleName, () => {
-								runningCount--;
-							}));
-						}
-						if (errored) break;
-						yield return null;
-					}
+					);
 
 					if (!errored) {
 						yield return new WaitForEndOfFrame();
@@ -525,8 +506,6 @@ namespace Symphony.Features {
 				resourceManager.XSetFieldValue<Panel_Puzzle>("_panel_puzzle", null);
 				resourceManager.XSetPropertyValue<NeedDownloadDelegate>("needDownloadDelegate", null);
 				resourceManager.onUpdateAssetLoading.Invoke("네트워크 통신중...", -1f);
-
-				resourceManager.StartCoroutine(LazyLoadAssets());
 			}
 			__result = Fn();
 			return false;
@@ -568,7 +547,7 @@ namespace Symphony.Features {
 				}
 			}
 
-			string[] cachedBundleNames = [];
+			IEnumerable<string> cachedBundleNames;
 			string cachedRootPath;
 			{
 				var list = new List<string>();
@@ -576,9 +555,10 @@ namespace Symphony.Features {
 
 				cachedRootPath = list.FirstOrDefault();
 				if (Directory.Exists(cachedRootPath))
-					cachedBundleNames = Directory.GetDirectories(cachedRootPath)
-						.Select(Path.GetFileName)
-						.ToArray();
+					cachedBundleNames = Directory.EnumerateDirectories(cachedRootPath)
+						.Select(Path.GetFileName);
+				else
+					cachedBundleNames = [];
 			}
 
 			var fileNameSet = new HashSet<string>(manifest.list.Select(x => x.fileName));
