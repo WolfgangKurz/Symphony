@@ -6,6 +6,7 @@ using HarmonyLib;
 
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -15,6 +16,8 @@ using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Networking;
+
+using static Panel_Cheat;
 
 namespace Symphony.Features {
 	[Feature("Experimental")]
@@ -271,8 +274,7 @@ namespace Symphony.Features {
 
 			Experimental.FastLoaded = true;
 
-			var loadedBundles = AssetBundle.GetAllLoadedAssetBundles()
-				.ToDictionary(x => x.m_AssetBundle.name);
+			var loadedBundles = AssetBundle.GetAllLoadedAssetBundles().ToDictionary(x => x.name);
 			var maxConcurrentDownload = SingleTon<DataManager>.Instance.BundleMaxDownloadCount;
 
 			IEnumerator Fn() {
@@ -321,7 +323,7 @@ namespace Symphony.Features {
 
 				IEnumerator LoadAssetBundlesConcurrent(
 					IEnumerable<string> bundleNames,
-					Func<int, int, IEnumerator> onProgress = null,
+					Func<int, int, bool, IEnumerator> onProgress = null,
 					Action onError = null,
 					Func<string, uint> crcSelector = null,
 					bool stopOnError = true
@@ -332,13 +334,13 @@ namespace Symphony.Features {
 					var errored = false;
 
 					if (onProgress != null)
-						yield return onProgress(loadedCount, totalCount);
+						yield return onProgress(loadedCount, totalCount, true);
 
 					IEnumerator LoadFn(string bundleName, Action onComplete) {
 						LoadedAssetBundle loadedAssetBundle;
 
 						if (loadedBundles.TryGetValue(bundleName, out var cachedBundle)) {
-							loadedAssetBundle = cachedBundle;
+							loadedAssetBundle = new LoadedAssetBundle(cachedBundle);
 						} else {
 							var req = UnityWebRequestAssetBundle.GetAssetBundle(
 								serverURL + bundleName,
@@ -365,7 +367,7 @@ namespace Symphony.Features {
 						loadedCount++;
 
 						if (onProgress != null)
-							yield return onProgress(loadedCount, totalCount);
+							yield return onProgress(loadedCount, totalCount, false);
 
 						onComplete?.Invoke();
 					}
@@ -384,6 +386,9 @@ namespace Symphony.Features {
 						if (errored) break;
 						yield return null;
 					}
+
+					if (onProgress != null)
+						yield return onProgress(loadedCount, totalCount, true);
 				}
 
 				var bundlerVersion = AssetPlatformManifestObject.version;
@@ -474,8 +479,8 @@ namespace Symphony.Features {
 					));
 					#endregion
 
-					IEnumerator UpdateLabel(int loadedCount, int totalCount) {
-						if (labelUpdater.Valid() && totalCount > 0) {
+					IEnumerator UpdateLabel(int loadedCount, int totalCount, bool force = false) {
+						if ((force || labelUpdater.Valid()) && totalCount > 0) {
 							var progress = loadedCount / (float)totalCount;
 							ueUpdateLabel.Invoke($"필수 에셋 로드중... ({loadedCount} / {totalCount})", progress);
 							yield return null;
@@ -483,7 +488,7 @@ namespace Symphony.Features {
 					}
 					var errored = false;
 					yield return LoadAssetBundlesConcurrent(
-						noneDownloadList.Where(x => x.StartsWith("table_") || x == "localization") // DB,
+						noneDownloadList.Where(x => x.StartsWith("table_") || x == "localization"), // DB,
 						onProgress: UpdateLabel,
 						onError: () => {
 							resourceManager.needDownloadDelegate(true, 0, 0L, null);
@@ -492,12 +497,20 @@ namespace Symphony.Features {
 					);
 
 					if (!errored) {
+						resourceManager.onUpdateAssetLoading.Invoke("데이터 불러오는 중...", -1f);
 						yield return new WaitForEndOfFrame();
 
 						resourceManager.loadComplete = true;
 
 						Localization.LoadExcel(resourceManager.LoadLocalizationPatch("LocalizationPatch"), true);
-						SingleTon<DataManager>.Instance.LoadTable();
+
+						var tableLoaded = false;
+						Task.Run(() => {
+							SingleTon<DataManager>.Instance.LoadTable();
+							tableLoaded = true;
+						});
+						yield return new WaitUntil(() => tableLoaded);
+
 						SaveManager.BundleVersionSave(bundlerVersion);
 						resourceManager.XSetFieldValue("init", true);
 					}
@@ -519,32 +532,95 @@ namespace Symphony.Features {
 			List<string> noneDownloadList,
 			UnityEvent<string, float> progressCallback
 		) {
-			var labelUpdater = new FrameLimit(0.05f);
+			var labelUpdater = new FrameLimit(1f / 30);
 
-			for (var i = 0; i < manifest.list.Count; i++) {
-				var item = manifest.list[i];
-				var assetBundleHash = bundleWWWManifest.GetAssetBundleHash(item.fileName);
+			{
+				var manifestQueue = new ConcurrentQueue<AssetFileManifest>(manifest.list);
+				var count = manifest.list.Count;
+				var counter = 0;
 
-				Caching.ClearOtherCachedVersions(item.fileName, assetBundleHash);
+				var conNeedPatchList = new ConcurrentBag<AssetFileManifest>();
+				var conNoneDownloadList = new ConcurrentBag<string>();
+				var conLoadedAssetBundles = new ConcurrentDictionary<string, LoadedAssetBundle>(AssetBundleManager.LoadedAssetBundles);
+				var unloadBag = new ConcurrentBag<string>();
+				var unloadCount = 0;
 
-				var loaded = AssetBundleManager.LoadedAssetBundles.ContainsKey(item.fileName);
-				if (!Caching.IsVersionCached(item.fileName, assetBundleHash)) {
-					if (loaded) AssetBundleManager.UnloadAssetBundle(item.fileName);
+				var maxConcurrent = SingleTon<DataManager>.Instance.BundleMaxDownloadCount;
+				var runningCount = maxConcurrent;
+				for (var i = 0; i < maxConcurrent; i++) {
+					Task.Run(() => {
+						try {
+							while (manifestQueue.TryDequeue(out var item)) {
+								try {
+									var assetBundleHash = bundleWWWManifest.GetAssetBundleHash(item.fileName);
 
-					Caching.ClearAllCachedVersions(item.fileName); // Version mismatch
-					needPatchFileList.Add(item);
-					Debug.Log("<color=cyan> NeedPatch Bundle Name : " + item.fileName + "</color>");
+									Caching.ClearOtherCachedVersions(item.fileName, assetBundleHash);
+
+									var loaded = conLoadedAssetBundles.ContainsKey(item.fileName);
+									if (!Caching.IsVersionCached(item.fileName, assetBundleHash)) {
+										if (loaded) {
+											if (conLoadedAssetBundles.TryRemove(item.fileName, out _)) {
+												Interlocked.Increment(ref unloadCount);
+												unloadBag.Add(item.fileName);
+											}
+										}
+
+										Caching.ClearAllCachedVersions(item.fileName); // Version mismatch
+										conNeedPatchList.Add(item);
+										Debug.Log("<color=cyan> NeedPatch Bundle Name : " + item.fileName + "</color>");
+									}
+									else if (!loaded) {
+										conNoneDownloadList.Add(item.fileName);
+										Caching.MarkAsUsed(item.fileName, assetBundleHash);
+									}
+								} catch (Exception e) {
+									if (conLoadedAssetBundles.TryRemove(item.fileName, out _)) {
+										Interlocked.Increment(ref unloadCount);
+										unloadBag.Add(item.fileName);
+									}
+
+									conNeedPatchList.Add(item);
+
+									Plugin.Logger.LogError($"[Symphony::Experimental] FastLoading Cache-Control got error: {e}");
+								} finally {
+									Interlocked.Increment(ref counter);
+								}
+							}
+						} finally {
+							Interlocked.Decrement(ref runningCount);
+						}
+					});
 				}
-				else if (!loaded) {
-					noneDownloadList.Add(item.fileName);
-					Caching.MarkAsUsed(item.fileName, assetBundleHash);
-				}
 
-				var ratio = (float)i / manifest.list.Count;
-				if (labelUpdater.Valid()) {
-					progressCallback?.Invoke("업데이트 검사중...", ratio);
+				while (Volatile.Read(ref counter) < count) {
+					if (Volatile.Read(ref runningCount) == 0) {
+						Plugin.Logger.LogError("[Sympony::Experimental] FastLoading Cache-Control got error: Workers stopped before all items processed");
+						break;
+					}
+
+					if (labelUpdater.Valid() && count > 0) {
+						var ratio = (float)Volatile.Read(ref counter) / count;
+						progressCallback?.Invoke("캐시 검사중...", ratio);
+					}
+
+					if (unloadBag.TryTake(out var target))
+						AssetBundleManager.UnloadAssetBundle(target);
+
 					yield return null;
 				}
+
+				while (unloadBag.TryTake(out var target)) { // flush remaining bag when exception
+					AssetBundleManager.UnloadAssetBundle(target);
+
+					if (labelUpdater.Valid()) {
+						var ratio = (float)(unloadCount - unloadBag.Count) / unloadCount;
+						progressCallback?.Invoke("캐시 처리중...", ratio);
+						yield return null;
+					}
+				}
+
+				needPatchFileList.AddRange(conNeedPatchList);
+				noneDownloadList.AddRange(conNoneDownloadList);
 			}
 
 			IEnumerable<string> cachedBundleNames;
@@ -554,7 +630,7 @@ namespace Symphony.Features {
 				Caching.GetAllCachePaths(list);
 
 				cachedRootPath = list.FirstOrDefault();
-				if (Directory.Exists(cachedRootPath))
+				if (cachedRootPath != null && Directory.Exists(cachedRootPath))
 					cachedBundleNames = Directory.EnumerateDirectories(cachedRootPath)
 						.Select(Path.GetFileName);
 				else
