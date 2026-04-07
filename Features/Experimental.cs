@@ -600,7 +600,7 @@ namespace Symphony.Features {
 
 					if (labelUpdater.Valid() && count > 0) {
 						var ratio = (float)Volatile.Read(ref counter) / count;
-						progressCallback?.Invoke("캐시 검사중...", ratio);
+						progressCallback?.Invoke("설치된 파일 검사중...", ratio);
 					}
 
 					if (unloadBag.TryTake(out var target))
@@ -614,7 +614,7 @@ namespace Symphony.Features {
 
 					if (labelUpdater.Valid()) {
 						var ratio = (float)(unloadCount - unloadBag.Count) / unloadCount;
-						progressCallback?.Invoke("캐시 처리중...", ratio);
+						progressCallback?.Invoke("설치된 파일 정리중...", ratio);
 						yield return null;
 					}
 				}
