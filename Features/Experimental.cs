@@ -17,8 +17,6 @@ using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.Networking;
 
-using static Panel_Cheat;
-
 namespace Symphony.Features {
 	[Feature("Experimental")]
 	internal class Experimental : MonoBehaviour {
