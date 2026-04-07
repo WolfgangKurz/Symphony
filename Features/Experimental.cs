@@ -689,7 +689,7 @@ namespace Symphony.Features {
 
 			var url = SingleTon<DataManager>.Instance.BundleAddress + key;
 			var hash = AssetBundleManager.AssetBundleManifestObject.GetAssetBundleHash(key);
-			if (!Caching.IsVersionCached(url, hash)) {
+			if (!Caching.IsVersionCached(key, hash)) {
 				Plugin.Logger.LogWarning($"[Symphony::LazyLoad] {key} is not version-cached");
 				__result = null;
 				return false;
