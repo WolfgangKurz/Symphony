@@ -86,6 +86,10 @@ namespace Symphony.Features {
 				Destroy(btn);
 				yield break;
 			}
+			if(btn.activeSelf) {
+				Plugin.Logger.LogWarning("[Symphony::Automation] CollectAllButton already active, seems already implemented, skip setup automation");
+				yield break;
+			}
 			btn.SetActive(true);
 			GetAll_BtnGetAll = btn;
 
