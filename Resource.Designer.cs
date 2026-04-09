@@ -123,6 +123,16 @@ namespace Symphony {
         /// <summary>
         ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
         /// </summary>
+        internal static byte[] icon_graph {
+            get {
+                object obj = ResourceManager.GetObject("icon_graph", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
         internal static byte[] icon_keyboard {
             get {
                 object obj = ResourceManager.GetObject("icon_keyboard", resourceCulture);

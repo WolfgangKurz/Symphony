@@ -5,7 +5,7 @@
     <AssemblyName>Symphony</AssemblyName>
     <Product>Symphony</Product>
     <Description>Symphony is LastOrigin PC client BepInEx plugin for QoL</Description>
-    <Version>0.41.2</Version>
+    <Version>0.42.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <RestoreAdditionalProjectSources>
@@ -37,6 +37,9 @@
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.Unity.Mono" Version="6.0.0-be.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
+    <PackageReference Include="SQLitePCLRaw.core" Version="2.1.6" />
+    <PackageReference Include="SQLitePCLRaw.bundle_winsqlite3" Version="2.1.6" />
     <PackageReference Include="UnityEngine.Modules" Version="2021.3.9" PrivateAssets="all" />
   </ItemGroup>
 
@@ -92,6 +95,8 @@
   <Target Name="EmbedNuGetDependencies" AfterTargets="ResolveReferences" BeforeTargets="CreateManifestResourceNames">
     <ItemGroup>
       <_EmbedCandidate Include="@(ReferencePath)" Condition="'%(Filename)%(Extension)' == 'Symphony.Utils.dll'" />
+      <_EmbedCandidate Include="@(ReferencePath)" Condition="$([System.String]::Copy('%(Filename)').StartsWith('Microsoft.Data.Sqlite'))" />
+      <_EmbedCandidate Include="@(ReferencePath)" Condition="$([System.String]::Copy('%(Filename)').StartsWith('SQLitePCLRaw'))" />
 
       <EmbeddedResource Include="@(_EmbedCandidate)">
         <LogicalName>Symphony.Dependencies/%(Filename)%(Extension)</LogicalName>

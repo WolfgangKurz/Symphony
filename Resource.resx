@@ -130,9 +130,6 @@
   <data name="icon_construction" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>res\construction.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="icon_gear" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>res\gear.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
   <data name="icon_keyboard" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>res\keyboard.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
@@ -156,5 +153,11 @@
   </data>
   <data name="AssetBundle/SpineShaders" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>res\spineshaders;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="icon_gear" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>res\gear.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  </data>
+  <data name="icon_graph" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>res\graph.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
 </root>

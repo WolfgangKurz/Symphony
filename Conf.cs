@@ -158,6 +158,11 @@ namespace Symphony {
 			public static readonly ConfigEntry<float> Opacity = config.Bind("KeyMapping", "Opacity", 0.25f);
 			public static readonly ConfigEntry<string> Activated = config.Bind("KeyMapping", "Activated", "Default", "Currently activated Key Mapping Group");
 		}
+		internal class Statistics {
+			public static readonly ConfigEntry<bool> Use_ResourceLogging = config.Bind("Statistics", "Use_ResourceLogging", false, "Writes log for resource changes");
+
+			public static readonly ConfigEntry<bool> Use_ItemsLogging = config.Bind("Statistics", "Use_ItemsLogging", false, "When use Resource Logging, item changes also writes");
+		}
 
 		public static void Migrate() {
 			#region Migration Old Configs

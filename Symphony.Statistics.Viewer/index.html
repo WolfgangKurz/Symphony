@@ -1,0 +1,1664 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Symphony Statistics Viewer</title>
+	<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.min.css" />
+	<style>
+		:root {
+			--bg: #f6f3ee;
+			--panel: rgba(255, 253, 249, 0.94);
+			--line: rgba(51, 42, 26, 0.14);
+			--ink: #2f2616;
+			--muted: #786c58;
+			--accent: #c96d32;
+			--shadow: 0 24px 60px rgba(70, 52, 22, 0.12);
+			font-family: "Segoe UI", "Pretendard", "Apple SD Gothic Neo", sans-serif;
+			color: var(--ink);
+			background:
+				radial-gradient(circle at top left, rgba(212, 199, 178, 0.12), transparent 28%),
+				radial-gradient(circle at bottom right, rgba(198, 182, 156, 0.08), transparent 32%),
+				linear-gradient(180deg, #faf8f4 0%, #f3efe9 100%);
+		}
+
+		* { box-sizing: border-box; }
+		body { margin: 0; min-height: 100vh; color: var(--ink); }
+		.shell { display: grid; grid-template-columns: minmax(360px, 420px) minmax(0, 1fr); gap: 16px; padding: 16px; }
+		.shell.sidebar-collapsed { grid-template-columns: 54px minmax(0, 1fr); }
+		.panel { background: var(--panel); backdrop-filter: blur(18px); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); }
+		.sidebar { display: flex; flex-direction: column; gap: 14px; padding: 16px; min-height: calc(100vh - 32px); }
+		.shell.sidebar-collapsed .sidebar { padding: 12px 8px; align-items: center; overflow: hidden; }
+		.title { display: flex; flex-direction: column; gap: 8px; }
+		.title-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+		.title h1 { margin: 0; font-size: 24px; letter-spacing: -0.04em; }
+		.sidebar-toggle { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: 9px; background: rgba(78, 60, 27, 0.08); color: var(--ink); box-shadow: none; flex: 0 0 auto; }
+		.sidebar-toggle-icon { position: relative; width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid rgba(72, 53, 23, 0.5); }
+		.sidebar-toggle-icon::before { content: ""; position: absolute; top: 2px; bottom: 2px; left: 3px; width: 1.5px; background: rgba(72, 53, 23, 0.5); border-radius: 999px; }
+		.shell.sidebar-collapsed .title { width: 100%; }
+		.shell.sidebar-collapsed .title-bar { justify-content: center; }
+		.shell.sidebar-collapsed .title h1,
+		.shell.sidebar-collapsed .sidebar > .group { display: none; }
+		.shell.sidebar-collapsed .sidebar-toggle { width: 32px; height: 32px; }
+		.title p, .help, .status, .metric-label, .meta { margin: 0; color: var(--muted); line-height: 1.5; }
+		.group { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: rgba(255, 255, 255, 0.58); }
+		.group h2 { margin: 0; font-size: 15px; letter-spacing: 0.01em; }
+		.row { display: flex; gap: 10px; align-items: center; }
+		.row.wrap { flex-wrap: wrap; }
+		.row.stretch > * { flex: 1 1 0; }
+		label.field, span.field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); min-width: 0; }
+		input[type="file"], input[type="search"], input[type="datetime-local"], select, button { font: inherit; color: inherit; }
+		input[type="search"], input[type="datetime-local"], select { width: 100%; border: 1px solid rgba(72, 53, 23, 0.16); background: rgba(255, 255, 255, 0.92); border-radius: 9px; padding: 8px 10px; }
+		button { border: 0; border-radius: 999px; padding: 8px 14px; background: var(--accent); color: #fff8f1; cursor: pointer; font-weight: 600; box-shadow: 0 10px 20px rgba(201, 109, 50, 0.18); }
+		button.secondary { background: rgba(78, 60, 27, 0.08); color: var(--ink); box-shadow: none; }
+		button:disabled { opacity: 0.45; cursor: default; }
+		.resource-toggles, .legend-strip { display: flex; flex-wrap: wrap; gap: 10px; }
+		.toggle-chip { display: inline-flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.9); border: 1px solid var(--line); font-size: 13px; user-select: none; }
+		.toggle-chip input { margin: 0; }
+		.color-dot { display: inline-block; width: 10px; height: 10px; border-radius: 999px; flex: 0 0 auto; }
+		.viewer { display: grid; grid-template-rows: minmax(0, 1fr); gap: 16px; min-width: 0; }
+		.chart-card { padding: 14px 16px; }
+		.chart-card { display: grid; grid-template-rows: auto auto auto auto minmax(0, 1fr); gap: 12px; min-height: calc(100vh - 32px); }
+		.chart-spacer { min-height: 0; }
+		.chart-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; }
+		.chart-title-block { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+		.chart-head h2 { margin: 0; font-size: 20px; letter-spacing: -0.03em; }
+		.plot-wrap { position: relative; min-height: 420px; border-radius: 12px; border: 1px solid var(--line); background: linear-gradient(180deg, rgba(255, 254, 252, 0.96), rgba(247, 244, 239, 0.9)); overflow: visible; }
+		.plot-stage { position: absolute; inset: 0; overflow: hidden; border-radius: inherit; }
+		#plot { width: 100%; height: 100%; }
+		.axis-badge { position: absolute; top: 10px; z-index: 3; padding: 4px 8px; border-radius: 999px; font-size: 11px; font-weight: 700; letter-spacing: 0.01em; pointer-events: none; background: rgba(255, 255, 255, 0.9); border: 1px solid rgba(72, 53, 23, 0.1); box-shadow: 0 4px 14px rgba(55, 42, 18, 0.06); }
+		.axis-badge-left { left: 12px; color: #5b4725; }
+		.axis-badge-right { right: 12px; color: #7c5c34; }
+		.empty { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--muted); pointer-events: none; }
+		.plot-tooltip { position: absolute; min-width: 180px; max-width: 320px; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(72, 53, 23, 0.12); background: rgba(255, 255, 255, 0.96); box-shadow: 0 12px 28px rgba(55, 42, 18, 0.12); pointer-events: none; opacity: 0; transform: translateY(4px); transition: opacity 0.08s ease, transform 0.08s ease; z-index: 10; }
+		.plot-tooltip.visible { opacity: 1; transform: translateY(0); }
+		.plot-tooltip-time { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+		.plot-tooltip-list { display: flex; flex-direction: column; gap: 0; }
+		.plot-tooltip.horizontal { max-width: min(1200px, calc(100vw - 32px)); }
+		.plot-tooltip.horizontal .plot-tooltip-list { display: block; column-count: var(--tooltip-column-count, 2); column-gap: 18px; column-rule: 1px solid rgba(72, 53, 23, 0.12); column-fill: auto; max-height: var(--tooltip-columns-height, 320px); height: var(--tooltip-columns-height, 320px); overflow: hidden; }
+		.plot-tooltip.horizontal .plot-tooltip-section,
+		.plot-tooltip.horizontal .plot-tooltip-divider { break-inside: avoid; }
+		.plot-tooltip.horizontal .plot-tooltip-section { display: block; width: auto; margin: 0 0 10px; }
+		.plot-tooltip.horizontal .plot-tooltip-divider { display: block; width: auto; height: 1px; margin: 6px 0 10px; }
+		.plot-tooltip-section { display: flex; flex-direction: column; gap: 4px; }
+		.plot-tooltip-divider { height: 1px; margin: 4px 0; background: rgba(72, 53, 23, 0.12); }
+		.plot-tooltip-group-grid { display: flex; flex-direction: column; gap: 0; }
+		.plot-tooltip-group-block { display: flex; flex-direction: column; gap: 4px; }
+		.plot-tooltip-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; }
+		.plot-tooltip-name { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+		.plot-tooltip-name .color-dot { width: 9px; height: 9px; border: 1px solid rgba(40, 28, 8, 0.14); }
+		.plot-tooltip-name .color-dot.hollow { background: rgba(255, 255, 255, 0.96) !important; border-color: currentColor; }
+		.plot-tooltip-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.plot-tooltip-value { font-variant-numeric: tabular-nums; font-weight: 600; color: var(--ink); }
+		.uplot .u-cursor-pt {
+			margin-left: -5px !important;
+			margin-top: -5px !important;
+			width: 10px !important;
+			height: 10px !important;
+			background-color: white !important;
+			border-width: 1px !important;
+		}
+		.scrollbar { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center; }
+		.scrollbar input[type="range"] { width: 100%; }
+		.items-panel { display: grid; grid-template-rows: auto auto minmax(0, 1fr); gap: 12px; min-height: 0; }
+		.item-toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+		.item-list-shell { border-radius: 12px; border: 1px solid var(--line); background: rgba(255, 255, 255, 0.82); min-height: 300px; overflow: hidden; display: grid; grid-template-rows: minmax(0, 1fr); }
+		#itemList { position: relative; overflow: auto; padding: 4px; display: flex; flex-direction: column; gap: 4px; }
+		.item-row { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; padding: 3px 5px; border-radius: 8px; cursor: pointer; }
+		.item-row:hover { background: rgba(201, 109, 50, 0.08); }
+		.item-row.active { background: rgba(201, 109, 50, 0.13); }
+		.item-divider { height: 1px; margin: 2px 4px; background: rgba(72, 53, 23, 0.12); }
+		.item-group-head { display: flex; width: 100%; border: 0; box-shadow: none; align-items: center; justify-content: space-between; gap: 10px; padding: 4px 6px; border-radius: 8px; font-size: 12px; font-weight: 700; color: #5f4a28; cursor: pointer; user-select: none; background: rgba(201, 109, 50, 0.06); }
+		.item-group-head:hover { background: rgba(201, 109, 50, 0.1); }
+		.item-group-title { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+		.item-group-main { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+		.item-group-main input { margin: 0; }
+		.item-group-toggle { font-size: 11px; color: var(--muted); }
+		.plot-tooltip-group-title { font-size: 11px; font-weight: 700; color: #6c532e; margin-bottom: 2px; }
+		.item-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+		.item-name { font-size: 14px; font-weight: 600; }
+		.pill { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 999px; font-size: 12px; background: rgba(78, 60, 27, 0.08); color: var(--muted); }
+		@media (max-width: 1200px) {
+			.shell { grid-template-columns: 1fr; }
+			.sidebar { min-height: auto; }
+			.chart-card { min-height: 70vh; }
+		}
+	</style>
+</head>
+<body>
+	<div class="shell">
+		<aside class="sidebar panel">
+			<div class="title">
+				<div class="title-bar">
+					<h1>Symphony Statistics Viewer</h1>
+					<button id="toggleSidebar" class="sidebar-toggle" type="button" aria-label="메뉴 접기 또는 펼치기" title="메뉴 접기 또는 펼치기">
+						<span class="sidebar-toggle-icon" aria-hidden="true"></span>
+					</button>
+				</div>
+			</div>
+
+			<section class="group">
+				<h2>DB 열기</h2>
+				<label class="field">
+					<span>Statistics.sqlite</span>
+					<input id="dbFile" type="file" accept=".sqlite,.db,.sqlite3,application/octet-stream" />
+				</label>
+			</section>
+
+			<section class="group">
+				<h2>표시 범위</h2>
+				<div class="row stretch">
+					<label class="field"><span>시작</span><input id="rangeStart" type="datetime-local" disabled /></label>
+					<label class="field"><span>종료</span><input id="rangeEnd" type="datetime-local" disabled /></label>
+				</div>
+				<div class="row wrap">
+					<button id="applyRange" disabled>범위 적용</button>
+					<button id="fitRange" class="secondary" disabled>전체 맞춤</button>
+					<span id="rangeSummary" class="pill">범위 미설정</span>
+				</div>
+			</section>
+
+			<section class="group">
+				<h2>자원 표시</h2>
+				<div class="resource-toggles">
+					<label class="toggle-chip"><input id="toggleMetal" type="checkbox" checked disabled /><span class="color-dot" style="background:#f3af0c;"></span><span>부품</span></label>
+					<label class="toggle-chip"><input id="toggleNutrient" type="checkbox" checked disabled /><span class="color-dot" style="background:#74e201;"></span><span>영양</span></label>
+					<label class="toggle-chip"><input id="togglePower" type="checkbox" checked disabled /><span class="color-dot" style="background:#26c5f4;"></span><span>전력</span></label>
+				</div>
+			</section>
+
+			<section class="group items-panel">
+				<div>
+					<h2>아이템 표시</h2>
+				</div>
+				<div class="item-toolbar">
+					<input id="itemSearch" type="search" placeholder="검색" disabled />
+					<button id="resetItems" class="secondary" disabled>선택 초기화</button>
+					<button id="clearItems" class="secondary" disabled>아이템 모두 끄기</button>
+				</div>
+				<div class="item-list-shell"><div id="itemList"></div></div>
+			</section>
+
+		</aside>
+
+		<main class="viewer">
+			<section class="chart-card panel">
+				<div class="chart-head">
+					<div class="chart-title-block">
+						<h2>자원/아이템 기록 그래프</h2>
+						<span id="zoomSummary" class="pill">표시 범위 없음</span>
+					</div>
+				</div>
+
+				<div class="scrollbar">
+					<button id="panLeft" class="secondary" disabled>◀</button>
+					<input id="panRange" type="range" min="0" max="1000" step="1" value="0" disabled />
+					<button id="panRight" class="secondary" disabled>▶</button>
+				</div>
+
+					<div id="plotWrap" class="plot-wrap">
+					<div id="resourceAxisBadge" class="axis-badge axis-badge-left">자원</div>
+					<div id="itemAxisBadge" class="axis-badge axis-badge-right">아이템</div>
+					<div id="plotStage" class="plot-stage"><div id="plot"></div></div>
+					<div id="plotTooltip" class="plot-tooltip"></div>
+					<div id="emptyState" class="empty">DB를 열고 범위를 선택하면 그래프가 여기에 표시됩니다.</div>
+				</div>
+
+				<div class="legend-strip" id="activeLegend"></div>
+
+				<div class="chart-spacer" aria-hidden="true"></div>
+
+			</section>
+		</main>
+	</div>
+
+	<script src="https://cdn.jsdelivr.net/npm/uplot@1.6.31/dist/uPlot.iife.min.js"></script>
+	<script type="module">
+		const RESOURCE_META = {
+			metal: { label: "부품", color: "#f3af0c" },
+			nutrient: { label: "영양", color: "#74e201" },
+			power: { label: "전력", color: "#26c5f4" },
+			maxres: { label: "자연 회복 한계", color: "#ef435c" },
+		};
+
+		const ITEM_COLORS = [
+			"#dd6e42", "#e8b547", "#7fc29b", "#5aa9e6", "#9c89b8", "#ef476f", "#06d6a0", "#118ab2",
+			"#f78c6b", "#ffd166", "#83c5be", "#588157", "#8ecae6", "#ff4d6d", "#fb8500", "#3a86ff",
+			"#43aa8b", "#f94144", "#577590", "#f3722c", "#90be6d", "#277da1", "#c77dff", "#4cc9f0",
+			"#c1121f", "#669bbc", "#e09f3e", "#81b29a", "#6d597a", "#6a994e", "#f4a261", "#2a9d8f",
+			"#ff8fab", "#52b788", "#4361ee", "#ffbe0b", "#8338ec", "#ff006e", "#219ebc", "#8ac926",
+			"#ff9770", "#6d6875", "#b8de6f", "#48bfe3", "#7b2cbf", "#ef798a", "#55a630", "#0077b6",
+			"#f28482", "#84a59d", "#f6bd60", "#00afb9", "#bc4749", "#7209b7", "#3f8efc", "#ff9f1c",
+			"#5f0f40", "#9a031e", "#0f4c5c", "#38b000", "#80ed99", "#b56576", "#6c757d", "#4d908e",
+		];
+
+		const dom = {
+			dbFile: document.getElementById("dbFile"),
+			rangeStart: document.getElementById("rangeStart"),
+			rangeEnd: document.getElementById("rangeEnd"),
+			applyRange: document.getElementById("applyRange"),
+			fitRange: document.getElementById("fitRange"),
+			itemSearch: document.getElementById("itemSearch"),
+			resetItems: document.getElementById("resetItems"),
+			clearItems: document.getElementById("clearItems"),
+			itemList: document.getElementById("itemList"),
+			rangeSummary: document.getElementById("rangeSummary"),
+			zoomSummary: document.getElementById("zoomSummary"),
+			toggleSidebar: document.getElementById("toggleSidebar"),
+			panRange: document.getElementById("panRange"),
+			panLeft: document.getElementById("panLeft"),
+			panRight: document.getElementById("panRight"),
+			activeLegend: document.getElementById("activeLegend"),
+			plotWrap: document.getElementById("plotWrap"),
+			plotStage: document.getElementById("plotStage"),
+			plot: document.getElementById("plot"),
+			plotTooltip: document.getElementById("plotTooltip"),
+			emptyState: document.getElementById("emptyState"),
+			resourceAxisBadge: document.getElementById("resourceAxisBadge"),
+			itemAxisBadge: document.getElementById("itemAxisBadge"),
+			toggleMetal: document.getElementById("toggleMetal"),
+			toggleNutrient: document.getElementById("toggleNutrient"),
+			togglePower: document.getElementById("togglePower"),
+		};
+
+		const state = {
+			worker: null,
+			requestId: 0,
+			lastChartRequestId: 0,
+			dbLoaded: false,
+			availableRange: null,
+			itemCatalog: [],
+			itemFilter: "",
+			selectedItems: new Set(),
+			resourceToggles: { metal: true, nutrient: true, power: true },
+			plot: null,
+			baseRange: null,
+			visibleRange: null,
+			rendering: false,
+			pendingRefresh: false,
+			seriesMeta: [],
+			collapsedGroups: new Set(),
+			sidebarCollapsed: false,
+		};
+
+		const DEFAULT_ITEM_PATTERNS = [
+			/^.*_Module$/i,
+			/^Consumable_OriginDust.*$/i,
+			/^RobotParts_.*$/i,
+			/^TestItem_.*$/i,
+		];
+
+		const DEFAULT_ITEM_KEYS = new Set([
+			"Consumable_RefinedMineral",
+			"Consumable_EWMPMetal",
+		]);
+
+		const ITEM_COLOR_OVERRIDES = new Map([
+			["TestItem_4", "#42d5cf"],
+			["TestItem_5", "#c9a03a"],
+			["TestItem_6", "#b9c8dd"],
+			["TestItem_8", "#74de4d"],
+			["TestItem_10", "#ee5b57"],
+
+			["Normal_Module", "#8ea45b"],
+			["Advanced_Module", "#d24a44"],
+			["Special_Module", "#6f81ef"],
+
+			["RobotParts_MPParts", "#a9b8ec"],
+			["RobotParts_ExParts", "#8fdcf4"],
+			["RobotParts_AlloyArmor", "#c8d2db"],
+			["RobotParts_SuperAlloyArmor", "#dddaf0"],
+			["RobotParts_Booster", "#d0d5dd"],
+			["RobotParts_HighpowerBooster", "#9aa1bc"],
+			["RobotParts_Weapon", "#6f725f"],
+			["RobotParts_HeavyWeapon", "#b9c3cd"],
+			["RobotParts_CalculationControl", "#a9d46d"],
+			["RobotParts_HDCalculationControl", "#f08db8"],
+
+			["Consumable_OriginDust", "#7dd553"],
+			["Consumable_OriginDustAdv", "#63cfff"],
+			["Consumable_OriginDustSp", "#d65cff"],
+
+			["Consumable_EWMPMetal", "#d7a24f"],
+			["Consumable_RefinedMineral", "#c99558"],
+		]);
+
+		const ITEM_GROUPS = [
+			{
+				id: "testItem",
+				label: "기초 아이템",
+				match: (key) => /^TestItem_.*$/i.test(key),
+				order: null,
+			},
+			{
+				id: "module",
+				label: "모듈",
+				match: (key) => /_Module$/i.test(key),
+				order: ["Normal_Module", "Advanced_Module", "Special_Module"],
+			},
+			{
+				id: "originDust",
+				label: "오리진 더스트",
+				match: (key) => /^Consumable_OriginDust.*$/i.test(key),
+				order: ["Consumable_OriginDust", "Consumable_OriginDustAdv", "Consumable_OriginDustSp"],
+			},
+			{
+				id: "robotParts",
+				label: "AGS 재료",
+				match: (key) => /^RobotParts_.*$/i.test(key),
+				order: [
+					"RobotParts_MPParts",
+					"RobotParts_ExParts",
+					"RobotParts_AlloyArmor",
+					"RobotParts_SuperAlloyArmor",
+					"RobotParts_Booster",
+					"RobotParts_HighpowerBooster",
+					"RobotParts_Weapon",
+					"RobotParts_HeavyWeapon",
+					"RobotParts_CalculationControl",
+					"RobotParts_HDCalculationControl",
+				],
+			},
+			{
+				id: "refined",
+				label: "알터리움",
+				match: (key) => key === "Consumable_RefinedMineral" || key === "Consumable_EWMPMetal",
+				order: ["Consumable_EWMPMetal", "Consumable_RefinedMineral"],
+			},
+			{
+				id: "gift",
+				label: "선물",
+				match: (key) =>
+					/^Favor_/i.test(key)
+					|| /^Consumable_TacticRecord/i.test(key)
+					|| /^Consumable_TrainingManual/i.test(key)
+					|| key === "Ev_Consumable_CommanderDiary"
+					|| key === "Consumable_GiftItem_Damage",
+				order: null,
+			},
+			{
+				id: "altCore",
+				label: "대체 코어",
+				match: (key) => /^CharTicket_Char_Core_.*_N$/i.test(key),
+				order: null,
+			},
+			{
+				id: "equipPromote",
+				label: "장비 승급 재료",
+				match: (key) => /^Consumable_EquipProPart_T.*$/i.test(key),
+				order: null,
+			},
+			{
+				id: "limitUnlock",
+				label: "잠재력 돌파 모듈",
+				match: (key) => /^Consumable_LV_Limit_Unlock.*$/i.test(key),
+				order: null,
+			},
+			{
+				id: "facilityParts",
+				label: "시설 설비 재료",
+				match: (key) =>
+					key === "Wood_Material"
+					|| key === "Stone_Material"
+					|| key === "Iron_Material"
+					|| /^Cafe_Parts_T.*$/i.test(key)
+					|| /^Equip_Parts_T.*$/i.test(key)
+					|| /^FacilityPartsMaking_Parts_T.*$/i.test(key)
+					|| /^Matrial_Parts_T.*$/i.test(key)
+					|| /^PcMaking_Parts_T.*$/i.test(key)
+					|| /^Resource_Parts_T.*$/i.test(key)
+					|| /^StuffMaking_Parts_T.*$/i.test(key)
+					|| /^Training_Parts_T.*$/i.test(key),
+				order: null,
+			},
+			{
+				id: "prop",
+				label: "장식품",
+				match: (key) => /^PROP_/i.test(key),
+				order: null,
+			},
+			{
+				id: "skin",
+				label: "스킨",
+				match: (key) => /^Skin_/i.test(key),
+				order: null,
+			},
+			{
+				id: "letter",
+				label: "편지",
+				match: (key) => /^CharLetter_/i.test(key),
+				order: null,
+			},
+			{
+				id: "event",
+				label: "이벤트 재화",
+				match: (key) => /^Ev_/i.test(key) && key !== "Ev_Consumable_CommanderDiary",
+				order: null,
+			},
+		];
+
+		const DEFAULT_COLLAPSED_GROUP_IDS = new Set(ITEM_GROUPS.map((group) => group.id).concat("other"));
+
+		const workerSource = String.raw`
+			let SQL = null;
+			let db = null;
+
+			self.onmessage = async (event) => {
+				const msg = event.data;
+				try {
+					if (msg.type === 'load-db') {
+						if (!SQL) {
+							importScripts('https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/sql-wasm.js');
+							SQL = await self.initSqlJs({
+								locateFile: (file) => 'https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.10.3/' + file,
+							});
+						}
+
+						if (db) db.close();
+						db = new SQL.Database(new Uint8Array(msg.buffer));
+						self.postMessage({ type: 'db-loaded', requestId: msg.requestId, meta: queryDatabaseMeta() });
+						return;
+					}
+
+					if (!db) throw new Error('DB is not loaded.');
+
+					if (msg.type === 'chart-data') {
+						self.postMessage({ type: 'chart-data', requestId: msg.requestId, payload: buildChartData(msg.payload) });
+					}
+				} catch (error) {
+					self.postMessage({ type: 'error', requestId: msg.requestId, message: error && error.message ? error.message : String(error) });
+				}
+			};
+
+			function queryDatabaseMeta() {
+				const resourceMeta = readRows('SELECT MIN(time) AS min_time, MAX(time) AS max_time, COUNT(*) AS resource_rows FROM resources;')[0] || {};
+				const itemMeta = readRows('SELECT COUNT(*) AS item_rows, COUNT(DISTINCT item) AS item_types FROM items;')[0] || {};
+				const items = readRows(
+					'SELECT refs.id, refs.key, refs.disp_name, COUNT(logs.rowid) AS rows ' +
+					'FROM item_refs AS refs INNER JOIN items AS logs ON logs.item = refs.id ' +
+					'GROUP BY refs.id, refs.key, refs.disp_name ORDER BY refs.disp_name COLLATE NOCASE, refs.key;'
+				).map((row) => ({ id: Number(row.id), key: row.key, name: row.disp_name, rows: Number(row.rows || 0) }));
+				return {
+					minTime: resourceMeta.min_time || null,
+					maxTime: resourceMeta.max_time || null,
+					resourceRows: Number(resourceMeta.resource_rows || 0),
+					itemRows: Number(itemMeta.item_rows || 0),
+					itemTypes: Number(itemMeta.item_types || 0),
+					items,
+				};
+			}
+
+			function buildChartData(options) {
+				const { start, end, resourceKeys, itemIds, maxPoints } = options;
+				const startMs = Date.parse(start);
+				const endMs = Date.parse(end);
+				const seriesMap = new Map();
+				const sampleInfo = [];
+
+				for (const key of resourceKeys) {
+					const rows = fetchResourceRows(start, end, key);
+					const sampled = bucketizeSeries(rows, startMs, endMs, maxPoints);
+					seriesMap.set('resource:' + key, sampled);
+					sampleInfo.push({ key: 'resource:' + key, raw: rows.length, sampled: sampled.length });
+				}
+
+				for (const itemId of itemIds) {
+					const rows = fetchItemRows(itemId, start, end);
+					const sampled = bucketizeSeries(rows, startMs, endMs, maxPoints);
+					seriesMap.set('item:' + itemId, sampled);
+					sampleInfo.push({ key: 'item:' + itemId, raw: rows.length, sampled: sampled.length });
+				}
+
+				const timestamps = new Set();
+				timestamps.add(startMs);
+				timestamps.add(endMs);
+				for (const points of seriesMap.values()) {
+					for (const point of points) timestamps.add(point.x);
+				}
+				const sortedTimes = Array.from(timestamps).sort((a, b) => a - b);
+				const x = sortedTimes.map((value) => value / 1000);
+				const series = {};
+				const actual = {};
+
+				for (const [key, points] of seriesMap.entries()) {
+					const pointMap = new Map(points.map((point) => [point.x, point.y]));
+					const actualSet = new Set(points.map((point) => point.x));
+					let lastValue = null;
+					series[key] = sortedTimes.map((timestamp) => {
+						if (pointMap.has(timestamp)) {
+							lastValue = pointMap.get(timestamp);
+						}
+						return lastValue;
+					});
+					actual[key] = sortedTimes.map((timestamp) => actualSet.has(timestamp));
+				}
+
+				return { x, series, actual, sampleInfo };
+			}
+
+			function fetchResourceRows(start, end, key) {
+				const previous = readRows('SELECT time, ' + key + ' AS value FROM resources WHERE time < ? ORDER BY time DESC LIMIT 1;', [start]);
+				const rows = readRows('SELECT time, ' + key + ' AS value FROM resources WHERE time >= ? AND time <= ? ORDER BY time;', [start, end]);
+				return mergePrevious(previous, rows);
+			}
+
+			function fetchItemRows(itemId, start, end) {
+				const previous = readRows('SELECT time, count AS value FROM items WHERE item = ? AND time < ? ORDER BY time DESC LIMIT 1;', [itemId, start]);
+				const rows = readRows('SELECT time, count AS value FROM items WHERE item = ? AND time >= ? AND time <= ? ORDER BY time;', [itemId, start, end]);
+				return mergePrevious(previous, rows);
+			}
+
+			function mergePrevious(previous, rows) {
+				const merged = [];
+				if (previous.length) merged.push(normalizePoint(previous[0]));
+				for (const row of rows) merged.push(normalizePoint(row));
+				return dedupeSequentialPoints(merged);
+			}
+
+			function normalizePoint(row) {
+				return { x: Date.parse(row.time), y: Number(row.value) };
+			}
+
+			function dedupeSequentialPoints(points) {
+				if (points.length <= 1) return points;
+				const result = [points[0]];
+				for (let i = 1; i < points.length; i += 1) {
+					const current = points[i];
+					const previous = result[result.length - 1];
+					if (current.x === previous.x) {
+						result[result.length - 1] = current;
+					} else {
+						result.push(current);
+					}
+				}
+				return result;
+			}
+
+			function bucketizeSeries(points, startMs, endMs, maxPoints) {
+				if (!points.length || points.length <= maxPoints) return points;
+				const span = Math.max(endMs - startMs, 1);
+				const bucketSize = Math.max(Math.floor(span / maxPoints), 1);
+				const sampled = [];
+				let bucketStart = points[0].x;
+				let bucket = [];
+
+				function flushBucket() {
+					if (!bucket.length) return;
+					const items = [];
+					const pushUnique = (point) => {
+						if (!items.some((candidate) => candidate.x === point.x && candidate.y === point.y)) items.push(point);
+					};
+					pushUnique(bucket[0]);
+					let minPoint = bucket[0];
+					let maxPoint = bucket[0];
+					for (const point of bucket) {
+						if (point.y < minPoint.y) minPoint = point;
+						if (point.y > maxPoint.y) maxPoint = point;
+					}
+					pushUnique(minPoint);
+					pushUnique(maxPoint);
+					pushUnique(bucket[bucket.length - 1]);
+					items.sort((a, b) => a.x - b.x);
+					for (const point of items) sampled.push(point);
+				}
+
+				for (const point of points) {
+					if (!bucket.length) {
+						bucketStart = point.x;
+						bucket.push(point);
+						continue;
+					}
+					if (point.x - bucketStart < bucketSize) {
+						bucket.push(point);
+						continue;
+					}
+					flushBucket();
+					bucket = [point];
+					bucketStart = point.x;
+				}
+				flushBucket();
+				return dedupeSequentialPoints(sampled);
+			}
+
+			function readRows(sql, params = []) {
+				const stmt = db.prepare(sql);
+				stmt.bind(params);
+				const rows = [];
+				while (stmt.step()) rows.push(stmt.getAsObject());
+				stmt.free();
+				return rows;
+			}
+		`;
+
+		state.worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" })));
+		state.worker.addEventListener("message", handleWorkerMessage);
+
+		dom.dbFile.addEventListener("change", handleDbSelection);
+		dom.applyRange.addEventListener("click", applySelectedRange);
+		dom.fitRange.addEventListener("click", fitVisibleRange);
+		dom.itemSearch.addEventListener("input", () => {
+			state.itemFilter = dom.itemSearch.value.trim().toLowerCase();
+			renderItemList();
+		});
+		dom.resetItems.addEventListener("click", () => {
+			applyDefaultItemSelection();
+			renderItemList();
+			updateLegend();
+			scheduleChartRefresh();
+		});
+		dom.clearItems.addEventListener("click", () => {
+			state.selectedItems.clear();
+			renderItemList();
+			scheduleChartRefresh();
+		});
+		dom.panRange.addEventListener("input", handlePanRangeInput);
+		dom.panLeft.addEventListener("click", () => panVisibleRange(-0.18));
+		dom.panRight.addEventListener("click", () => panVisibleRange(0.18));
+		dom.toggleSidebar.addEventListener("click", () => {
+			state.sidebarCollapsed = !state.sidebarCollapsed;
+			updateSidebarVisibility();
+		});
+
+		for (const checkbox of [dom.toggleMetal, dom.toggleNutrient, dom.togglePower]) {
+			checkbox.addEventListener("change", () => {
+				state.resourceToggles = {
+					metal: dom.toggleMetal.checked,
+					nutrient: dom.toggleNutrient.checked,
+					power: dom.togglePower.checked,
+				};
+				updateLegend();
+				scheduleChartRefresh();
+			});
+		}
+
+		window.addEventListener("resize", debounce(() => {
+			if (!state.plot) return;
+			state.plot.setSize({
+				width: Math.max(dom.plotStage.clientWidth - 2, 320),
+				height: Math.max(dom.plotStage.clientHeight - 2, 420),
+			});
+			scheduleChartRefresh();
+		}, 120));
+
+		const plotWrapResizeObserver = new ResizeObserver(debounce((entries) => {
+			if (!state.plot || !entries?.length) return;
+			const entry = entries[0];
+			const nextWidth = Math.max(Math.round(entry.contentRect.width) - 2, 320);
+			const nextHeight = Math.max(Math.round(entry.contentRect.height) - 2, 420);
+			state.plot.setSize({
+				width: nextWidth,
+				height: nextHeight,
+			});
+			scheduleChartRefresh();
+		}, 120));
+		plotWrapResizeObserver.observe(dom.plotStage);
+
+		function handleDbSelection(event) {
+			const file = event.target.files?.[0];
+			if (!file) return;
+
+			setStatus(`DB 로드 중: ${file.name}`);
+			disableControls();
+			resetViewer();
+
+			file.arrayBuffer().then((buffer) => {
+				postToWorker("load-db", { buffer }, [buffer]);
+			}).catch((error) => {
+				setStatus(`DB 로드 실패: ${error.message || error}`);
+			});
+		}
+
+		function applySelectedRange() {
+			if (!state.availableRange) return;
+			const start = parseDateTimeLocal(dom.rangeStart.value);
+			const end = parseDateTimeLocal(dom.rangeEnd.value);
+			if (!start || !end || start >= end) {
+				setStatus("시작과 종료 범위를 다시 확인해주세요.");
+				return;
+			}
+			state.baseRange = { start, end };
+			state.visibleRange = { start, end };
+			updateRangeSummary();
+			updatePanControls();
+			scheduleChartRefresh();
+		}
+
+		function fitVisibleRange() {
+			if (!state.baseRange) return;
+			state.visibleRange = { ...state.baseRange };
+			updatePanControls();
+			updateZoomSummary();
+			scheduleChartRefresh();
+		}
+
+		function handlePanRangeInput() {
+			if (!state.baseRange || !state.visibleRange) return;
+			const currentSpan = state.visibleRange.end - state.visibleRange.start;
+			const movable = Math.max((state.baseRange.end - state.baseRange.start) - currentSpan, 0);
+			const ratio = Number(dom.panRange.value) / 1000;
+			const offset = Math.round(movable * ratio);
+			state.visibleRange = {
+				start: state.baseRange.start + offset,
+				end: state.baseRange.start + offset + currentSpan,
+			};
+			updateZoomSummary();
+			scheduleChartRefresh();
+		}
+
+		function panVisibleRange(directionRatio) {
+			if (!state.baseRange || !state.visibleRange) return;
+			const span = state.visibleRange.end - state.visibleRange.start;
+			const delta = Math.round(span * directionRatio);
+			let start = state.visibleRange.start + delta;
+			let end = state.visibleRange.end + delta;
+			if (start < state.baseRange.start) {
+				start = state.baseRange.start;
+				end = start + span;
+			}
+			if (end > state.baseRange.end) {
+				end = state.baseRange.end;
+				start = end - span;
+			}
+			state.visibleRange = { start, end };
+			updatePanControls();
+			updateZoomSummary();
+			scheduleChartRefresh();
+		}
+
+		function postToWorker(type, payload, transfer = []) {
+			const requestId = ++state.requestId;
+			state.worker.postMessage({ type, requestId, ...payload }, transfer);
+			return requestId;
+		}
+
+		function handleWorkerMessage(event) {
+			const msg = event.data;
+			if (msg.type === "error") {
+				state.rendering = false;
+				setStatus(`오류: ${msg.message}`);
+				return;
+			}
+
+			if (msg.type === "db-loaded") {
+				state.dbLoaded = true;
+				applyDatabaseMeta(msg.meta);
+				setStatus("DB를 열었습니다.");
+				return;
+			}
+
+			if (msg.type === "chart-data") {
+				if (msg.requestId !== state.lastChartRequestId) return;
+				state.rendering = false;
+				renderChart(msg.payload);
+				if (state.pendingRefresh) {
+					state.pendingRefresh = false;
+					scheduleChartRefresh();
+				}
+			}
+		}
+
+		function applyDatabaseMeta(meta) {
+			state.availableRange = meta.minTime && meta.maxTime ? {
+				start: Date.parse(meta.minTime),
+				end: Date.parse(meta.maxTime),
+			} : null;
+			state.itemCatalog = meta.items || [];
+			state.selectedItems.clear();
+			state.baseRange = state.availableRange ? { ...state.availableRange } : null;
+			state.visibleRange = state.availableRange ? { ...state.availableRange } : null;
+
+			dom.rangeStart.disabled = !state.availableRange;
+			dom.rangeEnd.disabled = !state.availableRange;
+			dom.applyRange.disabled = !state.availableRange;
+			dom.fitRange.disabled = !state.availableRange;
+			dom.itemSearch.disabled = !state.itemCatalog.length;
+			dom.resetItems.disabled = !state.itemCatalog.length;
+			dom.clearItems.disabled = !state.itemCatalog.length;
+			dom.toggleMetal.disabled = false;
+			dom.toggleNutrient.disabled = false;
+			dom.togglePower.disabled = false;
+
+			if (state.availableRange) {
+				dom.rangeStart.value = toDateTimeLocalValue(state.availableRange.start);
+				dom.rangeEnd.value = toDateTimeLocalValue(state.availableRange.end);
+			}
+
+			applyDefaultItemSelection();
+
+			updateRangeSummary();
+			updatePanControls();
+			updateLegend();
+			renderItemList();
+			setStatus("데이터 준비 완료. 범위를 조정하거나 아이템을 선택하세요.");
+			scheduleChartRefresh();
+		}
+
+		function renderItemList() {
+			const filter = state.itemFilter;
+			const groupedItems = groupDisplayItems(state.itemCatalog, filter);
+
+			dom.itemList.innerHTML = "";
+			if (!groupedItems.some((group) => group.items.length > 0)) {
+				const empty = document.createElement("div");
+				empty.className = "empty";
+				empty.textContent = "조건에 맞는 아이템이 없습니다.";
+				dom.itemList.append(empty);
+				return;
+			}
+
+			const fragment = document.createDocumentFragment();
+			let renderedCount = 0;
+			let isFirstGroup = true;
+			for (const group of groupedItems) {
+				if (!group.items.length) continue;
+				if (!isFirstGroup) {
+					const divider = document.createElement("div");
+					divider.className = "item-divider";
+					fragment.append(divider);
+				}
+				isFirstGroup = false;
+
+				const selectedCount = group.items.filter((item) => state.selectedItems.has(item.id)).length;
+				const allSelected = selectedCount === group.items.length;
+				const partiallySelected = selectedCount > 0 && selectedCount < group.items.length;
+
+				const groupHead = document.createElement("div");
+				groupHead.className = "item-group-head";
+				groupHead.innerHTML = `
+					<span class="item-group-main">
+						<input type="checkbox" />
+						<span class="item-group-title">${escapeHtml(group.label)}</span>
+					</span>
+					<span class="item-group-toggle">${state.collapsedGroups.has(group.id) ? "펼치기" : "접기"}</span>
+				`;
+
+				const groupCheckbox = groupHead.querySelector("input");
+				groupCheckbox.checked = allSelected;
+				groupCheckbox.indeterminate = partiallySelected;
+				groupCheckbox.addEventListener("click", (event) => {
+					event.stopPropagation();
+				});
+				groupCheckbox.addEventListener("change", () => {
+					for (const item of group.items) {
+						if (groupCheckbox.checked) state.selectedItems.add(item.id);
+						else state.selectedItems.delete(item.id);
+					}
+					renderItemList();
+					updateLegend();
+					scheduleChartRefresh();
+				});
+
+				groupHead.addEventListener("click", () => {
+					if (state.collapsedGroups.has(group.id)) state.collapsedGroups.delete(group.id);
+					else state.collapsedGroups.add(group.id);
+					renderItemList();
+				});
+				fragment.append(groupHead);
+
+				if (state.collapsedGroups.has(group.id)) {
+					continue;
+				}
+
+				for (const item of group.items) {
+					if (renderedCount >= 600) break;
+					const row = document.createElement("label");
+					row.className = `item-row${state.selectedItems.has(item.id) ? " active" : ""}`;
+
+					const checkbox = document.createElement("input");
+					checkbox.type = "checkbox";
+					checkbox.checked = state.selectedItems.has(item.id);
+					checkbox.addEventListener("change", () => {
+						if (checkbox.checked) state.selectedItems.add(item.id);
+						else state.selectedItems.delete(item.id);
+						renderItemList();
+						updateLegend();
+						scheduleChartRefresh();
+					});
+
+					const body = document.createElement("div");
+					const name = document.createElement("div");
+					name.className = "item-name";
+					name.textContent = item.name || item.key;
+					body.append(name);
+
+					const badge = document.createElement("span");
+					badge.className = "pill";
+					badge.innerHTML = `<span class="color-dot" style="background:${colorForItem(item.id, item.key)};"></span>${item.rows.toLocaleString()}건`;
+
+					row.append(checkbox, body, badge);
+					fragment.append(row);
+					renderedCount += 1;
+				}
+
+				if (renderedCount >= 600) break;
+			}
+
+			const filteredCount = groupedItems.reduce((sum, group) => sum + group.items.length, 0);
+			if (filteredCount > 600) {
+				const more = document.createElement("div");
+				more.className = "meta";
+				more.style.padding = "8px 12px 14px";
+				more.textContent = `검색 결과 ${filteredCount.toLocaleString()}개 중 상위 600개만 표시했습니다. 검색어를 더 좁혀주세요.`;
+				fragment.append(more);
+			}
+
+			dom.itemList.append(fragment);
+		}
+
+		function applyDefaultItemSelection() {
+			state.selectedItems.clear();
+			for (const item of state.itemCatalog) {
+				if (isDefaultSelectedItem(item.key)) {
+					state.selectedItems.add(item.id);
+				}
+			}
+		}
+
+		function isDefaultSelectedItem(key) {
+			if (DEFAULT_ITEM_KEYS.has(key)) return true;
+			return DEFAULT_ITEM_PATTERNS.some((pattern) => pattern.test(key));
+		}
+
+		function scheduleChartRefresh() {
+			if (!state.visibleRange) return;
+			if (state.rendering) {
+				state.pendingRefresh = true;
+				return;
+			}
+			state.rendering = true;
+			state.pendingRefresh = false;
+
+			const width = Math.max(dom.plotStage.clientWidth - 40, 320);
+			state.lastChartRequestId = postToWorker("chart-data", {
+				payload: {
+					start: new Date(state.visibleRange.start).toISOString(),
+					end: new Date(state.visibleRange.end).toISOString(),
+					resourceKeys: getActiveResourceKeys(),
+					itemIds: Array.from(state.selectedItems.values()),
+					maxPoints: Math.max(Math.round(width * 1.5), 800),
+				},
+			});
+
+			updateZoomSummary();
+			updatePanControls();
+			updateLegend();
+			setStatus(`그래프 데이터를 불러오는 중입니다. 자원 ${getActiveResourceKeys().length}개, 아이템 ${state.selectedItems.size}개`);
+		}
+
+		function renderChart(payload) {
+			const resourceKeys = getActiveResourceKeys();
+			const itemIds = Array.from(state.selectedItems.values());
+			const hasData = payload.x.length > 0;
+
+			dom.emptyState.style.display = hasData ? "none" : "grid";
+			if (!hasData) {
+				if (state.plot) {
+					state.plot.destroy();
+					state.plot = null;
+				}
+				setStatus("표시할 데이터가 없습니다.");
+				return;
+			}
+
+			const series = [{ label: "Time" }];
+			const data = [payload.x];
+			const seriesMeta = [{ label: "Time", color: null, scale: "x", itemKey: null, actualMask: null, kind: null }];
+
+			for (const resourceKey of resourceKeys) {
+				const color = RESOURCE_META[resourceKey].color;
+				series.push({
+					label: RESOURCE_META[resourceKey].label,
+					stroke: color,
+					width: resourceKey === "maxres" ? 1 : 2,
+					dash: resourceKey === "maxres" ? [8, 6] : undefined,
+					scale: "resource",
+					points: { show: false },
+				});
+				data.push(payload.series[`resource:${resourceKey}`]);
+				seriesMeta.push({
+					label: RESOURCE_META[resourceKey].label,
+					color,
+					scale: "resource",
+					kind: "resource",
+					itemKey: null,
+					actualMask: payload.actual[`resource:${resourceKey}`] || null,
+				});
+			}
+
+			for (const itemId of itemIds) {
+				const item = state.itemCatalog.find((entry) => entry.id === itemId);
+				const color = colorForItem(itemId, item?.key || String(itemId));
+				series.push({
+					label: item?.name || item?.key || `Item ${itemId}`,
+					stroke: color,
+					width: 1.5,
+					scale: "item",
+					points: { show: false },
+				});
+				data.push(payload.series[`item:${itemId}`]);
+				seriesMeta.push({
+					label: item?.name || item?.key || `Item ${itemId}`,
+					color,
+					scale: "item",
+					kind: "item",
+					itemKey: item?.key || null,
+					actualMask: payload.actual[`item:${itemId}`] || null,
+				});
+			}
+
+			const options = {
+				width: Math.max(dom.plotStage.clientWidth - 2, 320),
+				height: Math.max(dom.plotStage.clientHeight - 2, 420),
+				padding: [61, 26, 10, 26],
+				legend: { show: false },
+				cursor: { drag: { setScale: true, x: true, y: false } },
+				scales: {
+					x: { time: true, range: [state.visibleRange.start / 1000, state.visibleRange.end / 1000] },
+					resource: { auto: true },
+					item: { auto: true },
+				},
+				axes: [
+					{
+						stroke: "#84765f",
+						grid: { stroke: "rgba(87, 70, 38, 0.08)" },
+						values: (plot, splits) => {
+							const xValues = (plot.data[0] || []).map((value) => Number(value));
+							if (!xValues.length) {
+								return splits.map(() => "");
+							}
+							const labeled = new Set();
+							return splits.map((value) => {
+								let nearest = xValues[0];
+								let nearestDiff = Math.abs(nearest - value);
+								for (let i = 1; i < xValues.length; i += 1) {
+									const diff = Math.abs(xValues[i] - value);
+									if (diff < nearestDiff) {
+										nearest = xValues[i];
+										nearestDiff = diff;
+									}
+								}
+
+								const key = nearest.toFixed(6);
+								if (labeled.has(key)) {
+									return "";
+								}
+								labeled.add(key);
+								return formatAxisTime(nearest * 1000, state.visibleRange);
+							});
+						},
+					},
+					{
+						scale: "resource",
+						stroke: "#4d4539",
+						grid: { show: true, stroke: "rgba(87, 70, 38, 0.08)" },
+						size: 56,
+					},
+					{
+						scale: "item",
+						side: 1,
+						stroke: "#7c5c34",
+						grid: { show: false },
+						size: 56,
+					},
+				],
+				series,
+				hooks: {
+					ready: [attachPlotInteractions],
+					draw: [drawSeriesPoints],
+					setCursor: [handlePlotCursor],
+					setScale: [handlePlotScaleChange],
+				},
+			};
+
+			if (state.plot) state.plot.destroy();
+			state.seriesMeta = seriesMeta;
+			state.plot = new uPlot(options, data, dom.plot);
+			updateLegend();
+			updateAxisBadges();
+			updateZoomSummary();
+			updatePanControls();
+		}
+
+		function attachPlotInteractions(plot) {
+			const overlay = plot.root.querySelector(".u-over");
+			if (!overlay || overlay.dataset.bound === "1") return;
+			overlay.dataset.bound = "1";
+
+			overlay.addEventListener("wheel", (event) => {
+				if (!state.baseRange || !state.visibleRange) return;
+				event.preventDefault();
+
+				if (event.shiftKey) {
+					panVisibleRange(event.deltaY > 0 ? 0.12 : -0.12);
+					return;
+				}
+
+				const rect = overlay.getBoundingClientRect();
+				const ratio = rect.width > 0 ? (event.clientX - rect.left) / rect.width : 0.5;
+				const currentSpan = state.visibleRange.end - state.visibleRange.start;
+				const nextSpan = clamp(
+					Math.round(currentSpan * (event.deltaY > 0 ? 1.25 : 0.8)),
+					60 * 1000,
+					state.baseRange.end - state.baseRange.start
+				);
+				const pivot = state.visibleRange.start + currentSpan * ratio;
+				let nextStart = Math.round(pivot - nextSpan * ratio);
+				let nextEnd = nextStart + nextSpan;
+
+				if (nextStart < state.baseRange.start) {
+					nextStart = state.baseRange.start;
+					nextEnd = nextStart + nextSpan;
+				}
+				if (nextEnd > state.baseRange.end) {
+					nextEnd = state.baseRange.end;
+					nextStart = nextEnd - nextSpan;
+				}
+
+				state.visibleRange = { start: nextStart, end: nextEnd };
+				updatePanControls();
+				updateZoomSummary();
+				scheduleChartRefresh();
+			}, { passive: false });
+
+			overlay.addEventListener("mouseleave", () => {
+				hidePlotTooltip();
+			});
+		}
+
+		function handlePlotCursor(plot) {
+			const idx = plot.cursor.idx;
+			if (idx == null || idx < 0) {
+				hidePlotTooltip();
+				return;
+			}
+
+			const xValue = plot.data[0]?.[idx];
+			if (xValue == null) {
+				hidePlotTooltip();
+				return;
+			}
+
+			const resourceRows = [];
+			const itemRows = [];
+			const pointPositions = [];
+			const overlay = plot.root.querySelector(".u-over");
+			const wrapRect = dom.plotWrap.getBoundingClientRect();
+			const overlayRect = overlay ? overlay.getBoundingClientRect() : wrapRect;
+			const overlayOffsetX = overlayRect.left - wrapRect.left;
+			const overlayOffsetY = overlayRect.top - wrapRect.top;
+			const xPos = plot.valToPos(xValue, "x");
+
+			for (let i = 1; i < plot.series.length; i += 1) {
+				const meta = state.seriesMeta[i];
+				const values = plot.data[i];
+				const value = values?.[idx];
+				if (value == null) continue;
+
+				const scaleKey = plot.series[i].scale;
+				if (scaleKey) {
+					const yPos = plot.valToPos(value, scaleKey);
+					if (Number.isFinite(xPos) && Number.isFinite(yPos)) {
+						pointPositions.push({
+							x: overlayOffsetX + xPos,
+							y: overlayOffsetY + yPos,
+						});
+					}
+				}
+
+				const row = {
+					label: meta?.label || plot.series[i].label,
+					color: meta?.color || "#888888",
+					value,
+					isActual: !!meta?.actualMask?.[idx],
+				};
+
+				if (plot.series[i].scale === "resource") {
+					resourceRows.push(row);
+				} else if (plot.series[i].scale === "item") {
+					row.itemKey = meta?.itemKey || null;
+					itemRows.push(row);
+				}
+			}
+
+			if (!resourceRows.length && !itemRows.length) {
+				hidePlotTooltip();
+				return;
+			}
+
+			const tooltip = dom.plotTooltip;
+			const sections = [];
+			if (resourceRows.length) {
+				const resourceContent = `<div class="plot-tooltip-group-title">자원</div>${renderTooltipRows(resourceRows)}`;
+				sections.push(`<div class="plot-tooltip-section plot-tooltip-group-block">${resourceContent}</div>`);
+				if (itemRows.length) {
+					sections.push(`<div class="plot-tooltip-divider"></div>`);
+				}
+			}
+			if (itemRows.length) {
+				sections.push(...renderGroupedItemTooltipSections(itemRows));
+			}
+			tooltip.innerHTML = `
+				<div class="plot-tooltip-time">${escapeHtml(formatTooltipDateTime(xValue * 1000))}</div>
+				<div class="plot-tooltip-list">${sections.join("")}</div>
+			`;
+			tooltip.classList.remove("horizontal");
+			tooltip.style.removeProperty("--tooltip-columns-height");
+			tooltip.style.removeProperty("--tooltip-column-count");
+			tooltip.style.removeProperty("width");
+
+			const verticalRect = tooltip.getBoundingClientRect();
+			const maxTooltipHeight = Math.max(120, Math.min(wrapRect.height - 16, window.innerHeight - 40));
+			if (verticalRect.height > maxTooltipHeight) {
+				const availableHeight = Math.max(120, maxTooltipHeight - 36);
+				const columnWidth = 220;
+				const columnGap = 18;
+				const estimatedColumns = Math.max(2, Math.ceil(verticalRect.height / availableHeight));
+				const targetWidth = Math.min(
+					window.innerWidth - 32,
+					estimatedColumns * columnWidth + (estimatedColumns - 1) * columnGap + 20
+				);
+				tooltip.style.setProperty("--tooltip-columns-height", `${availableHeight}px`);
+				tooltip.style.setProperty("--tooltip-column-count", String(estimatedColumns));
+				tooltip.style.width = `${targetWidth}px`;
+				tooltip.classList.add("horizontal");
+			}
+
+			const fallbackX = overlayOffsetX + (plot.cursor.left ?? 0);
+			const fallbackY = overlayOffsetY + (plot.cursor.top ?? 0);
+			const tooltipRect = tooltip.getBoundingClientRect();
+			const gap = 28;
+
+			const anchorX = pointPositions.length
+				? pointPositions.reduce((sum, point) => sum + point.x, 0) / pointPositions.length
+				: fallbackX;
+			const minPointY = pointPositions.length
+				? Math.min(...pointPositions.map((point) => point.y))
+				: fallbackY;
+			const maxPointY = pointPositions.length
+				? Math.max(...pointPositions.map((point) => point.y))
+				: fallbackY;
+
+			const fitsRight = anchorX + gap + tooltipRect.width <= wrapRect.width - 8;
+			const fitsLeft = anchorX - gap - tooltipRect.width >= 8;
+			const fitsBelow = maxPointY + gap + tooltipRect.height <= wrapRect.height - 8;
+			const fitsAbove = minPointY - gap - tooltipRect.height >= 8;
+
+			let desiredLeft;
+			let desiredTop;
+
+			if (fitsRight && fitsBelow) {
+				desiredLeft = anchorX + gap;
+				desiredTop = maxPointY + gap;
+			} else if (fitsRight && fitsAbove) {
+				desiredLeft = anchorX + gap;
+				desiredTop = minPointY - tooltipRect.height - gap;
+			} else if (fitsLeft && fitsBelow) {
+				desiredLeft = anchorX - tooltipRect.width - gap;
+				desiredTop = maxPointY + gap;
+			} else if (fitsLeft && fitsAbove) {
+				desiredLeft = anchorX - tooltipRect.width - gap;
+				desiredTop = minPointY - tooltipRect.height - gap;
+			} else {
+				const rightSpace = wrapRect.width - anchorX;
+				const leftSpace = anchorX;
+				const belowSpace = wrapRect.height - maxPointY;
+				const aboveSpace = minPointY;
+				desiredLeft = rightSpace >= leftSpace ? anchorX + gap : anchorX - tooltipRect.width - gap;
+				desiredTop = belowSpace >= aboveSpace ? maxPointY + gap : minPointY - tooltipRect.height - gap;
+			}
+
+			const clampedLeft = Math.min(Math.max(8, desiredLeft), Math.max(8, wrapRect.width - tooltipRect.width - 8));
+			const clampedTop = Math.min(Math.max(8, desiredTop), Math.max(8, wrapRect.height - tooltipRect.height - 8));
+
+			tooltip.style.left = `${clampedLeft}px`;
+			tooltip.style.top = `${clampedTop}px`;
+			tooltip.classList.add("visible");
+		}
+
+		function hidePlotTooltip() {
+			dom.plotTooltip.classList.remove("visible");
+		}
+
+		function renderTooltipRows(rows) {
+			return rows.map((row) => `
+				<div class="plot-tooltip-row">
+					<span class="plot-tooltip-name">
+						<span class="color-dot${row.isActual ? "" : " hollow"}" style="background:${row.color}; color:${row.color};"></span>
+						<span class="plot-tooltip-text">${escapeHtml(row.label)}</span>
+					</span>
+					<span class="plot-tooltip-value">${formatTooltipValue(row.value)}</span>
+				</div>
+			`).join("");
+		}
+
+		function renderGroupedItemTooltipSections(rows) {
+			const grouped = ITEM_GROUPS.map((group) => ({
+				id: group.id,
+				label: group.label,
+				rows: sortTooltipGroupRows(
+					rows.filter((row) => row.itemKey && group.match(row.itemKey)),
+					group.order
+				),
+			})).filter((group) => group.rows.length > 0);
+
+			const others = rows.filter((row) => !grouped.some((group) => group.rows.includes(row)));
+			if (others.length > 0) {
+				grouped.push({ id: "other", label: "기타", rows: sortTooltipGroupRows(others, null) });
+			}
+
+			return grouped.map((group, index) => {
+				const content = `<div class="plot-tooltip-group-title">${escapeHtml(group.label)}</div>${renderTooltipRows(group.rows)}`;
+				const divider = index > 0 ? `<div class="plot-tooltip-divider"></div>` : "";
+				return `${divider}<div class="plot-tooltip-section plot-tooltip-group-block">${content}</div>`;
+			});
+		}
+
+		function sortTooltipGroupRows(rows, orderedKeys) {
+			if (!orderedKeys) {
+				return [...rows].sort((a, b) => (a.itemKey || "").localeCompare(b.itemKey || "", "en", { numeric: true }));
+			}
+
+			const orderMap = new Map(orderedKeys.map((key, index) => [key, index]));
+			return [...rows].sort((a, b) => {
+				const aOrder = orderMap.has(a.itemKey) ? orderMap.get(a.itemKey) : Number.MAX_SAFE_INTEGER;
+				const bOrder = orderMap.has(b.itemKey) ? orderMap.get(b.itemKey) : Number.MAX_SAFE_INTEGER;
+				if (aOrder !== bOrder) return aOrder - bOrder;
+				return (a.itemKey || "").localeCompare(b.itemKey || "", "en", { numeric: true });
+			});
+		}
+
+		function groupDisplayItems(items, filter = "") {
+			const normalizedFilter = (filter || "").trim().toLowerCase();
+			const grouped = [];
+			const usedKeys = new Set();
+
+			for (const group of ITEM_GROUPS) {
+				const matched = items.filter((item) => {
+					if (!group.match(item.key)) return false;
+					if (!normalizedFilter) return true;
+					const groupMatch = group.label.toLowerCase().includes(normalizedFilter);
+					return groupMatch || item.name.toLowerCase().includes(normalizedFilter) || item.key.toLowerCase().includes(normalizedFilter);
+				});
+				for (const item of matched) usedKeys.add(item.key);
+				grouped.push({ id: group.id, label: group.label, items: sortDisplayGroupItems(matched, group.order) });
+			}
+
+			const others = items.filter((item) => {
+				if (usedKeys.has(item.key)) return false;
+				if (!normalizedFilter) return true;
+				return item.name.toLowerCase().includes(normalizedFilter) || item.key.toLowerCase().includes(normalizedFilter) || "기타".includes(normalizedFilter);
+			});
+			grouped.push({ id: "other", label: "기타", items: sortDisplayGroupItems(others, null) });
+			return grouped;
+		}
+
+		function sortDisplayGroupItems(items, orderedKeys) {
+			if (!orderedKeys) {
+				return [...items].sort((a, b) => a.key.localeCompare(b.key, "en", { numeric: true }));
+			}
+
+			const orderMap = new Map(orderedKeys.map((key, index) => [key, index]));
+			return [...items].sort((a, b) => {
+				const aOrder = orderMap.has(a.key) ? orderMap.get(a.key) : Number.MAX_SAFE_INTEGER;
+				const bOrder = orderMap.has(b.key) ? orderMap.get(b.key) : Number.MAX_SAFE_INTEGER;
+				if (aOrder !== bOrder) return aOrder - bOrder;
+				return a.key.localeCompare(b.key, "en", { numeric: true });
+			});
+		}
+
+		function handlePlotScaleChange(plot, key) {
+			if (key !== "x" || !plot.scales.x.min || !plot.scales.x.max) return;
+			const start = Math.round(plot.scales.x.min * 1000);
+			const end = Math.round(plot.scales.x.max * 1000);
+			if (!Number.isFinite(start) || !Number.isFinite(end) || start >= end) return;
+			state.visibleRange = { start, end };
+			updatePanControls();
+			updateZoomSummary();
+		}
+
+		function drawSeriesPoints(plot) {
+			const ctx = plot.ctx;
+			ctx.save();
+			const bbox = plot.bbox;
+			if (bbox) {
+				ctx.beginPath();
+				ctx.rect(bbox.left - 5, bbox.top, bbox.width + 10, bbox.height);
+				ctx.clip();
+			}
+
+			function getPointPosition(xValue, yValue, scaleKey) {
+				if (xValue == null || yValue == null || !scaleKey) return null;
+				const xPos = plot.valToPos(xValue, "x", true);
+				const yPos = plot.valToPos(yValue, scaleKey, true);
+				if (!Number.isFinite(xPos) || !Number.isFinite(yPos)) return null;
+				return { x: xPos, y: yPos };
+			}
+
+			for (let i = 1; i < plot.series.length; i += 1) {
+				const meta = state.seriesMeta[i];
+				const actualMask = meta?.actualMask;
+				if (!actualMask) continue;
+
+				const color = meta?.color || plot.series[i].stroke || "#888888";
+				const values = plot.data[i] || [];
+				const xValues = plot.data[0] || [];
+				const scaleKey = plot.series[i].scale;
+
+				for (let j = 0; j < values.length; j += 1) {
+					const xValue = xValues[j];
+					const yValue = values[j];
+					const point = getPointPosition(xValue, yValue, scaleKey);
+					if (!point) continue;
+
+					ctx.beginPath();
+					ctx.arc(point.x, point.y, 2.5, 0, Math.PI * 2);
+					ctx.fillStyle = actualMask[j] ? color : `${color}66`;
+					ctx.fill();
+				}
+			}
+
+			ctx.restore();
+		}
+
+		function updateLegend() {
+			dom.activeLegend.innerHTML = "";
+			const fragment = document.createDocumentFragment();
+			for (const key of getActiveResourceKeys().filter((resourceKey) => resourceKey !== "maxres")) {
+				const tag = document.createElement("span");
+				tag.className = "pill";
+				tag.innerHTML = `<span class="color-dot" style="background:${RESOURCE_META[key].color};"></span>${escapeHtml(RESOURCE_META[key].label)}`;
+				fragment.append(tag);
+			}
+			for (const itemId of Array.from(state.selectedItems.values())) {
+				const item = state.itemCatalog.find((entry) => entry.id === itemId);
+				const tag = document.createElement("span");
+				tag.className = "pill";
+				tag.innerHTML = `<span class="color-dot" style="background:${colorForItem(itemId, item?.key || String(itemId))};"></span>${escapeHtml(item?.name || item?.key || `Item ${itemId}`)}`;
+				fragment.append(tag);
+			}
+			dom.activeLegend.append(fragment);
+		}
+
+		function updateAxisBadges() {
+			const hasResourceSeries = state.seriesMeta.some((meta) => meta?.kind === "resource");
+			const hasItemSeries = state.seriesMeta.some((meta) => meta?.kind === "item");
+			dom.resourceAxisBadge.style.display = hasResourceSeries ? "" : "none";
+			dom.itemAxisBadge.style.display = hasItemSeries ? "" : "none";
+		}
+
+		function updateSidebarVisibility() {
+			const shell = document.querySelector(".shell");
+			shell?.classList.toggle("sidebar-collapsed", state.sidebarCollapsed);
+			const toggleLabel = state.sidebarCollapsed ? "메뉴 펼치기" : "메뉴 접기";
+			dom.toggleSidebar.setAttribute("aria-label", toggleLabel);
+			dom.toggleSidebar.setAttribute("title", toggleLabel);
+			if (state.plot) {
+				requestAnimationFrame(() => {
+					state.plot.setSize({
+						width: Math.max(dom.plotStage.clientWidth - 2, 320),
+						height: Math.max(dom.plotStage.clientHeight - 2, 420),
+					});
+					scheduleChartRefresh();
+				});
+			}
+		}
+
+		function updateRangeSummary() {
+			dom.rangeSummary.textContent = state.baseRange
+				? `${formatDateTime(state.baseRange.start)}  ~  ${formatDateTime(state.baseRange.end)}`
+				: "범위 미설정";
+			updateZoomSummary();
+		}
+
+		function updateZoomSummary() {
+			dom.zoomSummary.textContent = state.visibleRange
+				? `${formatDateTime(state.visibleRange.start)}  ~  ${formatDateTime(state.visibleRange.end)}`
+				: "표시 범위 없음";
+		}
+
+		function updatePanControls() {
+			if (!state.baseRange || !state.visibleRange) {
+				dom.panRange.disabled = true;
+				dom.panLeft.disabled = true;
+				dom.panRight.disabled = true;
+				return;
+			}
+			const baseSpan = state.baseRange.end - state.baseRange.start;
+			const visibleSpan = state.visibleRange.end - state.visibleRange.start;
+			const movable = Math.max(baseSpan - visibleSpan, 0);
+			const ratio = movable === 0 ? 0 : (state.visibleRange.start - state.baseRange.start) / movable;
+			dom.panRange.value = String(Math.round(ratio * 1000));
+			dom.panRange.disabled = movable === 0;
+			dom.panLeft.disabled = movable === 0;
+			dom.panRight.disabled = movable === 0;
+		}
+
+		function getActiveResourceKeys() {
+			const keys = [];
+			if (state.resourceToggles.metal) keys.push("metal");
+			if (state.resourceToggles.nutrient) keys.push("nutrient");
+			if (state.resourceToggles.power) keys.push("power");
+			if (state.resourceToggles.metal || state.resourceToggles.nutrient || state.resourceToggles.power) keys.push("maxres");
+			return keys;
+		}
+
+		function disableControls() {
+			for (const element of [
+				dom.rangeStart, dom.rangeEnd, dom.applyRange, dom.fitRange,
+				dom.itemSearch, dom.resetItems, dom.clearItems, dom.toggleMetal, dom.toggleNutrient, dom.togglePower,
+				dom.panRange, dom.panLeft, dom.panRight
+			]) {
+				element.disabled = true;
+			}
+		}
+
+		function resetViewer() {
+			state.dbLoaded = false;
+			state.availableRange = null;
+			state.itemCatalog = [];
+			state.selectedItems.clear();
+			state.collapsedGroups = new Set(DEFAULT_COLLAPSED_GROUP_IDS);
+			state.baseRange = null;
+			state.visibleRange = null;
+			if (state.plot) {
+				state.plot.destroy();
+				state.plot = null;
+			}
+			hidePlotTooltip();
+			dom.itemList.innerHTML = "";
+			dom.emptyState.style.display = "grid";
+			dom.activeLegend.innerHTML = "";
+			updateRangeSummary();
+			updatePanControls();
+		}
+
+		function colorForItem(id, key) {
+			if (ITEM_COLOR_OVERRIDES.has(key)) {
+				return ITEM_COLOR_OVERRIDES.get(key);
+			}
+			return ITEM_COLORS[stableHash(`${id}:${key}`) % ITEM_COLORS.length];
+		}
+
+		function stableHash(input) {
+			let hash = 2166136261;
+			for (let i = 0; i < input.length; i += 1) {
+				hash ^= input.charCodeAt(i);
+				hash = Math.imul(hash, 16777619);
+			}
+			return Math.abs(hash >>> 0);
+		}
+
+		function parseDateTimeLocal(value) {
+			if (!value) return null;
+			const date = new Date(value);
+			return Number.isNaN(date.getTime()) ? null : date.getTime();
+		}
+
+		function toDateTimeLocalValue(timestamp) {
+			const date = new Date(timestamp);
+			const pad = (value) => String(value).padStart(2, "0");
+			return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+		}
+
+		function formatDateTime(timestamp) {
+			return new Intl.DateTimeFormat("ko-KR", {
+				year: "numeric",
+				month: "2-digit",
+				day: "2-digit",
+				hour: "2-digit",
+				minute: "2-digit",
+			}).format(timestamp);
+		}
+
+		function formatTooltipDateTime(timestamp) {
+			return new Intl.DateTimeFormat("ko-KR", {
+				year: "numeric",
+				month: "2-digit",
+				day: "2-digit",
+				hour: "2-digit",
+				minute: "2-digit",
+			}).format(timestamp);
+		}
+
+		function formatTooltipValue(value) {
+			return Number(value).toLocaleString("ko-KR");
+		}
+
+		function formatAxisTime(timestamp, range) {
+			const span = range ? (range.end - range.start) : 0;
+			const options = span > 7 * 24 * 60 * 60 * 1000
+				? { month: "2-digit", day: "2-digit" }
+				: span > 24 * 60 * 60 * 1000
+					? { month: "2-digit", day: "2-digit", hour: "2-digit" }
+					: { hour: "2-digit", minute: "2-digit" };
+			return new Intl.DateTimeFormat("ko-KR", options).format(timestamp);
+		}
+
+		function clamp(value, min, max) {
+			return Math.min(Math.max(value, min), max);
+		}
+
+		function debounce(fn, wait) {
+			let timer = null;
+			return (...args) => {
+				clearTimeout(timer);
+				timer = setTimeout(() => fn(...args), wait);
+			};
+		}
+
+		function escapeHtml(value) {
+			return String(value)
+				.replaceAll("&", "&amp;")
+				.replaceAll("<", "&lt;")
+				.replaceAll(">", "&gt;")
+				.replaceAll("\"", "&quot;")
+				.replaceAll("'", "&#39;");
+		}
+
+		function setStatus(_message) {}
+
+		state.collapsedGroups = new Set(DEFAULT_COLLAPSED_GROUP_IDS);
+		updateSidebarVisibility();
+	</script>
+</body>
+</html>
