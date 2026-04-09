@@ -44,8 +44,7 @@ namespace Symphony.Features {
 
 			IEnumerator Fn() {
 				var targetFacilities = FindObjectsByType<InstallationFacility>(FindObjectsSortMode.None)
-					.Where(x => x.mCurrentState == InstallationFacility.State.WorkComplete
-					|| x.mCurrentState == InstallationFacility.State.Prepare)
+					.Where(x => x.mCurrentState == InstallationFacility.State.WorkComplete)
 					.ToArray();
 
 				yield return __instance.XGetMethod<IEnumerator>("Co_CollectAllProcess")?.Invoke();
