@@ -186,7 +186,7 @@ namespace Symphony.Features {
 				SingleTon<DataManager>.Instance.ModuleAmountIndex = Get_SpModule_Index(Modules);
 			}
 
-			var panel = FindObjectOfType<Panel_Character_Creator>();
+			var panel = FindFirstObjectByType<Panel_Character_Creator>();
 			if (panel == null) return;
 
 			panel.StartCoroutine(LogCallback(panel, Modules));
@@ -197,7 +197,7 @@ namespace Symphony.Features {
 			SingleTon<DataManager>.Instance.EquipResource[1] = (ushort)Nutrient;
 			SingleTon<DataManager>.Instance.EquipResource[2] = (ushort)Power;
 
-			var panel = FindObjectOfType<Panel_Equipment_parts_Creator>();
+			var panel = FindFirstObjectByType<Panel_Equipment_parts_Creator>();
 			if (panel == null) return;
 
 			LastResource_Equipment_TempInProgressing = true;
@@ -210,7 +210,7 @@ namespace Symphony.Features {
 			SingleTon<DataManager>.Instance.FacilityPartsResource[1] = (ushort)Varnish;
 			SingleTon<DataManager>.Instance.FacilityPartsResource[2] = (ushort)Iron;
 
-			var panel = FindObjectOfType<Panel_Facility_parts_Creator>();
+			var panel = FindFirstObjectByType<Panel_Facility_parts_Creator>();
 			if (panel == null) return;
 
 			LastResource_FacParts_TempInProgressing = true;
