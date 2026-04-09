@@ -13,7 +13,8 @@ namespace Symphony {
 			if (atlas == null) {
 				atlas = ScriptableObject.CreateInstance<NGUIAtlas>();
 
-				var src_sprite = GameObject.FindObjectsOfType<UISprite>(true).FirstOrDefault(x => x.atlas != null);
+				var src_sprite = GameObject.FindObjectsByType<UISprite>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+					.FirstOrDefault(x => x.atlas != null);
 				var src_atlas = src_sprite.atlas;
 				var src_mat = (Material)src_atlas.GetType()
 					.GetField("material", BindingFlags.Instance | BindingFlags.NonPublic)

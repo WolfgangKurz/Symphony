@@ -531,7 +531,7 @@ namespace Symphony.UI.Panels {
 							offset += 20;
 							DrawLabel(ref offset, "이 기능은 매크로 동작을 포함합니다.\n사용 시 운영 주체에 의해 이용 제한에 이를 수 있습니다.\n신중하게 사용해 주세요.", Color.yellow);
 
-							DrawToggle(ref offset, "기지 일괄 수령 사용하기", Conf.Automation.Use_Base_GetAll);
+							DrawToggle(ref offset, "기지 '일괄 수령' 재시작 사용하기", Conf.Automation.Use_Base_CollectAll_Restart);
 							DrawToggle(ref offset, "자율 전투 재시작 사용하기", Conf.Automation.Use_OfflineBattle_Restart);
 							#endregion
 							break;

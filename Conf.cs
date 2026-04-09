@@ -142,7 +142,7 @@ namespace Symphony {
 			public static readonly ConfigEntry<string> CharMaking_Preset_Data = config.Bind("Presets", "CharMaking_Preset_Data", "");
 		}
 		internal class Automation {
-			public static readonly ConfigEntry<bool> Use_Base_GetAll = config.Bind("Automation", "Use_Base_GetAll", false, "Use Get All button for Base");
+			public static readonly ConfigEntry<bool> Use_Base_CollectAll_Restart = config.Bind("Automation", "Use_Base_CollectAll_Restart", false, "Restarts facility when 'Collect All' used");
 
 			public static readonly ConfigEntry<bool> Use_OfflineBattle_Restart = config.Bind("Automation", "Use_OfflineBattle_Restart", false, "Add Restart button to offline battle result screen");
 			public static readonly ConfigEntry<byte> OfflineBattle_Last_CharDiscomp = config.Bind("Automation", "OfflineBattle_Last_CharDiscomp", (byte)1);
@@ -302,8 +302,17 @@ namespace Symphony {
 
 				if (config.TryGetOrphanedEntry("HelpfulBase", "Use_GetAll", out value_bool)) {
 					Plugin.Logger.LogMessage("[Symphony] HelpfulBase configuration detected, migrate it.");
-					Automation.Use_Base_GetAll.Value = value_bool;
+					Automation.Use_Base_CollectAll_Restart.Value = value_bool;
 					config.RemoveAll(new ConfigDefinition("HelpfulBase", "Use_GetAll"));
+				}
+			}
+			{ // Automation.Use_Base_GetAll -> Automation.Use_Base_CollectAll_Restart
+				bool value_bool;
+
+				if (config.TryGetOrphanedEntry("Automation", "Use_Base_GetAll", out value_bool)) {
+					Plugin.Logger.LogMessage("[Symphony] Use_Base_GetAll configuration detected, migrate it.");
+					Automation.Use_Base_CollectAll_Restart.Value = value_bool;
+					config.RemoveAll(new ConfigDefinition("Automation", "Use_Base_GetAll"));
 				}
 			}
 

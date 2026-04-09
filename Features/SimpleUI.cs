@@ -2476,7 +2476,7 @@ namespace Symphony.Features {
 						yield return new WaitUntil(() => SquadClear_LastUnsetPC == waitFor);
 					}
 
-					var selector = FindObjectOfType<UISquadInfoCreatureSelect>()?.gameObject;
+					var selector = FindFirstObjectByType<UISquadInfoCreatureSelect>()?.gameObject;
 					if (selector != null) Destroy(selector);
 				}
 				_btn.StartCoroutine(Fn());
@@ -2759,12 +2759,12 @@ namespace Symphony.Features {
 				IEnumerator Fn() {
 					yield return new WaitForSecondsRealtime(0.1f);
 
-					var labels = GameObject.FindObjectsOfType<UILabel>();
+					var labels = GameObject.FindObjectsByType<UILabel>(FindObjectsSortMode.None);
 					foreach (var label in labels)
 						label.Invalidate(false);
 				}
 
-				GameObject.FindObjectOfType<MonoBehaviour>()?.StartCoroutine(Fn());
+				GameObject.FindFirstObjectByType<MonoBehaviour>()?.StartCoroutine(Fn());
 			}
 		}
 		#endregion
