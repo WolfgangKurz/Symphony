@@ -1,4 +1,4 @@
-﻿using BepInEx.Configuration;
+using BepInEx.Configuration;
 
 using LOEventSystem;
 using LOEventSystem.Msg;
@@ -534,6 +534,22 @@ namespace Symphony.UI.Panels {
 
 							if (Conf.Statistics.Use_ResourceLogging.Value)
 								DrawToggle(ref offset, "아이템 기록 사용하기", Conf.Statistics.Use_ItemsLogging);
+
+							offset += 10;
+
+							DrawLineButton(ref offset, "기록 뷰어 열기", () => {
+								var path = Statistics.StatisticsViewerPath;
+
+								try {
+									if (!Directory.Exists(Statistics.StatisticsDir))
+										Directory.CreateDirectory(Statistics.StatisticsDir);
+
+									if (!File.Exists(path))
+										File.WriteAllBytes(path, Resource.StatisticsViewerHtml);
+
+									Application.OpenURL(path);
+								} catch { } // Ignore
+							}, 8, 8);
 
 							offset += 10;
 

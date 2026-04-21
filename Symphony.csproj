@@ -98,10 +98,25 @@
       <_EmbedCandidate Include="@(ReferencePath)" Condition="$([System.String]::Copy('%(Filename)').StartsWith('Microsoft.Data.Sqlite'))" />
       <_EmbedCandidate Include="@(ReferencePath)" Condition="$([System.String]::Copy('%(Filename)').StartsWith('SQLitePCLRaw'))" />
 
+      <_EmbedCandidate Update="@(_EmbedCandidate)" Condition="'%(Filename)' == 'SQLitePCLRaw.core'">
+        <DependencyPriority>0</DependencyPriority>
+      </_EmbedCandidate>
+      <_EmbedCandidate Update="@(_EmbedCandidate)" Condition="'%(Filename)%(Extension)' == 'Symphony.Utils.dll'">
+        <DependencyPriority>2</DependencyPriority>
+      </_EmbedCandidate>
+      <_EmbedCandidate Update="@(_EmbedCandidate)">
+        <DependencyPriority Condition="'%(_EmbedCandidate.DependencyPriority)' == ''">1</DependencyPriority>
+      </_EmbedCandidate>
+
+      <_EmbedCandidate Update="@(_EmbedCandidate)">
+        <LogicalName>Symphony.Dependencies/%(_EmbedCandidate.DependencyPriority)/%(Filename)%(Extension)</LogicalName>
+      </_EmbedCandidate>
       <EmbeddedResource Include="@(_EmbedCandidate)">
-        <LogicalName>Symphony.Dependencies/%(Filename)%(Extension)</LogicalName>
+        <LogicalName>%(_EmbedCandidate.LogicalName)</LogicalName>
       </EmbeddedResource>
     </ItemGroup>
+
+    <Message Importance="High" Text="[EmbedNuGetDependencies] Embedding dependency [%(_EmbedCandidate.DependencyPriority)]: %(_EmbedCandidate.Filename)%(_EmbedCandidate.Extension)" Condition="'@(_EmbedCandidate)' != ''" />
   </Target>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(OS)' == 'Windows_NT'">

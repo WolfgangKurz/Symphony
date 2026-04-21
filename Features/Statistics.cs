@@ -43,6 +43,7 @@ namespace Symphony.Features {
 		}
 
 		public static string StatisticsDir => Path.Combine(Plugin.GameDir, "Statistics");
+		public static string StatisticsViewerPath => Path.Combine(StatisticsDir, "viewer.html");
 		private static string StatisticsDBPath => CurrentUID == 0
 			? Path.Combine(StatisticsDir, "Statistics.sqlite")
 			: Path.Combine(StatisticsDir, $"Statistics.{CurrentUID}.sqlite");
@@ -64,6 +65,8 @@ namespace Symphony.Features {
 			try {
 				if (!Directory.Exists(StatisticsDir))
 					Directory.CreateDirectory(StatisticsDir);
+
+				File.WriteAllBytes(StatisticsViewerPath, Resource.StatisticsViewerHtml);
 
 				SQLitePCL.Batteries_V2.Init();
 			} catch (Exception e) {
