@@ -804,8 +804,18 @@
 			} : null;
 			state.itemCatalog = meta.items || [];
 			state.selectedItems.clear();
-			state.baseRange = state.availableRange ? { ...state.availableRange } : null;
-			state.visibleRange = state.availableRange ? { ...state.availableRange } : null;
+			if (state.availableRange) {
+				const weekMs = 7 * 24 * 60 * 60 * 1000;
+				const defaultStart = Math.max(state.availableRange.start, state.availableRange.end - weekMs);
+				state.baseRange = {
+					start: defaultStart,
+					end: state.availableRange.end,
+				};
+				state.visibleRange = { ...state.baseRange };
+			} else {
+				state.baseRange = null;
+				state.visibleRange = null;
+			}
 
 			dom.rangeStart.disabled = !state.availableRange;
 			dom.rangeEnd.disabled = !state.availableRange;
@@ -818,9 +828,9 @@
 			dom.toggleNutrient.disabled = false;
 			dom.togglePower.disabled = false;
 
-			if (state.availableRange) {
-				dom.rangeStart.value = toDateTimeLocalValue(state.availableRange.start);
-				dom.rangeEnd.value = toDateTimeLocalValue(state.availableRange.end);
+			if (state.baseRange) {
+				dom.rangeStart.value = toDateTimeLocalValue(state.baseRange.start);
+				dom.rangeEnd.value = toDateTimeLocalValue(state.baseRange.end);
 			}
 
 			applyDefaultItemSelection();
