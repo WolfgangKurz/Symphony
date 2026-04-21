@@ -1,4 +1,4 @@
-﻿using BepInEx.Configuration;
+using BepInEx.Configuration;
 
 using LOEventSystem;
 using LOEventSystem.Msg;
@@ -37,6 +37,7 @@ namespace Symphony.UI.Panels {
 			Carrot,
 			Construction,
 			Gear,
+			Graph,
 			Keyboard,
 			Presets,
 			Robot,
@@ -55,6 +56,7 @@ namespace Symphony.UI.Panels {
 			(IconKey.Robot, "Automation", null),
 			(IconKey.Construction, "Experimental", null),
 			(IconKey.Keyboard, "KeyMapping", null),
+			(IconKey.Graph, "Statistics", null),
 			(IconKey.None, "AssetLoader", null)
 		];
 		private string SelectedFeature = "QuickConfig";
@@ -72,6 +74,7 @@ namespace Symphony.UI.Panels {
 			LoadIcon(IconKey.Carrot, Resource.icon_carrot);
 			LoadIcon(IconKey.Construction, Resource.icon_construction);
 			LoadIcon(IconKey.Gear, Resource.icon_gear);
+			LoadIcon(IconKey.Graph, Resource.icon_graph);
 			LoadIcon(IconKey.Keyboard, Resource.icon_keyboard);
 			LoadIcon(IconKey.Presets, Resource.icon_presets);
 			LoadIcon(IconKey.Robot, Resource.icon_robot);
@@ -520,6 +523,49 @@ namespace Symphony.UI.Panels {
 
 						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
 						//offset += 1 + 4;
+
+						case "Statistics":
+							#region Statistics Section
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Graph]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "Statistics");
+							offset += 20 + 8;
+
+							DrawToggle(ref offset, "자원 기록 사용하기", Conf.Statistics.Use_ResourceLogging);
+
+							if (Conf.Statistics.Use_ResourceLogging.Value)
+								DrawToggle(ref offset, "아이템 기록 사용하기", Conf.Statistics.Use_ItemsLogging);
+
+							offset += 10;
+
+							DrawLineButton(ref offset, "기록 뷰어 열기", () => {
+								var path = Statistics.StatisticsViewerPath;
+
+								try {
+									if (!Directory.Exists(Statistics.StatisticsDir))
+										Directory.CreateDirectory(Statistics.StatisticsDir);
+
+									if (!File.Exists(path))
+										File.WriteAllBytes(path, Resource.StatisticsViewerHtml);
+
+									Application.OpenURL(path);
+								} catch { } // Ignore
+							}, 8, 8);
+
+							offset += 10;
+
+							DrawLineButton(ref offset, "기록 폴더 열기", () => {
+								var path = Statistics.StatisticsDir;
+
+								try {
+									if (!Directory.Exists(path))
+										Directory.CreateDirectory(path);
+
+									Application.OpenURL(path);
+								} catch { } // Ignore
+							}, 8, 8);
+							#endregion
+							break;
+
 
 						case "Automation":
 							#region Automation Section

@@ -52,10 +52,13 @@ namespace Symphony {
 			// Dependencies
 			{
 				var asm = Assembly.GetExecutingAssembly();
-				var res = asm.GetManifestResourceNames().Where(x => x.StartsWith("Symphony.Dependencies/", StringComparison.Ordinal));
+				var res = asm.GetManifestResourceNames()
+					.Where(x => x.StartsWith("Symphony.Dependencies/", StringComparison.Ordinal))
+					.OrderBy(x => x, StringComparer.Ordinal);
 				foreach (var name in res) {
 					try {
 						var loaded = Helper.RegisterAssemblyFromResource(asm, name);
+						Plugin.Logger.LogInfo($"[Symphony::DependencyLoader] Loaded embedded dependency '{name}' as '{loaded.GetName().Name}'.");
 					} catch (Exception e) {
 						Plugin.Logger.LogError($"[Symphony::AssetLoader] Failed to load embedded dependency '{name}': {e}");
 					}

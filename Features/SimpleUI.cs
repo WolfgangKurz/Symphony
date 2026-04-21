@@ -2789,7 +2789,6 @@ namespace Symphony.Features {
 				};
 			}
 			_reGrid.UpdateAllCellData();
-			Plugin.Logger.LogWarning("@@@");
 		}
 		#endregion
 
