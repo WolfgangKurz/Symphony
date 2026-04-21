@@ -1,10 +1,26 @@
-﻿using Symphony.Features;
+using BepInEx.Configuration;
+
+using LOEventSystem;
+using LOEventSystem.Msg;
+
+using Symphony.Features;
+using Symphony.Features.KeyMapping;
+
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 
 using UnityEngine;
 
 namespace Symphony.UI.Panels {
-	internal class ConfigPanel : UIPanelBase {
-		public override Rect rc { get; set; } = new Rect(10f, 30f, 408f, 500f);
+	internal partial class ConfigPanel : UIPanelBase {
+		private delegate void VoidDelegate();
+		private delegate string SliderTemplateDelegate(float value);
+
+		private readonly Color Color_description = new(0.9f, 0.9f, 0.9f, 0.9f);
+
+		public override Rect rc { get; set; } = new Rect(10f, 30f, 422f, 500f);
 
 		private const float WIDTH_FILL = 408f - 120f - 8f;
 		private const float HALF_FILL = WIDTH_FILL / 2;
@@ -12,21 +28,224 @@ namespace Symphony.UI.Panels {
 		private Rect panelViewport = new Rect(0, 0, 248, 0);
 		private Vector2 panelScroll = Vector2.zero;
 
-		private readonly string[] PluginFeatures = ["SimpleTweaks", "SimpleUI", "WindowedResize", "BattleHotkey"];
-		private string SelectedFeature = "SimpleTweaks";
+		private string keyMapping_NewName = "";
+
+		private enum IconKey : int {
+			None,
+			Bell,
+			Brush,
+			Carrot,
+			Construction,
+			Gear,
+			Graph,
+			Keyboard,
+			Presets,
+			Robot,
+			TrafficLight,
+			TV,
+		}
+		private static Dictionary<IconKey, Texture2D> Icons = new();
+
+		private readonly (IconKey icon, string key, string disp)[] PluginFeatures = [
+			(IconKey.Gear, "QuickConfig", null),
+			(IconKey.TV, "GracefulFPS", null),
+			(IconKey.Carrot, "SimpleTweaks", null),
+			(IconKey.Brush, "SimpleUI", null),
+			(IconKey.Bell, "Notification", null),
+			(IconKey.Presets, "Presets", null),
+			(IconKey.Robot, "Automation", null),
+			(IconKey.Construction, "Experimental", null),
+			(IconKey.Keyboard, "KeyMapping", null),
+			(IconKey.Graph, "Statistics", null),
+			(IconKey.None, "AssetLoader", null)
+		];
+		private string SelectedFeature = "QuickConfig";
+
+		public bool locked = false;
+
+		static ConfigPanel() {
+			void LoadIcon(IconKey key, byte[] data) {
+				Icons.Add(key, new Texture2D(1, 1, TextureFormat.ARGB32, false));
+				Icons[key].LoadImage(data);
+			}
+
+			LoadIcon(IconKey.Bell, Resource.icon_bell);
+			LoadIcon(IconKey.Brush, Resource.icon_brush);
+			LoadIcon(IconKey.Carrot, Resource.icon_carrot);
+			LoadIcon(IconKey.Construction, Resource.icon_construction);
+			LoadIcon(IconKey.Gear, Resource.icon_gear);
+			LoadIcon(IconKey.Graph, Resource.icon_graph);
+			LoadIcon(IconKey.Keyboard, Resource.icon_keyboard);
+			LoadIcon(IconKey.Presets, Resource.icon_presets);
+			LoadIcon(IconKey.Robot, Resource.icon_robot);
+			LoadIcon(IconKey.TrafficLight, Resource.icon_traffic_light);
+			LoadIcon(IconKey.TV, Resource.icon_tv);
+		}
+
+		public ConfigPanel(MonoBehaviour instance) : base(instance) { }
 
 		public override void Update() { }
 		public override void OnGUI() {
-			rc = GUIX.ModalWindow(0, rc, this.PanelContent, "Symphony | LastOrigin QoL Plugin | F12", true);
+			if (this.locked) return; // skip if locked
+			rc = GUIX.ModalWindow(0, rc, this.PanelContent, "Symphony | LastOrigin QoL Plugin | F1", true);
 		}
+
+		#region Config Element Shorthand
+		private void KeepOffset(ref float offset, VoidDelegate render) {
+			var prev = offset;
+			render?.Invoke();
+			offset = prev;
+		}
+		private void DrawLabel(ref float offset, string text, Color? color = null, float leftMargin = 0f, float rightMargin = 0f) {
+			var h = GUIX.Label(text, WIDTH_FILL - leftMargin - rightMargin, wrap: true).y;
+			GUIX.Label(
+				new Rect(leftMargin, offset, WIDTH_FILL - leftMargin - rightMargin, h),
+				text,
+				color,
+				wrap: true
+			);
+			offset += h + (10 - (h % 10)) + 4;
+		}
+		private void DrawToggle(ref float offset, string name, ConfigEntry<bool> config, float leftMargin = 0f, float rightMargin = 0f) {
+			var value = GUIX.Toggle(
+					new Rect(leftMargin, offset, WIDTH_FILL - leftMargin - rightMargin, 20),
+					config.Value,
+					name
+				);
+			if (value != config.Value) {
+				config.Value = value;
+				Conf.config.Save();
+			}
+			offset += 20 + 4;
+		}
+		private void DrawToggle(ref float offset, string name, ref bool value, VoidDelegate onChecked, float leftMargin = 0f, float rightMargin = 0f) {
+			var prev = value;
+			value = GUIX.Toggle(
+					new Rect(leftMargin, offset, WIDTH_FILL - leftMargin - rightMargin, 20),
+					value,
+					name
+				);
+			if (value != prev) onChecked?.Invoke();
+			offset += 20 + 4;
+		}
+		private void DrawSeparator(ref float offset) {
+			GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+			offset += 1 + 4;
+		}
+		private void DrawLineButton(ref float offset, string text, VoidDelegate onClick, float leftMargin = 0f, float rightMargin = 0f) {
+			if(GUIX.Button(
+				new Rect(leftMargin, offset, WIDTH_FILL - leftMargin - rightMargin, 20),
+				text
+			)) onClick?.Invoke();
+			offset += 20 + 4;
+		}
+		private void DrawSlider(
+			ref float offset, string text, ConfigEntry<float> config, VoidDelegate onChange = null,
+			float min = 0f, float max = 1f, float step = 0.005f, SliderTemplateDelegate template = null,
+			float labelWidth = 80f, float leftMargin = 0f, float rightMargin = 0f) {
+
+			GUIX.Label(new Rect(0, offset, labelWidth, 20), text);
+			var prev = config.Value;
+			float v;
+			if (step == 0f) {
+				v = GUIX.HorizontalSlider(
+					new Rect(labelWidth + leftMargin, offset, WIDTH_FILL - labelWidth - leftMargin - rightMargin, 20),
+					config.Value, min, max,
+					v => template == null ? (v * 100f).ToString("0.0") + " %" : template.Invoke(v)
+				);
+			}
+			else {
+				var output = GUIX.HorizontalSlider(
+					new Rect(labelWidth + leftMargin, offset, WIDTH_FILL - labelWidth - leftMargin - rightMargin, 20),
+					config.Value, min, max,
+					v => template == null ? (v * 100f).ToString("0.0") + " %" : template.Invoke(v)
+				);
+				v = Mathf.Round(output / step) * step;
+			}
+
+			if (v != prev) {
+				config.Value = v;
+				Conf.config.Save();
+				onChange?.Invoke();
+			}
+			offset += 20 + 4;
+		}
+		private void DrawSlider(
+			ref float offset, string text, ref float value, VoidDelegate onChange,
+			float min = 0f, float max = 1f, float step = 0.005f, SliderTemplateDelegate template = null,
+			float labelWidth = 80f, float leftMargin = 0f, float rightMargin = 0f) {
+
+			GUIX.Label(new Rect(0, offset, labelWidth, 20), text);
+			var prev = value;
+			if (step == 0f) {
+				value = GUIX.HorizontalSlider(
+					new Rect(labelWidth + leftMargin, offset, WIDTH_FILL - labelWidth - leftMargin - rightMargin, 20),
+					value, min, max,
+					v => template == null ? (v * 100f).ToString("0.0") + " %" : template.Invoke(v)
+				);
+			}
+			else {
+				var output = GUIX.HorizontalSlider(
+					new Rect(labelWidth + leftMargin, offset, WIDTH_FILL - labelWidth - leftMargin - rightMargin, 20),
+					value, min, max,
+					v => template == null ? (v * 100f).ToString("0.0") + " %" : template.Invoke(v)
+				);
+				output = Mathf.Round(output / step) * step;
+				value = output;
+			}
+
+			if (value != prev) onChange?.Invoke();
+			offset += 20 + 4;
+		}
+		private void DrawRadio<T>(
+			ref float offset, Dictionary<T, string> options, ConfigEntry<T> config, VoidDelegate onChange = null,
+			float leftMargin = 0f, float rightMargin = 0f) where T : IEquatable<T> {
+
+			var x = 0f;
+			foreach(var opt in options) {
+				var w = GUIX.Label(opt.Value).x + 20f + 5f;
+				if (GUIX.Radio(new Rect(leftMargin + x, offset, w, 20), config.Value.Equals(opt.Key), opt.Value)) {
+					config.Value = opt.Key;
+					Conf.config.Save();
+					onChange?.Invoke();
+				}
+				x += w + 10f;
+			}
+			offset += 20 + 4;
+		}
+		private void DrawKeyBinder(
+			ref float offset, string text, ConfigEntry<string> config,
+			VoidDelegate onChange = null, float leftMargin = 0f, float rightMargin = 0f) {
+
+			var uuid = Guid.NewGuid().ToString();
+			GUIX.Label(new Rect(leftMargin, offset, HALF_FILL - leftMargin, 20), text);
+			GUIX.KeyBinder(
+				$"DrawKeyBinder:{uuid}",
+				new Rect(HALF_FILL, offset, HALF_FILL - rightMargin, 20),
+				config.Value,
+				KeyCode => {
+					config.Value = KeyCode.ToString();
+					Conf.config.Save();
+					onChange?.Invoke();
+				}
+			);
+			offset += 20 + 4;
+		}
+		#endregion
 
 		private void PanelContent(int id) {
 			var ec = Event.current;
 			var goffset = 0;
 
+			float float_temp = 0f;
+			bool bool_temp = false;
+
 			#region Plugin Name Section
 			GUIX.Heading(new Rect(4, 2, 72, 18), "Symphony", Color.yellow);
-			GUIX.Label(new Rect(76, 4, rc.width - 88, 16), Plugin.VersionTag);
+			GUIX.Label(new Rect(76, 4, rc.width - 84 - 120, 16), Plugin.VersionTag);
+
+			if (GUIX.Button(new Rect(4 + rc.width - 8 - 120, 1, 120, 20), "Release Note"))
+				UIManager.Instance.AddPanel(new ReleaseNotePanel(this.instance));
 			goffset += 20 + 4;
 			#endregion
 
@@ -67,391 +286,432 @@ namespace Symphony.UI.Panels {
 					var rc = new Rect(0, i * 23, 120 - 1, 22);
 					if (GUIX.Button(
 						rc, "",
-						feat == SelectedFeature ? null : new Color(1f, 1f, 1f, 0f),
-						feat == SelectedFeature ? null : new Color(1f, 1f, 1f, 0.2f),
-						feat == SelectedFeature ? null : new Color(1f, 1f, 1f, 0.4f)
+						feat.key == SelectedFeature ? null : new Color(1f, 1f, 1f, 0f),
+						feat.key == SelectedFeature ? null : new Color(1f, 1f, 1f, 0.2f),
+						feat.key == SelectedFeature ? null : new Color(1f, 1f, 1f, 0.4f)
 					)) {
-						this.SelectedFeature = feat;
+						this.SelectedFeature = feat.key;
 					}
-					GUIX.Label(rc.Shrink(4), feat);
+
+					if (feat.icon == IconKey.None) {
+						GUIX.Label(rc.Shrink(4), feat.disp ?? feat.key);
+					} else { 
+						GUI.DrawTexture(rc.Shrink(4).Width(14), Icons[feat.icon]);
+						GUIX.Label(rc.Shrink(4).Shrink(18, 0, 0, 0), feat.disp ?? feat.key);
+					}
 				}
 			});
 			#endregion
 
-			var panelRect = new Rect(120, goffset, rc.width - 120 + 28, rc.height - goffset - 18 - 2);
-			this.panelScroll = GUI.BeginScrollView(panelRect, this.panelScroll, this.panelViewport, false, true);
-
 			var offset = 0f;
-			GUIX.Group(new Rect(4, 4, WIDTH_FILL, rc.height - goffset - 8), () => {
-				switch (this.SelectedFeature) {
-					case "SimpleTweaks":
-						#region SimpleTweaks Section
-						GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "SimpleTweaks");
-						offset += 20 + 4; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleTweaks.DisplayFPS.Value, "FPS 표시");
-							if (value != SimpleTweaks.DisplayFPS.Value) {
-								SimpleTweaks.DisplayFPS.Value = value;
-								SimpleTweaks.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleTweaks.LimitFPS.Value, "FPS 제한하기");
-							if (value != SimpleTweaks.LimitFPS.Value) {
-								SimpleTweaks.LimitFPS.Value = value;
-								SimpleTweaks.config.Save();
-							}
-							offset += 20 + 4;
-
-							if (SimpleTweaks.LimitFPS.Value) {
-								GUIX.Label(new Rect(0, offset, 80, 20), "최대 FPS");
-								var input = GUIX.HorizontalSlider(new Rect(80, offset, WIDTH_FILL - 80, 20), SimpleTweaks.MaxFPS.Value, 1, 240);
-								if (input != SimpleTweaks.MaxFPS.Value) {
-									SimpleTweaks.MaxFPS.Value = input;
-									SimpleTweaks.config.Save();
-								}
-								offset += 20 + 4;
-							}
-						}
-						; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleTweaks.LimitBattleFPS.Value, "전투 FPS 제한하기");
-							if (value != SimpleTweaks.LimitBattleFPS.Value) {
-								SimpleTweaks.LimitBattleFPS.Value = value;
-								SimpleTweaks.config.Save();
-							}
-							offset += 20 + 4;
-
-							if (SimpleTweaks.LimitBattleFPS.Value) {
-								GUIX.Label(new Rect(0, offset, 80, 20), "최대 FPS");
-								var input = GUIX.HorizontalSlider(new Rect(80, offset, WIDTH_FILL - 80, 20), SimpleTweaks.MaxBattleFPS.Value, 1, 240);
-								if (input != SimpleTweaks.MaxBattleFPS.Value) {
-									SimpleTweaks.MaxBattleFPS.Value = input;
-									SimpleTweaks.config.Save();
-								}
-								offset += 20 + 4;
-							}
-						}
-
-						offset += 10; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleTweaks.UseLobbyHide.Value, "로비 UI 토글 사용");
-							if (value != SimpleTweaks.UseLobbyHide.Value) {
-								SimpleTweaks.UseLobbyHide.Value = value;
-								SimpleTweaks.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						if (SimpleTweaks.UseLobbyHide.Value) {
-							GUIX.Label(new Rect(0, offset, HALF_FILL, 20), "로비 UI 토글 키");
-							GUIX.KeyBinder("SimpleTweak:LobbyUIHideKey", new Rect(HALF_FILL, offset, HALF_FILL, 20), SimpleTweaks.LobbyUIHideKey.Value, KeyCode => {
-								SimpleTweaks.LobbyUIHideKey.Value = KeyCode.ToString();
-								SimpleTweaks.config.Save();
+			var panelRect = new Rect(120, goffset, rc.width - 120, rc.height - goffset - 18 - 2);
+			this.panelScroll = GUIX.ScrollView(panelRect, this.panelScroll, this.panelViewport, false, false, () => {
+				GUIX.Group(new Rect(4, 4, WIDTH_FILL, this.panelViewport.height - 4), () => {
+					switch (this.SelectedFeature) {
+						case "QuickConfig":
+							#region QuickConfig Section
+							float_temp = GameOption.BgmVolume;
+							DrawSlider(ref offset, "배경 음악", ref float_temp, () => {
+								GameOption.BgmVolume = float_temp;
+								GameSoundManager.Instance.ChangeVolumeBGM();
+								GameOption.SaveSetting();
 							});
-							offset += 20 + 4;
-						}
 
-						offset += 10; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleTweaks.MuteOnBackground.Value, "백그라운드에서 음소거");
-							if (value != SimpleTweaks.MuteOnBackground.Value) {
-								SimpleTweaks.MuteOnBackground.Value = value;
-								SimpleTweaks.config.Save();
+							float_temp = GameOption.SfxVolume;
+							DrawSlider(ref offset, "효과음", ref float_temp, () => {
+								GameOption.SfxVolume = float_temp;
+								GameSoundManager.Instance.ChangeVolumeEffect();
+								GameOption.SaveSetting();
+							});
+
+							float_temp = GameOption.VoiceVolume;
+							DrawSlider(ref offset, "음성", ref float_temp, () => {
+								GameOption.VoiceVolume = float_temp;
+								GameSoundManager.Instance.ChangeVolumeVoice();
+								GameOption.SaveSetting();
+							});
+
+							bool_temp = GameOption.BackGroundSoundOn;
+							DrawToggle(ref offset, "백그라운드 재생", ref bool_temp, () => {
+								GameOption.BackGroundSoundOn = bool_temp;
+								GameOption.SaveSetting();
+							});
+
+							DrawSeparator(ref offset);
+
+							bool_temp = GameOption.SubwayMode;
+							DrawToggle(ref offset, "실루엣 모드", ref bool_temp, () => {
+								GameOption.SubwayMode = bool_temp;
+								GameOption.SaveSetting();
+								Handler.Broadcast((Base)new SubwayMode());
+							});
+
+							DrawSeparator(ref offset);
+
+							KeepOffset(ref offset, () => {
+								float_temp = GameOption.LobbyBubbleText;
+								DrawSlider(ref offset, "말풍선", ref float_temp, () => {
+									GameOption.LobbyBubbleText = float_temp;
+									GameOption.SaveSetting();
+								}, rightMargin: 30f);
+							});
+
+							bool_temp = GameOption.LobbyBubbleText > 0f;
+							DrawToggle(ref offset, "", ref bool_temp, () => {
+								GameOption.LobbyBubbleText = bool_temp ? 1f : 0f;
+								GameOption.SaveSetting();
+							}, leftMargin: WIDTH_FILL - 20);
+							#endregion
+							break;
+
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
+
+						case "GracefulFPS":
+							#region GracefulFPS Section
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.TV]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "GracefulFPS");
+							offset += 20 + 8;
+
+							DrawToggle(ref offset, "FPS 표시", Conf.GracefulFPS.DisplayFPS);
+
+							offset += 10;
+
+							DrawLabel(ref offset, "FPS 제한하기");
+							offset -= 4;
+							DrawRadio(ref offset, new() {
+								{ "None",  "바닐라" },
+								{ "Fixed", "고정" },
+								{ "VSync", "수직동기화" }
+							}, Conf.GracefulFPS.LimitFPS, () => GracefulFPS.ApplyFPS());
+
+							if (Conf.GracefulFPS.LimitFPS.Value == "Fixed") {
+								float_temp = Conf.GracefulFPS.MaxFPS.Value;
+								DrawSlider(
+									ref offset, "최대 FPS", ref float_temp, () => {
+										Conf.GracefulFPS.MaxFPS.Value = (int)float_temp;
+										Conf.config.Save();
+										GracefulFPS.ApplyFPS();
+									},
+									1f, 240f, 1f
+								);
 							}
-							offset += 20 + 4;
-						}
 
-						GUIX.Label(new Rect(0, offset, 80, 20), "BGM");
-						SimpleTweaks.VolumeBGM = Mathf.Round(200f * GUIX.HorizontalSlider(
-							new Rect(80, offset, WIDTH_FILL - 80, 20),
-							SimpleTweaks.VolumeBGM, 0f, 1f,
-							v => (v * 100f).ToString("0.0") + " %"
-						)) / 200f;
-						offset += 20 + 4;
+							offset += 10;
 
-						GUIX.Label(new Rect(0, offset, 80, 20), "SFX");
-						SimpleTweaks.VolumeSFX = Mathf.Round(200f * GUIX.HorizontalSlider(
-							new Rect(80, offset, WIDTH_FILL - 80, 20),
-							SimpleTweaks.VolumeSFX, 0f, 1f,
-							v => (v * 100f).ToString("0.0") + " %"
-						)) / 200f;
-						offset += 20 + 4;
+							DrawLabel(ref offset, "전투 FPS 제한하기");
+							offset -= 4;
+							DrawRadio(ref offset, new() {
+								{ "None",  "설정 안함" },
+								{ "Fixed", "고정" },
+								{ "VSync", "수직동기화" }
+							}, Conf.GracefulFPS.LimitBattleFPS, () => GracefulFPS.ApplyFPS());
 
-						GUIX.Label(new Rect(0, offset, 80, 20), "Voice");
-						SimpleTweaks.VolumeVoice = Mathf.Round(200f * GUIX.HorizontalSlider(
-							new Rect(80, offset, WIDTH_FILL - 80, 20),
-							SimpleTweaks.VolumeVoice, 0f, 1f,
-							v => (v * 100f).ToString("0.0") + " %"
-						)) / 200f;
-						offset += 20 + 4;
-
-						offset += 10; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleTweaks.UseFormationFix.Value, "편성 화면 선택 버그 수정");
-							if (value != SimpleTweaks.UseFormationFix.Value) {
-								SimpleTweaks.UseFormationFix.Value = value;
-								SimpleTweaks.config.Save();
+							if (Conf.GracefulFPS.LimitBattleFPS.Value == "Fixed") {
+								float_temp = (float)Conf.GracefulFPS.MaxBattleFPS.Value;
+								DrawSlider(
+									ref offset, "최대 FPS", ref float_temp, () => {
+										Conf.GracefulFPS.MaxBattleFPS.Value = (int)float_temp;
+										Conf.config.Save();
+										GracefulFPS.ApplyFPS();
+									},
+									1f, 240f, 1f
+								);
 							}
-							offset += 20 + 4;
-						}
+
+							DrawLabel(ref offset, "'설정 안함'으로 설정하는 경우,\n위 'FPS 제한하기'의 설정을 따릅니다.", Color_description, 12);
+							break;
+
 						#endregion
-						break;
 
-					//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-					//offset += 1 + 4;
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
 
-					case "SimpleUI":
-						#region SimpleUI Section
-						GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "SimpleUI");
-						offset += 20 + 4; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.Small_CharWarehouse.Value, "더 작은 전투원 목록 항목");
-							if (value != SimpleUI.Small_CharWarehouse.Value) {
-								SimpleUI.Small_CharWarehouse.Value = value;
-								SimpleUI.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.Small_CharSelection.Value, "더 작은 전투원 선택 항목");
-							if (value != SimpleUI.Small_CharSelection.Value) {
-								SimpleUI.Small_CharSelection.Value = value;
-								SimpleUI.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.Small_CharScrapbook.Value, "더 작은 전투원 도감 항목");
-							if (value != SimpleUI.Small_CharScrapbook.Value) {
-								SimpleUI.Small_CharScrapbook.Value = value;
-								SimpleUI.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.Small_ItemWarehouse.Value, "더 작은 장비 목록 항목");
-							if (value != SimpleUI.Small_ItemWarehouse.Value) {
-								SimpleUI.Small_ItemWarehouse.Value = value;
-								SimpleUI.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.Small_ItemSelection.Value, "더 작은 장비 선택 항목");
-							if (value != SimpleUI.Small_ItemSelection.Value) {
-								SimpleUI.Small_ItemSelection.Value = value;
-								SimpleUI.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.Small_TempInventory.Value, "더 작은 임시 창고 항목");
-							if (value != SimpleUI.Small_TempInventory.Value) {
-								SimpleUI.Small_TempInventory.Value = value;
-								SimpleUI.config.Save();
-							}
-							offset += 20 + 4;
-						}
+						case "SimpleTweaks":
+							#region SimpleTweaks Section
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Carrot]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "SimpleTweaks");
+							offset += 20 + 8;
 
-						GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-						offset += 1 + 4;
+							DrawToggle(ref offset, "로비 UI 숨기기/보이기 단축키 사용", Conf.SimpleTweaks.UseLobbyHide);
+							if (Conf.SimpleTweaks.UseLobbyHide.Value)
+								DrawKeyBinder(ref offset, "단축키", Conf.SimpleTweaks.LobbyUIHideKey, leftMargin: 10);
 
-						; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.Small_Consumables.Value, "더 작은 소모품 목록 항목");
-							if (value != SimpleUI.Small_Consumables.Value) {
-								SimpleUI.Small_Consumables.Value = value;
-								SimpleUI.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.Sort_Consumables.Value, "소모품 목록 정렬");
-							if (value != SimpleUI.Sort_Consumables.Value) {
-								SimpleUI.Sort_Consumables.Value = value;
-								SimpleUI.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						;
+							DrawSeparator(ref offset);
 
-						GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-						offset += 1 + 4;
+							DrawToggle(ref offset, "창 비율 및 위치 초기화 무시", Conf.SimpleTweaks.Use_IgnoreWindowReset);
 
-						; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.EnterToSearch_CharWarehouse.Value, "전투원 목록에서 Enter로 검색");
-							if (value != SimpleUI.EnterToSearch_CharWarehouse.Value) {
-								SimpleUI.EnterToSearch_CharWarehouse.Value = value;
-								SimpleUI.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.EnterToSearch_CharSelection.Value, "전투원 선택에서 Enter로 검색");
-							if (value != SimpleUI.EnterToSearch_CharSelection.Value) {
-								SimpleUI.EnterToSearch_CharSelection.Value = value;
-								SimpleUI.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.EnterToSearch_ItemWarehouse.Value, "장비 목록에서 Enter로 검색");
-							if (value != SimpleUI.EnterToSearch_ItemWarehouse.Value) {
-								SimpleUI.EnterToSearch_ItemWarehouse.Value = value;
-								SimpleUI.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), SimpleUI.EnterToSearch_ItemSelection.Value, "장비 선택에서 Enter로 검색");
-							if (value != SimpleUI.EnterToSearch_ItemSelection.Value) {
-								SimpleUI.EnterToSearch_ItemSelection.Value = value;
-								SimpleUI.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						#endregion
-						break;
+							offset += 10;
 
-					//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-					//offset += 1 + 4;
+							DrawToggle(ref offset, "전체화면 키 변경하기", Conf.SimpleTweaks.Use_FullScreenKey);
+							if (Conf.SimpleTweaks.Use_FullScreenKey.Value)
+								DrawKeyBinder(ref offset, "전체화면 키", Conf.SimpleTweaks.FullScreenKey, leftMargin: 10);
 
-					case "WindowedResize":
-						#region WindowedResize Section
-						GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "WindowedResize");
-						offset += 20 + 4;
+							DrawSeparator(ref offset);
 
-						; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), WindowedResize.Use_Feature.Value, "크기 조절 허용 및 기억 사용하기");
-							if (value != WindowedResize.Use_Feature.Value) {
-								WindowedResize.Use_Feature.Value = value;
-								WindowedResize.config.Save();
-							}
-							offset += 20 + 4;
-						}
+							DrawToggle(ref offset, "백그라운드 재생 동작 변경", Conf.SimpleTweaks.MuteOnBackgroundFix);
+							DrawLabel(ref offset, "사운드 설정에서 '백그라운드 재생'을 켰을 경우, 백그라운드에서 오디오가 일시정지 되는 동작 대신 음소거가 되도록 하는 옵션입니다.\n'백그라운드 재생'이 꺼져있을 경우, 동작하지 않습니다.", Color_description, 12);
 
-						GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-						offset += 1 + 4;
+							DrawSeparator(ref offset);
 
-						; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), WindowedResize.Use_FullScreenKey.Value, "전체화면 키 변경 사용");
-							if (value != WindowedResize.Use_FullScreenKey.Value) {
-								WindowedResize.Use_FullScreenKey.Value = value;
-								WindowedResize.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						if (WindowedResize.Use_FullScreenKey.Value) {
-							GUIX.Label(new Rect(0, offset, HALF_FILL, 20), "전체화면 키");
-							GUIX.KeyBinder("WindowedResize:Key_Mode", new Rect(HALF_FILL, offset, HALF_FILL, 20), WindowedResize.Key_Mode.Value, KeyCode => {
-								WindowedResize.Key_Mode.Value = KeyCode.ToString();
-								WindowedResize.config.Save();
-							});
-							offset += 20 + 4;
-						}
-						#endregion
-						break;
+							DrawToggle(ref offset, "마지막 자율 전투 설정 기억하기", Conf.SimpleTweaks.Use_OfflineBattle_Memorize);
+							DrawLabel(ref offset, "전투원 및 장비 분해 설정과 시간을 기억합니다.", Color_description, 12);
 
-					//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
-					//offset += 1 + 4;
+							DrawSeparator(ref offset);
 
-					case "BattleHotkey":
-						#region BattleHotkey Section
-						GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "BattleHotkey");
-						offset += 20 + 4; {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), BattleHotkey.Use_SkillPanel.Value, "행동 단축키 사용");
-							if (value != BattleHotkey.Use_SkillPanel.Value) {
-								BattleHotkey.Use_SkillPanel.Value = value;
-								BattleHotkey.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						if (BattleHotkey.Use_SkillPanel.Value) {
-							GUIX.Label(new Rect(20, offset, HALF_FILL - 20, 20), "액티브 스킬 1");
-							GUIX.KeyBinder("BattleHotkey:Skill1", new Rect(HALF_FILL, offset, HALF_FILL, 20), BattleHotkey.Key_SkillPanel[0].Value, KeyCode => {
-								BattleHotkey.Key_SkillPanel[0].Value = KeyCode.ToString();
-								BattleHotkey.config.Save();
-							});
-							offset += 20 + 4;
+							DrawToggle(ref offset, "스토리 뷰어 스킵 키 변경", Conf.SimpleTweaks.UsePatchStorySkip);
+							if (Conf.SimpleTweaks.UsePatchStorySkip.Value)
+								DrawKeyBinder(ref offset, "스킵 키", Conf.SimpleTweaks.PatchStorySkipKey, leftMargin: 10);
 
-							GUIX.Label(new Rect(20, offset, HALF_FILL - 20, 20), "액티브 스킬 2");
-							GUIX.KeyBinder("BattleHotkey:Skill2", new Rect(HALF_FILL, offset, HALF_FILL, 20), BattleHotkey.Key_SkillPanel[1].Value, KeyCode => {
-								BattleHotkey.Key_SkillPanel[1].Value = KeyCode.ToString();
-								BattleHotkey.config.Save();
-							});
-							offset += 20 + 4;
+							DrawSeparator(ref offset);
 
-							GUIX.Label(new Rect(20, offset, HALF_FILL - 20, 20), "이동");
-							GUIX.KeyBinder("BattleHotkey:Move", new Rect(HALF_FILL, offset, HALF_FILL, 20), BattleHotkey.Key_SkillPanel[2].Value, KeyCode => {
-								BattleHotkey.Key_SkillPanel[2].Value = KeyCode.ToString();
-								BattleHotkey.config.Save();
-							});
-							offset += 20 + 4;
+							DrawToggle(ref offset, "빠른 로고 화면", Conf.SimpleTweaks.Use_QuickLogo);
+							DrawToggle(ref offset, "바로 로그인 가능", Conf.SimpleTweaks.Use_QuickTitle);
+							DrawToggle(ref offset, "자동 로그인", Conf.SimpleTweaks.Use_AutoLogin);
 
-							GUIX.Label(new Rect(20, offset, HALF_FILL - 20, 20), "대기");
-							GUIX.KeyBinder("BattleHotkey:Wait", new Rect(HALF_FILL, offset, HALF_FILL, 20), BattleHotkey.Key_SkillPanel[3].Value, KeyCode => {
-								BattleHotkey.Key_SkillPanel[3].Value = KeyCode.ToString();
-								BattleHotkey.config.Save();
-							});
-							offset += 20 + 4;
-						} {
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), BattleHotkey.Use_PlayButton.Value, "행동 개시 단축키 사용");
-							if (value != BattleHotkey.Use_PlayButton.Value) {
-								BattleHotkey.Use_PlayButton.Value = value;
-								BattleHotkey.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						if (BattleHotkey.Use_PlayButton.Value) {
-							GUIX.Label(new Rect(20, offset, HALF_FILL - 20, 20), "행동 개시");
-							GUIX.KeyBinder("BattleHotkey:Play", new Rect(HALF_FILL, offset, HALF_FILL, 20), BattleHotkey.Key_Play.Value, KeyCode => {
-								BattleHotkey.Key_Play.Value = KeyCode.ToString();
-								BattleHotkey.config.Save();
-							});
-							offset += 20 + 4;
-						}
-						/*
-						{
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), BattleHotkey.Use_TeamGrid.Value, "아군 선택 단축키 사용");
-							if (value != BattleHotkey.Use_TeamGrid.Value) {
-								BattleHotkey.Use_TeamGrid.Value = value;
-								BattleHotkey.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						if (BattleHotkey.Use_TeamGrid.Value) {
-							for (var i = 0; i < 9; i++) {
-								GUIX.Label(new Rect(20, offset, HALF_FILL - 20, 20), $"아군 위치 {i + 1}");
-								GUIX.DrawGrid33(new Rect(HALF_FILL - 20, offset + 2, 16, 16), i);
+							DrawSeparator(ref offset);
 
-								GUIX.KeyBinder($"BattleHotkey:TeamGrid{i + 1}", new Rect(HALF_FILL,  offset, HALF_FILL, 20), BattleHotkey.Key_TeamGrid[i].Value, keyCode => {
-									BattleHotkey.Key_TeamGrid[i].Value = keyCode.ToString();
-									BattleHotkey.config.Save();
+							DrawToggle(ref offset, "BGM 초기화 방지하기", Conf.SimpleTweaks.Use_ContinueBGM);
+							DrawLabel(ref offset, "사운드 장치 등이 변경되었을 때, BGM이 초기화되어 처음부터 재생되는 것을 방지하고, 재생되던 위치부터 이어서 재생되도록 합니다.", Color_description, 12);
+							#endregion
+							break;
+
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
+
+						case "SimpleUI":
+							#region SimpleUI Section
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Brush]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "SimpleUI");
+							offset += 20 + 8;
+
+							this.Conf_SimpleUI(ref offset);
+							#endregion
+							break;
+
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
+
+						case "Notification":
+							#region Notification Section
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Bell]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "Notification");
+							offset += 20 + 8;
+
+							DrawToggle(ref offset, "인게임 알림을 윈도우로 받기", Conf.Notification.Handle_Notification);
+							#endregion
+							break;
+
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
+
+						case "Presets":
+							#region Presets Section
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Presets]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "Presets");
+							offset += 20 + 8;
+
+							DrawToggle(ref offset, "전투원 제조 프리셋 사용하기", Conf.Presets.Use_CharMaking_Preset);
+
+							DrawSeparator(ref offset);
+
+							DrawToggle(ref offset, "마지막 전투원 제조 수치 불러오기", Conf.Presets.Use_Last_CharMakingData);
+							DrawToggle(ref offset, "마지막 장비 제조 수치 불러오기", Conf.Presets.Use_Last_EquipMakingData);
+							DrawToggle(ref offset, "마지막 시설 부품 제조 수치 불러오기", Conf.Presets.Use_Last_FacPartsMakingData);
+							#endregion
+							break;
+
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
+
+						case "Statistics":
+							#region Statistics Section
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Graph]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "Statistics");
+							offset += 20 + 8;
+
+							DrawToggle(ref offset, "자원 기록 사용하기", Conf.Statistics.Use_ResourceLogging);
+
+							if (Conf.Statistics.Use_ResourceLogging.Value)
+								DrawToggle(ref offset, "아이템 기록 사용하기", Conf.Statistics.Use_ItemsLogging);
+
+							offset += 10;
+
+							DrawLineButton(ref offset, "기록 뷰어 열기", () => {
+								var path = Statistics.StatisticsViewerPath;
+
+								try {
+									if (!Directory.Exists(Statistics.StatisticsDir))
+										Directory.CreateDirectory(Statistics.StatisticsDir);
+
+									if (!File.Exists(path))
+										File.WriteAllBytes(path, Resource.StatisticsViewerHtml);
+
+									Application.OpenURL(path);
+								} catch { } // Ignore
+							}, 8, 8);
+
+							offset += 10;
+
+							DrawLineButton(ref offset, "기록 폴더 열기", () => {
+								var path = Statistics.StatisticsDir;
+
+								try {
+									if (!Directory.Exists(path))
+										Directory.CreateDirectory(path);
+
+									Application.OpenURL(path);
+								} catch { } // Ignore
+							}, 8, 8);
+							#endregion
+							break;
+
+
+						case "Automation":
+							#region Automation Section
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Robot]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "Automation");
+							offset += 20 + 8;
+
+							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "! 주의 !", Color.yellow);
+							offset += 20;
+							DrawLabel(ref offset, "이 기능은 매크로 동작을 포함합니다.\n사용 시 운영 주체에 의해 이용 제한에 이를 수 있습니다.\n신중하게 사용해 주세요.", Color.yellow);
+
+							DrawToggle(ref offset, "기지 '일괄 수령' 재시작 사용하기", Conf.Automation.Use_Base_CollectAll_Restart);
+							DrawToggle(ref offset, "자율 전투 재시작 사용하기", Conf.Automation.Use_OfflineBattle_Restart);
+							#endregion
+							break;
+
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
+
+						case "Experimental":
+							#region Experimental Section
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Construction]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "Experimental");
+							offset += 20 + 8;
+
+							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "! 주의 !", Color.yellow);
+							offset += 20;
+							DrawLabel(ref offset, "이 기능은 완전히 검증되지 않은 동작을 포함합니다.\n사용 시 게임 동작에 문제가 발생할 수 있습니다.\n위 내용을 충분히 숙지 후 사용해 주세요.", Color.yellow);
+
+							DrawSeparator(ref offset);
+
+							DrawToggle(ref offset, "전투 프리징 수정", Conf.Experimental.Fix_BattleFreezing);
+							DrawLabel(ref offset, "특정 전투 상황에서 캐릭터/적의 움직임이 멈추고 다음으로 진행되지 않는 문제를 수정하는 기능입니다.\n모든 프리징이 수정되지 않을 수 있습니다.\n다음 프리징 문제가 해결됩니다.", Color_description, 12);
+
+							DrawLabel(ref offset, " * 프레데터, 블라인드 프린세스 등 파티클 관련 프리징 문제", Color_description, 12);
+							DrawLabel(ref offset, " * 치이 아루엘 회피 프리징 문제", Color_description, 12);
+							DrawLabel(ref offset, " * 이나비 스킨 2스킬 프리징 문제", Color_description, 12);
+
+							DrawSeparator(ref offset);
+
+							DrawToggle(ref offset, "빠른 로딩 사용하기", Conf.Experimental.Use_FastLoading);
+							DrawLabel(ref offset, "로딩 시, 구동에 불필요한 에셋을 건너뛰어 시작을 빠르게 합니다.\n사용 시, 게임 플레이에 문제가 생길 수 있습니다.", Color_description, 12);
+							#endregion
+							break;
+
+						//GUIX.HLine(new Rect(0, offset, WIDTH_FILL, 0));
+						//offset += 1 + 4;
+
+						case "KeyMapping":
+							#region KeyMapping
+							GUI.DrawTexture(new Rect(0, offset, 20, 20), Icons[IconKey.Keyboard]);
+							GUIX.Heading(new Rect(24, offset, WIDTH_FILL, 20), "KeyMapping");
+							offset += 20 + 8;
+
+							DrawToggle(ref offset, "키 맵핑 사용하기", Conf.KeyMapping.Use_KeyMapping, rightMargin: 90);
+							DrawSlider(ref offset, "키 맵 불투명도", Conf.KeyMapping.Opacity, labelWidth: 100f);
+							DrawLabel(ref offset, "설정한 키를 누르면 화면의 특정 영역을 클릭한 것과 같은 동작을 만드는 기능입니다.\n앱플레이어 등에서 '가상키'로 불리는 동작입니다.", Color_description, 12);
+
+							var groupToRemove = "";
+							foreach (var g in KeyMappingConf.KeyMaps) {
+								KeepOffset(ref offset, () => {
+									DrawRadio(ref offset, new() { { g.Key, "" } }, Conf.KeyMapping.Activated);
 								});
-								offset += 20 + 4;
-							}
-						}
-						*/
-						{
-							var value = GUIX.Toggle(new Rect(0, offset, WIDTH_FILL, 20), BattleHotkey.Use_EnemyGrid.Value, "적군 선택 단축키 사용");
-							if (value != BattleHotkey.Use_EnemyGrid.Value) {
-								BattleHotkey.Use_EnemyGrid.Value = value;
-								BattleHotkey.config.Save();
-							}
-							offset += 20 + 4;
-						}
-						if (BattleHotkey.Use_EnemyGrid.Value) {
-							for (var i = 0; i < 9; i++) {
-								GUIX.Label(new Rect(20, offset, HALF_FILL - 20, 20), $"적군 위치 {i + 1}");
-								GUIX.DrawGrid33(new Rect(HALF_FILL - 20, offset + 2, 16, 16), i);
 
-								GUIX.KeyBinder($"BattleHotkey:EnemyGrid{i + 1}", new Rect(HALF_FILL, offset, HALF_FILL, 20), BattleHotkey.Key_EnemyGrid[i].Value, keyCode => {
-									BattleHotkey.Key_EnemyGrid[i].Value = keyCode.ToString();
-									BattleHotkey.config.Save();
-								});
+								if (g.Key != "Default") {
+									KeepOffset(ref offset, () => {
+										DrawLineButton(ref offset, "X", () => {
+											if (g.Key == Conf.KeyMapping.Activated.Value)
+												Conf.KeyMapping.Activated.Value = "Default";
+
+											groupToRemove = g.Key;
+										}, WIDTH_FILL - 20);
+									});
+								}
+
+								if (Conf.KeyMapping.Activated.Value == g.Key) {
+									KeepOffset(ref offset, () => {
+										DrawLineButton(ref offset, "편집하기", () => {
+											UIManager.Instance.AddPanel(new KeyMapPanel(this.instance));
+										}, WIDTH_FILL - 105, 25);
+									});
+								}
+
+								GUIX.Label(new Rect(25, offset, WIDTH_FILL - 105, 20), g.Key);
 								offset += 20 + 4;
 							}
-						}
-						#endregion
-						break;
-				}
+							if (groupToRemove.Length > 0) KeyMappingConf.RemoveGroup(groupToRemove);
+
+							this.keyMapping_NewName = GUIX.TextField(
+								new Rect(0, offset, WIDTH_FILL - 85, 20),
+								this.keyMapping_NewName,
+								fontStyle: KeyMappingConf.KeyMaps.Keys.Contains(this.keyMapping_NewName)
+									? FontStyle.Italic
+									: FontStyle.Normal
+							);
+							DrawLineButton(ref offset, "추가하기", () => {
+								var n = this.keyMapping_NewName;
+								if (
+									string.IsNullOrWhiteSpace(n) ||
+									KeyMappingConf.KeyMaps.Keys.Contains(n)
+								) return;
+
+								KeyMappingConf.Save(n, []);
+								Conf.KeyMapping.Activated.Value = n;
+								this.keyMapping_NewName = "";
+							}, WIDTH_FILL - 80);
+							#endregion
+							break;
+
+						case "AssetLoader":
+							#region AssetLoader
+							GUIX.Heading(new Rect(0, offset, WIDTH_FILL, 20), "AssetLoader", Color.yellow);
+							offset += 20 + 8;
+
+							DrawLabel(
+								ref offset,
+								"AssetLoader는 항상 동작하며, 비 윈도우 번들도 로드를 시도합니다.\n" +
+								"비 윈도우 번들은 문제가 발생할 수 있습니다.",
+								Color_description
+							);
+
+							DrawLabel(ref offset, "로드할 파일은 게임 폴더 내에 'AssetLoader' 내의 어느 경로에 두어도 됩니다.", Color_description);
+
+							DrawLabel(
+								ref offset,
+								$" * 폴더 내 파일 수 : {AssetLoader.AssetStatistics.Found}\n"+
+								$" * 로드된 번들 수 : {AssetLoader.AssetStatistics.Loaded}\n"+
+								$" * 실패한 번들 수 : {AssetLoader.AssetStatistics.Error}",
+								Color_description
+							);
+
+							DrawLineButton(ref offset, "AssetLoader 폴더 열기", () => {
+								var path = AssetLoader.AssetLoaderDirectory;
+
+								try {
+									if (!Directory.Exists(path))
+										Directory.CreateDirectory(path);
+
+									Application.OpenURL(path);
+								} catch { } // Ignore
+							}, 8, 8);
+							#endregion
+							break;
+					}
+				});
 			});
-
-			GUI.EndScrollView(true);
 			this.panelViewport.height = offset + 4;
 		}
 	}

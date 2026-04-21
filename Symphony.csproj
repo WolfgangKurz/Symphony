@@ -1,11 +1,11 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>netstandard2.1</TargetFramework>
     <AssemblyName>Symphony</AssemblyName>
     <Product>Symphony</Product>
     <Description>Symphony is LastOrigin PC client BepInEx plugin for QoL</Description>
-    <Version>0.8.1</Version>
+    <Version>0.42.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <RestoreAdditionalProjectSources>
@@ -20,17 +20,28 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <RepositoryUrl>https://github.com/WolfgangKurz/Symphony</RepositoryUrl>
 
-    <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <SelfContained>true</SelfContained>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="Symphony.Notification\**" />
+    <Compile Remove="Symphony.Utils\**" />
+    <EmbeddedResource Remove="Symphony.Notification\**" />
+    <EmbeddedResource Remove="Symphony.Utils\**" />
+    <None Remove="Symphony.Notification\**" />
+    <None Remove="Symphony.Utils\**" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.Unity.Mono" Version="6.0.0-be.*" PrivateAssets="all" />
     <!-- <PackageReference Include="BepInEx.Core" Version="5.*" /> -->
     <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" PrivateAssets="all" />
-    <PackageReference Include="UnityEngine.Modules" Version="2021.3.9" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
+    <PackageReference Include="SQLitePCLRaw.core" Version="2.1.6" />
+    <PackageReference Include="SQLitePCLRaw.bundle_winsqlite3" Version="2.1.6" />
+    <PackageReference Include="UnityEngine.Modules" Version="6000.0.58" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">
@@ -38,6 +49,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="Symphony.Utils\Symphony.Utils.csproj">
+      <Private>false</Private>
+    </ProjectReference>
     <Reference Include="Assembly-CSharp">
       <HintPath>ref\Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
@@ -45,13 +59,68 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="Helper+Generated.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Helper+Generated.tt</DependentUpon>
+    </Compile>
+    <Compile Update="Resource.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resource.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Resource.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resource.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="Helper+Generated.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>Helper+Generated.cs</LastGenOutput>
+    </None>
     <None Update="README.md">
       <Pack>True</Pack>
       <PackagePath>\</PackagePath>
     </None>
   </ItemGroup>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="COPY /Y &quot;$(TargetDir)Symphony.dll&quot; &quot;H:\VFUN\LastOrigin\BepInEx\plugins\Symphony.dll&quot;" />
+  <ItemGroup>
+    <Service Include="{508349b6-6b84-4df5-91f0-309beebad82d}" />
+  </ItemGroup>
+
+  <Target Name="EmbedNuGetDependencies" AfterTargets="ResolveReferences" BeforeTargets="CreateManifestResourceNames">
+    <ItemGroup>
+      <_EmbedCandidate Include="@(ReferencePath)" Condition="'%(Filename)%(Extension)' == 'Symphony.Utils.dll'" />
+      <_EmbedCandidate Include="@(ReferencePath)" Condition="$([System.String]::Copy('%(Filename)').StartsWith('Microsoft.Data.Sqlite'))" />
+      <_EmbedCandidate Include="@(ReferencePath)" Condition="$([System.String]::Copy('%(Filename)').StartsWith('SQLitePCLRaw'))" />
+
+      <_EmbedCandidate Update="@(_EmbedCandidate)" Condition="'%(Filename)' == 'SQLitePCLRaw.core'">
+        <DependencyPriority>0</DependencyPriority>
+      </_EmbedCandidate>
+      <_EmbedCandidate Update="@(_EmbedCandidate)" Condition="'%(Filename)%(Extension)' == 'Symphony.Utils.dll'">
+        <DependencyPriority>2</DependencyPriority>
+      </_EmbedCandidate>
+      <_EmbedCandidate Update="@(_EmbedCandidate)">
+        <DependencyPriority Condition="'%(_EmbedCandidate.DependencyPriority)' == ''">1</DependencyPriority>
+      </_EmbedCandidate>
+
+      <_EmbedCandidate Update="@(_EmbedCandidate)">
+        <LogicalName>Symphony.Dependencies/%(_EmbedCandidate.DependencyPriority)/%(Filename)%(Extension)</LogicalName>
+      </_EmbedCandidate>
+      <EmbeddedResource Include="@(_EmbedCandidate)">
+        <LogicalName>%(_EmbedCandidate.LogicalName)</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+
+    <Message Importance="High" Text="[EmbedNuGetDependencies] Embedding dependency [%(_EmbedCandidate.DependencyPriority)]: %(_EmbedCandidate.Filename)%(_EmbedCandidate.Extension)" Condition="'@(_EmbedCandidate)' != ''" />
+  </Target>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(OS)' == 'Windows_NT'">
+    <Exec Command="COPY /Y &quot;$(TargetDir)Symphony.dll&quot; &quot;G:\VFUN\LastOrigin\BepInEx\plugins\Symphony.dll&quot;" />
   </Target>
 </Project>

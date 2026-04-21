@@ -1,15 +1,16 @@
-﻿using BepInEx;
+﻿#pragma warning disable BepInEx002 // Classes with BepInPlugin attribute must inherit from BaseUnityPlugin
+using BepInEx;
 using BepInEx.Logging;
 using BepInEx.Unity.Mono;
 
 using LitJson;
 
-using Symphony.Features;
 using Symphony.UI;
 using Symphony.UI.Panels;
 
 using System;
 using System.Collections;
+using System.Linq;
 using System.Reflection;
 
 using UnityEngine;
@@ -23,50 +24,72 @@ namespace Symphony {
 
 		internal static readonly string VersionTag = $"v{Ver.Major}.{Ver.Minor}.{Ver.Build}";
 
+		internal static string GameDir { get; private set; }
+
 		internal static IntPtr hWnd => Helper.GetMainWindowHandle();
 
-		private UIManager uiManager;
 		private ConfigPanel configPanel;
-
-		private class GithubReleaseInfo {
-			public string tag_name { get; set; }
-		}
 
 		public void Awake() {
 			// Plugin startup logic
 			Logger = base.Logger;
 			Logger.LogInfo($"Plugin {MyPluginInfo.PLUGIN_GUID} is loaded!");
 
+			// ~~~\LastOrigin_Data\Managed\UnityEngine.CoreModule.dll
+			GameDir = System.IO.Path.GetFullPath(@"./../../../", Assembly.GetCallingAssembly().Location);
+
 			try {
 				Enum.GetValues(typeof(ACTOR_CLASS)); // to test game assembly
-			}
-			catch {
+			} catch {
 				Logger.LogError("Failed to find ACTOR_CLASS, seems not installed on LastOrigin or binary changed!");
 				return;
 			}
 
+			Conf.Migrate();
+
 			StartCoroutine(this.InitUI());
 
-			this.gameObject.AddComponent<SimpleTweaks>();
-			this.gameObject.AddComponent<SimpleUI>();
-			this.gameObject.AddComponent<WindowedResize>();
-			this.gameObject.AddComponent<BattleHotkey>();
+			// Dependencies
+			{
+				var asm = Assembly.GetExecutingAssembly();
+				var res = asm.GetManifestResourceNames()
+					.Where(x => x.StartsWith("Symphony.Dependencies/", StringComparison.Ordinal))
+					.OrderBy(x => x, StringComparer.Ordinal);
+				foreach (var name in res) {
+					try {
+						var loaded = Helper.RegisterAssemblyFromResource(asm, name);
+						Plugin.Logger.LogInfo($"[Symphony::DependencyLoader] Loaded embedded dependency '{name}' as '{loaded.GetName().Name}'.");
+					} catch (Exception e) {
+						Plugin.Logger.LogError($"[Symphony::AssetLoader] Failed to load embedded dependency '{name}': {e}");
+					}
+				}
+			}
 
-			FancySkillDesc.Install();
+			// AssetLoader
+			Helper.SetWindowTitle(Plugin.hWnd, "LastOrigin_VFUNKR - AssetLoader loading");
+			Symphony.Features.AssetLoader.Init();
+			Symphony.Features.AssetLoader.Load();
+			Helper.SetWindowTitle(Plugin.hWnd, "LastOrigin_VFUNKR");
+
+			var features = Assembly.GetExecutingAssembly().GetTypes()
+				.Where(x => x.GetCustomAttributes(typeof(FeatureAttribute), false).Length > 0);
+			foreach(var feat in features) 
+				this.gameObject.AddComponent(feat);
 		}
 
 		private IEnumerator InitUI() {
 			yield return new WaitForEndOfFrame();
 
-			this.uiManager = this.gameObject.AddComponent<UIManager>();
-			this.configPanel = this.uiManager.AddPanel(new ConfigPanel());
+			UIManager.Instance = this.gameObject.AddComponent<UIManager>();
+			this.configPanel = UIManager.Instance.AddPanel(new ConfigPanel(this));
 			this.configPanel.enabled = false;
 
 			StartCoroutine(this.CheckUpdate());
+			StartCoroutine(this.CheckReleaseNote());
 		}
 
 		public void Update() {
-			if (Input.GetKeyDown(KeyCode.F12))
+			if (Input.GetKeyDown(KeyCode.F1))
 				this.configPanel.enabled = !this.configPanel.enabled;
 		}
 
@@ -81,17 +104,44 @@ namespace Symphony {
 
 			try {
 				var json = req.downloadHandler.text;
-				var tag = JsonMapper.ToObject<GithubReleaseInfo>(json).tag_name;
-				if (tag != Plugin.VersionTag) 
-					this.uiManager.AddPanel(new UpdateAvailablePanel(tag));
-			}
-			catch (Exception e) {
+				var release = JsonMapper.ToObject<GithubReleaseInfo>(json);
+				var tag = release.tag_name;
+				if (tag != Plugin.VersionTag && release.assets.Length > 0)
+					UIManager.Instance.AddPanel(new UpdateAvailablePanel(this, tag, release.assets));
+			} catch (Exception e) {
 				Logger.LogError($"[Symphony] Cannot fetch update data: {e.ToString()}");
 				yield break;
 			}
-			Logger.LogWarning("CheckUpdate 7");
+		}
+		private IEnumerator CheckReleaseNote() {
+			var req = UnityWebRequest.Get("https://api.github.com/repos/WolfgangKurz/Symphony/releases");
+			yield return req.SendWebRequest();
 
-			yield break;
+			if (req.result == UnityWebRequest.Result.ProtocolError || req.result == UnityWebRequest.Result.ConnectionError) {
+				Plugin.Logger.LogError($"[Symphony] Cannot fetch release data: {req.error}");
+				yield break;
+			}
+
+			var lastVer = Conf.LastVersionTag.Value;
+			if (lastVer.StartsWith("v")) lastVer = lastVer.Substring(1);
+
+			try {
+				var json = req.downloadHandler.text;
+				var releases = JsonMapper.ToObject<GithubReleaseInfo[]>(json)
+					.Where(x => {
+						var diff = Helper.IsLesserVersion(lastVer, x.tag_name.Substring(1));
+						Logger.LogDebug($"{lastVer}\t{x.tag_name.Substring(1)}\t{diff}");
+						return diff;
+					})
+					.ToArray();
+
+				if (releases.Length > 0)
+					UIManager.Instance.AddPanel(new ReleaseNotePanel(this, releases));
+			} catch (Exception e) {
+				Plugin.Logger.LogError($"[Symphony] Cannot fetch release data: {e.ToString()}");
+			}
+
+			Conf.LastVersionTag.Value = Plugin.VersionTag.Substring(1);
 		}
 	}
 }
