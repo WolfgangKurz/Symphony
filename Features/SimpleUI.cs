@@ -2171,6 +2171,13 @@ namespace Symphony.Features {
 					return apv.IsUseParts();
 				return false;
 			}).Invoke();
+			bool hasParts2 = new Func<bool>(() => {
+				if (_model.TryGetComponent<ActorSpinePartsView>(out var aspv))
+					return aspv.IsUseParts2();
+				else if (_model.TryGetComponent<ActorPartsView>(out var apv))
+					return apv.IsUseParts2();
+				return false;
+			}).Invoke();
 
 			bool ToggleBG() {
 				var active = false;
@@ -2196,22 +2203,31 @@ namespace Symphony.Features {
 				}
 				return active;
 			}
+			bool ToggleParts2() {
+				var active = false;
+				if (_model.TryGetComponent<ActorSpinePartsView>(out var aspv)) {
+					active = !aspv.IsParts2Active();
+					aspv.SetParts2View(active);
+				}
+				else if (_model.TryGetComponent<ActorPartsView>(out var apv)) {
+					active = !apv.IsParts2Active();
+					apv.SetParts2View(active);
+				}
+				return active;
+			}
 
-			var goModeChange = __instance.XGetFieldValue<GameObject>("_goModeChange");
-			goModeChange.SetActive(false);
-
-			var goScreenshot = __instance.XGetFieldValue<GameObject>("_goScreenShot");
-			goScreenshot.SetActive(hasBg);
+			var goBG = __instance.XGetFieldValue<GameObject>("_goModeChange");
+			goBG.SetActive(hasBg);
 			if (hasBg) {
-				goScreenshot.transform.localEulerAngles = new Vector3(0f, 0f, -90f);
+				goBG.transform.localEulerAngles = new Vector3(0f, 0f, -90f);
 
-				var sp = goScreenshot.GetComponent<UISprite>();
+				var sp = goBG.GetComponent<UISprite>();
 				sp.atlas = asset_masterAtlas;
 
-				var bgsp = goScreenshot.transform.Find("GameObject")?.GetComponent<UISprite>();
+				var bgsp = goBG.transform.Find("GameObject")?.GetComponent<UISprite>();
 				if (bgsp != null) bgsp.color = new Color(0f, 0f, 0f, 0.7373f);
 
-				var btn = goScreenshot.GetComponent<UIButton>();
+				var btn = goBG.GetComponent<UIButton>();
 				btn.normalSprite = "newui_Lobby_Icon_bg_on";
 				btn.onClick.Clear();
 				btn.onClick.Add(new(() => {
@@ -2220,23 +2236,47 @@ namespace Symphony.Features {
 				}));
 			}
 
-			var goFacingCamera = __instance.XGetFieldValue<GameObject>("_goFacingCamera");
-			goFacingCamera.SetActive(hasParts);
+			var goProp1 = __instance.XGetFieldValue<GameObject>("_goScreenShot");
+			goProp1.SetActive(hasParts);
 			if (hasParts) {
-				goFacingCamera.transform.localEulerAngles = new Vector3(0f, 0f, -90f);
+				goProp1.transform.localEulerAngles = new Vector3(0f, 0f, -90f);
 
-				var sp = goFacingCamera.GetComponent<UISprite>();
+				var sp = goProp1.GetComponent<UISprite>();
 				sp.atlas = asset_masterAtlas;
 
-				var bgsp = goFacingCamera.transform.Find("GameObject")?.GetComponent<UISprite>();
+				var bgsp = goProp1.transform.Find("GameObject")?.GetComponent<UISprite>();
 				if (bgsp != null) bgsp.color = new Color(0f, 0f, 0f, 0.7373f);
 
-				var btn = goFacingCamera.GetComponent<UIButton>();
-				btn.normalSprite = "newui_Lobby_Icon_Props_on";
+				var btn = goProp1.GetComponent<UIButton>();
+				btn.normalSprite = hasParts2 ? "newui_Lobby_Icon_Props1_on" : "newui_Lobby_Icon_Props_on";
 				btn.onClick.Clear();
 				btn.onClick.Add(new(() => {
 					var active = ToggleParts();
-					btn.normalSprite = active ? "newui_Lobby_Icon_Props_on" : "newui_Lobby_Icon_Props_off";
+					btn.normalSprite = active
+						? hasParts2 ? "newui_Lobby_Icon_Props1_on" : "newui_Lobby_Icon_Props_on"
+						: hasParts2 ? "newui_Lobby_Icon_Props1_off" : "newui_Lobby_Icon_Props_off";
+				}));
+			}
+
+			var goProp2 = __instance.XGetFieldValue<GameObject>("_goFacingCamera");
+			goProp2.SetActive(hasParts2);
+			if (hasParts2) {
+				goProp2.transform.localEulerAngles = new Vector3(0f, 0f, -90f);
+
+				var sp = goProp2.GetComponent<UISprite>();
+				sp.atlas = asset_masterAtlas;
+
+				var bgsp = goProp2.transform.Find("GameObject")?.GetComponent<UISprite>();
+				if (bgsp != null) bgsp.color = new Color(0f, 0f, 0f, 0.7373f);
+
+				var btn = goProp2.GetComponent<UIButton>();
+				btn.normalSprite = "newui_Lobby_Icon_Props2_on";
+				btn.onClick.Clear();
+				btn.onClick.Add(new(() => {
+					var active = ToggleParts2();
+					btn.normalSprite = active
+						? "newui_Lobby_Icon_Props2_on"
+						: "newui_Lobby_Icon_Props2_off";
 				}));
 			}
 		}
@@ -2476,7 +2516,7 @@ namespace Symphony.Features {
 						yield return new WaitUntil(() => SquadClear_LastUnsetPC == waitFor);
 					}
 
-					var selector = FindObjectOfType<UISquadInfoCreatureSelect>()?.gameObject;
+					var selector = FindFirstObjectByType<UISquadInfoCreatureSelect>()?.gameObject;
 					if (selector != null) Destroy(selector);
 				}
 				_btn.StartCoroutine(Fn());
@@ -2758,12 +2798,12 @@ namespace Symphony.Features {
 				IEnumerator Fn() {
 					yield return new WaitForSecondsRealtime(0.1f);
 
-					var labels = GameObject.FindObjectsOfType<UILabel>();
+					var labels = GameObject.FindObjectsByType<UILabel>(FindObjectsSortMode.None);
 					foreach (var label in labels)
 						label.Invalidate(false);
 				}
 
-				GameObject.FindObjectOfType<MonoBehaviour>()?.StartCoroutine(Fn());
+				GameObject.FindFirstObjectByType<MonoBehaviour>()?.StartCoroutine(Fn());
 			}
 		}
 		#endregion

@@ -143,7 +143,7 @@ namespace Symphony.Features {
 					var rc = lastWindowRect.Value;
 					lastWindowRect = null;
 
-					FindObjectOfType<MonoBehaviour>() // Use any MonoBehaviour
+					FindFirstObjectByType<MonoBehaviour>() // Use any MonoBehaviour
 						.StartCoroutine(Patch_Screen_SetResolution_Coroutine(rc));
 				}
 			}
@@ -309,7 +309,8 @@ namespace Symphony.Features {
 			public static void Patch_PanelLogo_OnFinished_Postfix() {
 				if (!Conf.SimpleTweaks.Use_QuickLogo.Value) return;
 
-				var rating = GameObject.FindObjectsOfType<UIPanel>().FirstOrDefault(x => x.name.StartsWith("Panel_Rating"));
+				var rating = GameObject.FindObjectsByType<UIPanel>(FindObjectsSortMode.None)
+					.FirstOrDefault(x => x.name.StartsWith("Panel_Rating"));
 				var tweens = rating.GetComponentsInChildren<TweenAlpha>(true);
 				foreach (var t in tweens) {
 					if (t.delay == 0f) {
@@ -462,7 +463,7 @@ namespace Symphony.Features {
 				Helper.KeyCodeParse(Conf.SimpleTweaks.LobbyUIHideKey.Value, out var kc) &&
 				Input.GetKeyDown(kc)
 			) { // Key downed?
-				var panel_lobby = GameObject.FindObjectOfType<Panel_Lobby>();
+				var panel_lobby = GameObject.FindFirstObjectByType<Panel_Lobby>();
 				if (panel_lobby == null) {
 					Plugin.Logger.LogWarning("[Symphony::SimpleTweak] In Lobby scene, but Panel_Lobby not found");
 					return;

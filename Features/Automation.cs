@@ -2,8 +2,6 @@
 
 using LO_ClientNetwork;
 
-using Symphony.UI;
-
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -15,41 +13,14 @@ using UnityEngine;
 namespace Symphony.Features {
 	[Feature("Automation")]
 	internal class Automation : MonoBehaviour {
-		private static bool GetAll_GettingAll = false;
-
-		private static WebGiveRewardInfo GetAll_RewardTotal = null;
-		private static WebGiveRewardInfo GetAll_CostTotal = null;
-		private static Dictionary<string, int> GetAll_RewardItemDictionary = new();
-		private static bool GetAll_DisplayGetAllResult = false;
-		private static long GetAll_CurrentFacilityUid = 0;
-		private static Action<Panel_FacilityRewardResult> GetAll_OnRewardPopup = null;
-		private static Action<W2C_FACILITY_REWARD> GetAll_OnRewardPacket = null;
-		private static Action<W2C_FACILITY_WORK> GetAll_OnWorkPacket = null;
-
-		private static GameObject GetAll_BtnGetAll = null;
-
 		public void Start() {
 			var harmony = new Harmony("Symphony.Automation");
 
-			#region Base GetAll
+			#region Base CollectAll Restart
 			harmony.Patch(
-				AccessTools.Method(typeof(Panel_FacilityRewardResult), "ResourceUpdate"),
-				postfix: new HarmonyMethod(typeof(Automation), nameof(Automation.FacilityRewardResult_Ready))
+				AccessTools.Method(typeof(Panel_LivingStation), nameof(Panel_LivingStation.OnCollectAllButton)),
+				prefix: new HarmonyMethod(typeof(Automation), nameof(Automation.Panel_LivingStation_OnCollectAllButton))
 			);
-			harmony.Patch(
-				AccessTools.Method(typeof(Panel_LivingStation), "ShowSideMenu"),
-				postfix: new HarmonyMethod(typeof(Automation), nameof(Automation.Panel_LivingStation_ShowSideMenu))
-			);
-
-			EventManager.StartListening(this, 133U, new Action<WebResponseState>(this.OnFacilityWorkPakcet));
-			EventManager.StartListening(this, 134U, new Action<WebResponseState>(this.OnFacilityRewardPacket));
-
-			SceneListener.Instance.OnEnter("Scene_LivingStation", () => {
-				if (!Conf.Automation.Use_Base_GetAll.Value) return;
-
-				Plugin.Logger.LogWarning("[Symphony::Automation] Scene_LivingStation detected");
-				StartCoroutine(this.SetupBase_GetAll());
-			});
 			#endregion
 
 			#region OfflineBattle Restart
@@ -65,237 +36,63 @@ namespace Symphony.Features {
 		}
 		public void OnDestroy() {
 			EventManager.StopListening(this);
-			GetAll_BtnGetAll = null;
 		}
 
-		#region Base GetAll
-		private IEnumerator SetupBase_GetAll() {
-			yield return new WaitForEndOfFrame();
-			yield return new WaitForEndOfFrame(); // ensure scene load
-
-			var src = GameObject.Find("FacilityEditButton");
-			if (src == null) {
-				Plugin.Logger.LogWarning("[Symphony::Automation] Failed to find Facility edit button");
-				yield break;
-			}
-
-			var _children = src.transform.parent.GetComponentsInChildren<Transform>(true);
-			var btn = _children.FirstOrDefault(t => t.name == "CollectAllButton")?.gameObject;
-			if (!btn) {
-				Plugin.Logger.LogWarning("[Symphony::Automation] Failed to get CollectAllButton");
-				Destroy(btn);
-				yield break;
-			}
-			if(btn.activeSelf) {
-				Plugin.Logger.LogWarning("[Symphony::Automation] CollectAllButton already active, seems already implemented, skip setup automation");
-				yield break;
-			}
-			btn.SetActive(true);
-			GetAll_BtnGetAll = btn;
-
-			UIButton uiBtn;
-			if (!btn.TryGetComponent<UIButton>(out uiBtn)) {
-				var srcCollider = src.GetComponent<BoxCollider>();
-				var collider = btn.AddComponent<BoxCollider>();
-				collider.center = srcCollider.center;
-				collider.size = srcCollider.size;
-
-				uiBtn = btn.AddComponent<UIButton>();
-
-				btn.transform.localPosition += new Vector3(0f, -160f);
-			}
-			if (!uiBtn) {
-				Plugin.Logger.LogWarning("[Symphony::Automation] Failed to create UIButton component for CollectAllButton");
-				Destroy(btn);
-				yield break;
-			}
-
-			var deactivation = btn.transform.Find("Deactivation");
-			if (deactivation) deactivation.gameObject.SetActive(false);
-
-			uiBtn.onClick.Clear();
-			uiBtn.onClick.Add(new EventDelegate(() => {
-				StartCoroutine(this.OnClickGetAll());
-			}));
-		}
-		private IEnumerator OnClickGetAll() {
-			if (GetAll_GettingAll) yield break;
-
-			try {
-				GetAll_RewardTotal = new WebGiveRewardInfo();
-				GetAll_CostTotal = new WebGiveRewardInfo();
-				GetAll_GettingAll = true;
-				GetAll_DisplayGetAllResult = false;
-
-				var scene = GameObject.FindObjectOfType<Scene_LivingStation>();
-
-				string[] charMakers = ["NukerMaking1", "NukerMaking2", "TankerMaking1", "TankerMaking2", "SupporterMaking1", "SupporterMaking2"];
-				var facilities = GameObject.FindObjectsOfType<InstallationFacility>();
-				var facilitiesToWork = facilities
-					.Where(x => !charMakers.Contains(x.Packet.Facility_key))
-					.Where(x => x.GetState() == InstallationFacility.State.WorkComplete);
-				Plugin.Logger.LogDebug($"[Symphony::Automation] Facilities : {facilities.Length}");
-				Plugin.Logger.LogDebug($"[Symphony::Automation] Facilities to get : {facilitiesToWork.Count()}");
-				foreach (var fac in facilitiesToWork) {
-					if (fac.GetState() != InstallationFacility.State.WorkComplete) continue;
-
-					var facilityUid = fac.Packet.Facility_uid;
-					Panel_FacilityRewardResult rewardPopup = null;
-					bool rewardDone = false;
-					bool workDone = false;
-					bool restartRequested = false;
-					bool restartTriggered = false;
-
-					GetAll_CurrentFacilityUid = facilityUid;
-					GetAll_OnRewardPacket = w2CFacilityReward => {
-						var result = w2CFacilityReward.result;
-						if (result.Facility_uid != GetAll_CurrentFacilityUid) return;
-
-						var res = result.RewardInfo;
-						GetAll_RewardTotal.PCRewardList.AddRange(res.PCRewardList ?? []);
-						GetAll_RewardTotal.AddMetal += res.AddMetal;
-						GetAll_RewardTotal.AddNutrient += res.AddNutrient;
-						GetAll_RewardTotal.AddPower += res.AddPower;
-						GetAll_RewardTotal.AddCash += res.AddCash;
-						GetAll_RewardTotal.ItemRewardList.AddRange(res.ItemRewardList ?? []);
-
-						rewardDone = true;
-					};
-					GetAll_OnWorkPacket = w2CFacilityWork => {
-						var result = w2CFacilityWork.result;
-						if (result.Facility_uid != GetAll_CurrentFacilityUid) return;
-
-						GetAll_CostTotal.AddMetal += (uint)fac.Table.MetalCost;
-						GetAll_CostTotal.AddNutrient += (uint)fac.Table.NutrientCost;
-						GetAll_CostTotal.AddPower += (uint)fac.Table.PowerCost;
-
-						workDone = true;
-					};
-					GetAll_OnRewardPopup = popup => {
-						rewardPopup = popup;
-						if (!restartRequested || restartTriggered) return;
-
-						var button = popup.GetComponentsInChildren<UIButton>().FirstOrDefault(x => x.name == "RestartButton");
-						restartTriggered = button != null;
-						if (button != null) {
-							EventDelegate.Execute(button.onClick);
-						} else {
-							Plugin.Logger.LogWarning($"[Symphony::Automation] Failed to trigger restart button for facility {facilityUid}");
-							workDone = true;
-						}
-					};
-
-					try {
-						Plugin.Logger.LogDebug("[Symphony::Automation] Select facility");
-						scene.kStation.GetType()
-							.GetField("mCurrentFacility", BindingFlags.Instance | BindingFlags.NonPublic)
-							.SetValue(scene.kStation, fac);
-
-						Plugin.Logger.LogDebug("[Symphony::Automation] Click facility to get reward");
-						fac.OnSelected();
-						Plugin.Logger.LogDebug("[Symphony::Automation] Waiting reward packet");
-						yield return new WaitUntil(() => rewardDone);
-						Plugin.Logger.LogDebug("[Symphony::Automation] Waiting reward popup");
-						yield return new WaitUntil(() => rewardPopup != null);
-
-						if (fac.Table.MetalCost > SingleTon<DataManager>.Instance.Metal ||
-							fac.Table.NutrientCost > SingleTon<DataManager>.Instance.Nutrient ||
-							fac.Table.PowerCost > SingleTon<DataManager>.Instance.Power
-						) {
-							var closeButton = rewardPopup.GetComponentsInChildren<UIButton>().FirstOrDefault(x => x.name == "CloseButton");
-							if (closeButton != null) EventDelegate.Execute(closeButton.onClick);
-
-							Plugin.Logger.LogMessage("[Symphony::Automation] Not enough resources to restart facility");
-							continue; // Not enough resource to restart
-						}
-
-						Plugin.Logger.LogDebug("[Symphony::Automation] Test restart");
-						restartRequested = true;
-						if (!restartTriggered) {
-							var button = rewardPopup.GetComponentsInChildren<UIButton>().FirstOrDefault(x => x.name == "RestartButton");
-							restartTriggered = button != null;
-							if (button != null) {
-								Plugin.Logger.LogDebug("[Symphony::Automation] Click restart button");
-								EventDelegate.Execute(button.onClick);
-							}
-							else {
-								Plugin.Logger.LogWarning($"[Symphony::Automation] Failed to trigger restart button for facility {facilityUid}");
-								continue;
-							}
-						}
-
-						Plugin.Logger.LogDebug("[Symphony::Automation] Waiting restart packet");
-						yield return new WaitUntil(() => workDone);
-						Plugin.Logger.LogDebug("[Symphony::Automation] OK");
-						//yield return new WaitForSecondsRealtime(1f);
-						//yield return new WaitForSecondsRealtime(0.155f);
-					} finally {
-						scene.kStation.SelectFacilityRelease();
-						GetAll_CurrentFacilityUid = 0;
-						GetAll_OnRewardPopup = null;
-						GetAll_OnRewardPacket = null;
-						GetAll_OnWorkPacket = null;
-					}
-				}
-			} finally {
-				GetAll_GettingAll = false;
-
-				if (GetAll_RewardTotal.AddMetal > 0 || GetAll_RewardTotal.AddNutrient > 0 || GetAll_RewardTotal.AddPower > 0 ||
-					GetAll_RewardTotal.AddCash > 0 || GetAll_RewardTotal.PCRewardList.Count > 0 ||
-					GetAll_CostTotal.AddMetal > 0 || GetAll_CostTotal.AddNutrient > 0 || GetAll_CostTotal.AddPower > 0
-				) {
-					this.gui_GetAll_ResultViewport.height = 0f;
-					this.gui_GetAll_ResultScroll = Vector2.zero;
-
-					var dict = new Dictionary<string, int>();
-					foreach (var item in GetAll_RewardTotal.ItemRewardList) {
-						var info = SingleTon<DataManager>.Instance.GetItem(item.Info.ItemSN);
-						if (info != null && info.ItemType != 0 && info.ItemType != 1 && info.ItemType != 2) {
-							var target = SingleTon<DataManager>.Instance.GetTableItemConsumable(info.ItemKeyString);
-							var itemName = SingleTon<DataManager>.Instance.GetLocalization(target?.ItemName ?? info.ItemKeyString) ?? info.ItemKeyString;
-							var itemCount = info.StackCount - info.BeforeStatckCount;
-							if (dict.ContainsKey(itemName))
-								dict[itemName] += itemCount;
-							else
-								dict.Add(itemName, itemCount);
-						}
-					}
-					GetAll_RewardItemDictionary = dict;
-
-					GetAll_DisplayGetAllResult = true;
-					InstantPanel.Wait(true, true);
-				}
-			}
-		}
-		private void OnFacilityRewardPacket(WebResponseState obj) {
-			W2C_FACILITY_REWARD w2CFacilityReward = obj as W2C_FACILITY_REWARD;
-			if (w2CFacilityReward.result.ErrorCode != 0) return;
-			if (!GetAll_GettingAll) return;
-			if (GetAll_OnRewardPacket == null) return;
-
-			GetAll_OnRewardPacket(w2CFacilityReward);
-		}
-		private void OnFacilityWorkPakcet(WebResponseState obj) {
-			W2C_FACILITY_WORK w2CFacilityWork = obj as W2C_FACILITY_WORK;
-			if (w2CFacilityWork.result.ErrorCode != 0) return;
-			if (!GetAll_GettingAll) return;
-			if (GetAll_OnWorkPacket == null) return;
-
-			GetAll_OnWorkPacket(w2CFacilityWork);
-		}
-		private static void Panel_LivingStation_ShowSideMenu(bool _isEdit, bool _isGuide) {
-			if(GetAll_BtnGetAll != null)
-				GetAll_BtnGetAll.SetActive(_isEdit);
-		}
-		private static void FacilityRewardResult_Ready(Panel_FacilityRewardResult __instance) {
-			if (!GetAll_GettingAll) return;
+		#region Base CollectAll Restart
+		private static bool Panel_LivingStation_OnCollectAllButton(Panel_LivingStation __instance) {
+			if (!Conf.Automation.Use_Base_CollectAll_Restart.Value) return true;
 
 			IEnumerator Fn() {
-				yield return null; // safety wait
+				var targetFacilities = FindObjectsByType<InstallationFacility>(FindObjectsSortMode.None)
+					.Where(x => x.mCurrentState == InstallationFacility.State.WorkComplete)
+					.ToArray();
 
-				GetAll_OnRewardPopup?.Invoke(__instance);
+				yield return __instance.XGetMethod<IEnumerator>("Co_CollectAllProcess")?.Invoke();
+
+				var insufficientRes = false;
+
+				__instance.isCurrentCollectAllFlag = true;
+				try {
+
+					foreach (var fac in targetFacilities) {
+						if (fac.mCurrentState == InstallationFacility.State.Prepare) {
+							Scene_LivingStation.Instance.kStation.mCurrentFacility = fac;
+
+							var costMetal = fac.Table.MetalCost;
+							var costNutrient = fac.Table.NutrientCost;
+							var costPower = fac.Table.PowerCost;
+							if (
+								(costMetal <= SingleTon<DataManager>.Instance.Metal) &&
+								(costNutrient <= SingleTon<DataManager>.Instance.Nutrient) &&
+								(costPower <= SingleTon<DataManager>.Instance.Power)
+							) {
+								/** Panel_FacilityOperation.SendWorkPacket() */
+								InstantPanel.Wait(show: true);
+								C2WPacket.Send_C2W_FACILITY_WORK( // send work packet
+									SingleTon<DataManager>.Instance.AccessToken,
+									SingleTon<DataManager>.Instance.WID,
+									fac.Packet.Facility_uid
+								);
+							}
+							else {
+								insufficientRes = true;
+								break;
+							}
+							
+							yield return new WaitWhile(() => InstantPanel.IsWait());
+						}
+					}
+				} finally {
+					__instance.isCurrentCollectAllFlag = false;
+				}
+
+				if(insufficientRes) {
+					InstantPanel.MessageBox("자원이 부족해 일부 시설을 재시작할 수 없었습니다.");
+				}
 			}
 			__instance.StartCoroutine(Fn());
+
+			return false;
 		}
 		#endregion
 
@@ -460,120 +257,5 @@ namespace Symphony.Features {
 			}
 		}
 		#endregion
-
-		private Rect gui_GetAll_ResultViewport = new Rect(0, 24, 248, 0);
-		private Vector2 gui_GetAll_ResultScroll = Vector2.zero;
-
-		private void OnGUI() {
-			#region GetAll Result Popup
-			if (GetAll_DisplayGetAllResult) {
-				void PanelContent(int id) {
-					var _offset = 0f;
-
-					GUIX.Heading(new Rect(4, 4, 292, 20), "획득");
-					GUIX.Heading(new Rect(204, 4, 292, 20), "소비");
-
-					var panelRect = Rect.MinMaxRect(0, 24, 400, (300 - 18) - 40 - 10);
-					this.gui_GetAll_ResultScroll = GUIX.ScrollView(panelRect, this.gui_GetAll_ResultScroll, this.gui_GetAll_ResultViewport, false, false, () => {
-						GUIX.Group(new Rect(4, 4, 200 - 8, this.gui_GetAll_ResultViewport.height - 4), () => {
-							var offset = 0f;
-
-							if (GetAll_RewardTotal.AddMetal > 0) {
-								GUIX.Label(
-									new Rect(10, offset, 292, 20),
-									$"부품 {GetAll_RewardTotal.AddMetal:#,##0}",
-									new Color(0.941f, 0.941f, 0.702f)
-								);
-								offset += 20f;
-							}
-							if (GetAll_RewardTotal.AddNutrient > 0) {
-								GUIX.Label(
-									new Rect(10, offset, 292, 20),
-									$"영양 {GetAll_RewardTotal.AddNutrient:#,##0}",
-									new Color(0.259f, 1f, 0.384f)
-								);
-								offset += 20f;
-							}
-							if (GetAll_RewardTotal.AddPower > 0) {
-								GUIX.Label(
-									new Rect(10, offset, 292, 20),
-									$"전력 {GetAll_RewardTotal.AddPower:#,##0}",
-									new Color(0.255f, 1f, 0.871f)
-								);
-								offset += 20f;
-							}
-							if (GetAll_RewardTotal.AddCash > 0) {
-								GUIX.Label(
-									new Rect(10, offset, 292, 20),
-									$"참치 {GetAll_RewardTotal.AddCash:#,##0}"
-								);
-								offset += 20f;
-							}
-							if (GetAll_RewardTotal.PCRewardList.Count > 0) {
-								foreach (var pc in GetAll_RewardTotal.PCRewardList) {
-									var chr = SingleTon<DataManager>.Instance.GetTableCharCollection(pc.Index);
-									if (chr != null) {
-										GUIX.Label(
-											new Rect(10, offset, 292, 20),
-											chr?.Char_Name ?? pc.Index
-										);
-										offset += 20f;
-									}
-								}
-							}
-							if (GetAll_RewardItemDictionary.Count > 0) {
-								foreach (var kv in GetAll_RewardItemDictionary) {
-									GUIX.Label(new Rect(10, offset, 292, 20), $"{kv.Key} {kv.Value:#,##0}");
-									offset += 20f;
-								}
-							}
-
-							_offset = Mathf.Max(_offset, offset);
-						});
-						GUIX.Group(new Rect(204, 4, 200 - 8, this.gui_GetAll_ResultViewport.height - 4), () => {
-							var offset = 0f;
-
-							if (GetAll_CostTotal.AddMetal > 0) {
-								GUIX.Label(
-									new Rect(10, offset, 292, 20),
-									$"부품 {GetAll_CostTotal.AddMetal:#,##0}",
-									new Color(0.941f, 0.941f, 0.702f)
-								);
-								offset += 20f;
-							}
-							if (GetAll_CostTotal.AddNutrient > 0) {
-								GUIX.Label(
-									new Rect(10, offset, 292, 20),
-									$"영양 {GetAll_CostTotal.AddNutrient:#,##0}",
-									new Color(0.259f, 1f, 0.384f)
-								);
-								offset += 20f;
-							}
-							if (GetAll_CostTotal.AddPower > 0) {
-								GUIX.Label(
-									new Rect(10, offset, 292, 20),
-									$"전력 {GetAll_CostTotal.AddPower:#,##0}",
-									new Color(0.255f, 1f, 0.871f)
-								);
-								offset += 20f;
-							}
-
-							_offset = Mathf.Max(_offset, offset);
-						});
-					});
-					this.gui_GetAll_ResultViewport.height = _offset;
-
-					if (GUIX.Button(new Rect(200 - 50, (300 - 18) - 40 - 5, 100, 40), "닫기")) {
-						GetAll_DisplayGetAllResult = false;
-						InstantPanel.Wait(show: false);
-					}
-				}
-
-				var x = (float)Screen.width / 2f - 200;
-				var y = (float)Screen.height / 2f - 150;
-				GUIX.ModalWindow(0, new Rect(x, y, 400, 300), PanelContent, "기지 - 일괄 수령 결과", false);
-			}
-			#endregion
-		}
 	}
 }

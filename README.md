@@ -82,7 +82,7 @@ This is an <span style="color:crimson">__Automation(macro)__</span> feature.\
 Please be aware that its use may lead to restrictions by the game operator.\
 Please use with caution.
 
-- Provides a Get-All and Restart-All function for completed Facilities in the Base.
+- Provides a Restart-All after Built-in Collect-All function in the Base.
 - Provides a Restart function for completed Auto-Battles. (The Disassembling settings will use the settings from the last Auto-Battle run on PC.)
 
 ### Experimental

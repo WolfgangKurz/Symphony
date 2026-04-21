@@ -479,7 +479,11 @@ namespace Symphony {
 		#region LastOrigin
 		public static bool IsPartsActive(this ActorSpinePartsView aspv) {
 			var ssp = aspv.XGetFieldValue<ActorSpineSkinController>("spineSkinController");
-			return ssp.XGetFieldValue<bool>("isActiveParts");
+			return ssp.XGetFieldValue<bool>("isActiveParts1");
+		}
+		public static bool IsParts2Active(this ActorSpinePartsView aspv) {
+			var ssp = aspv.XGetFieldValue<ActorSpineSkinController>("spineSkinController");
+			return ssp.XGetFieldValue<bool>("isActiveParts2");
 		}
 		public static bool IsPartsActive(this ActorPartsView apv) {
 			var _isSwapParts = apv.XGetFieldValue<bool>("_isSwapParts");
@@ -487,6 +491,17 @@ namespace Symphony {
 			if (!_isSwapParts) {
 				var _listParts = apv.XGetFieldValue<List<GameObject>>("_listParts");
 				return _listParts.Any(x => x.activeSelf);
+			}
+
+			var _listSwapActiveObject = apv.XGetFieldValue<List<GameObject>>("_listSwapActiveObject");
+			return _listSwapActiveObject.Any(x => x.activeSelf);
+		}
+		public static bool IsParts2Active(this ActorPartsView apv) {
+			var _isSwapParts = apv.XGetFieldValue<bool>("_isSwapParts");
+
+			if (!_isSwapParts) {
+				var _listParts2 = apv.XGetFieldValue<List<GameObject>>("_listParts2");
+				return _listParts2.Any(x => x.activeSelf);
 			}
 
 			var _listSwapActiveObject = apv.XGetFieldValue<List<GameObject>>("_listSwapActiveObject");
