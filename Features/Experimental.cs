@@ -518,27 +518,8 @@ namespace Symphony.Features {
 				resourceManager.XSetPropertyValue<NeedDownloadDelegate>("needDownloadDelegate", null);
 				resourceManager.onUpdateAssetLoading.Invoke("네트워크 통신중...", -1f);
 			}
-			__result = TraceCoroutine("CoLoadAssetBundles", Fn());
+			__result = Fn();
 			return false;
-		}
-		static IEnumerator TraceCoroutine(string name, IEnumerator inner) {
-			while (true) {
-				object current;
-				try {
-					if (!inner.MoveNext())
-						yield break;
-
-					current = inner.Current;
-				} catch (Exception ex) {
-					Plugin.Logger.LogError($"[{name}] coroutine exception\n{ex}");
-					throw; // throw ex; 금지
-				}
-
-				if (current is IEnumerator nested)
-					yield return TraceCoroutine(name + " -> nested", nested);
-				else
-					yield return current;
-			}
 		}
 
 		private static IEnumerator Patch_AssetPlatformManifestObject_PatchCheckCoroutine(
