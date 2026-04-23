@@ -23,7 +23,6 @@ namespace Symphony.Features {
 		private static bool FastLoaded = false;
 
 		public void Start() {
-			Application.SetStackTraceLogType(LogType.Exception, StackTraceLogType.Full); 
 			var harmony = new Harmony("Symphony.Experimental");
 
 			#region Freezing fixers
