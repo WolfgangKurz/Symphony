@@ -430,24 +430,24 @@ namespace Symphony.Features {
 					while (downloadQueue.Count > 0 || runningCount > 0) {
 						while (runningCount < maxConcurrentDownload && downloadQueue.Count > 0) {
 							var manifestItem = downloadQueue.Dequeue();
-							var bundleName = manifestItem.fileName;
-							var savePath = serverURL + bundleName;
-
 							runningCount++;
+
+							var DownloadBundleWithRetry = resourceManager
+								.XGetMethod<AssetBundleManifest, string, AssetFileManifest, Action<bool>, IEnumerator>("DownloadBundleWithRetry");
+
 							resourceManager.StartCoroutine(
-								(IEnumerator)AccessTools.Method(typeof(ResourceManager), "DownloadBundleWithRetry")
-									.Invoke(resourceManager, [
-										bundleWWWManifest,
-										savePath,
-										bundleName,
-										(Action<bool>)(isSuccess => {
-											--runningCount;
-											if (!isSuccess)
-												downloadQueue.Enqueue(manifestItem);
-											else
-												Debug.Log("다운로드 완료: " + bundleName);
-										})
-									])
+								DownloadBundleWithRetry(
+									bundleWWWManifest,
+									serverURL,
+									manifestItem,
+									delegate (bool isSuccess) {
+										--runningCount;
+										if (!isSuccess)
+											downloadQueue.Enqueue(manifestItem);
+										else
+											Debug.Log("다운로드 완료: " + manifestItem.fileName);
+									}
+								)
 							);
 						}
 						yield return null;
