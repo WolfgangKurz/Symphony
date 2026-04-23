@@ -202,6 +202,17 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Panel_CharacterDetails), nameof(Panel_CharacterDetails.Start)),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterDetail_NextPre))
 			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(DescriptHelper), nameof(DescriptHelper.GetSkillDesc), [
+					typeof(Table_Skill), typeof(Table_SkillLevel), typeof(double[,]), typeof(string), typeof(ClientPcInfo)
+				]),
+				prefix: new HarmonyMethod(typeof(SimpleUI_FancySkillDesc), nameof(SimpleUI_FancySkillDesc.GetSkillDesc))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_CharacterDetails), nameof(Panel_CharacterDetails.Start)),
+				postfix: new HarmonyMethod(typeof(SimpleUI_FancySkillDesc), nameof(SimpleUI_FancySkillDesc.Patch_SkillDesc))
+			);
 			#endregion
 
 			#region Workbench

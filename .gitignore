@@ -4,3 +4,6 @@ obj/
 ref/
 _*.cs
 *.xsd
+*.ipynb
+
+res/skill-desc-input

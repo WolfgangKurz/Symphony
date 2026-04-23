@@ -372,7 +372,9 @@ INNER JOIN (
 		}
 
 		private static void After_HandlePacketLogin() {
-			Statistics.CurrentUID = SingleTon<DataManager>.Instance.GetUserInfo().WID;
+			var info = SingleTon<DataManager>.Instance.GetUserInfo();
+			if (info != null) Statistics.CurrentUID = info.WID;
+
 			Statistics.InitializeDatabase();
 			Statistics.LoadLastResources();
 		}

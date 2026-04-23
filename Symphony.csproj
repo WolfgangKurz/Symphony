@@ -5,7 +5,7 @@
     <AssemblyName>Symphony</AssemblyName>
     <Product>Symphony</Product>
     <Description>Symphony is LastOrigin PC client BepInEx plugin for QoL</Description>
-    <Version>0.42.0</Version>
+    <Version>0.43.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>latest</LangVersion>
     <RestoreAdditionalProjectSources>
@@ -34,6 +34,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Include="Data\FancySkillDesc.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>FancySkillDesc.tt</DependentUpon>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="BepInEx.Analyzers" Version="1.*" PrivateAssets="all" />
     <PackageReference Include="BepInEx.Unity.Mono" Version="6.0.0-be.*" PrivateAssets="all" />
     <!-- <PackageReference Include="BepInEx.Core" Version="5.*" /> -->
@@ -59,6 +67,16 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Update="Data\FancySkillDesc.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>FancySkillDesc.tt</DependentUpon>
+    </Compile>
+    <Compile Update="Data\SimpleUI+FancySkillDesc+Data.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>SimpleUI+FancySkillDesc+Data.tt</DependentUpon>
+    </Compile>
     <Compile Update="Helper+Generated.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>
@@ -79,6 +97,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Update="Data\FancySkillDesc.tt">
+      <Generator>TextTemplatingFileGenerator</Generator>
+      <LastGenOutput>FancySkillDesc.cs</LastGenOutput>
+    </None>
     <None Update="Helper+Generated.tt">
       <Generator>TextTemplatingFileGenerator</Generator>
       <LastGenOutput>Helper+Generated.cs</LastGenOutput>

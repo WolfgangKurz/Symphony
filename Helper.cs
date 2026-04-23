@@ -446,6 +446,16 @@ namespace Symphony {
 		}
 		public static void XSetFieldValue<T>(this object obj, string name, T value) => XSetFieldValue<T>(obj.GetType(), obj, name, value);
 
+		private static T XGetPropertyValue<T>(Type type, object obj, string name) {
+			var p = type.GetProperty(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			if (p == null) {
+				if (type.BaseType == null) return default;
+				return XGetPropertyValue<T>(type.BaseType, obj, name);
+			}
+			return (T)p.GetValue(obj);
+		}
+		public static T XGetPropertyValue<T>(this object obj, string name) => XGetPropertyValue<T>(obj.GetType(), obj, name);
+
 		private static void XSetPropertyValue<T>(Type type, object obj, string name, T value) {
 			var f = type.GetProperty(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 			if (f == null) {

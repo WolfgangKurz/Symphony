@@ -96,6 +96,8 @@ namespace Symphony {
 
 			#region CharacterDetail
 			public static ConfigEntry<bool> Use_CharacterDetail_NextPrev = config.Bind("SimpleUI", "Use_CharacterDetail_NextPrev", false, "Add next/prev character button to Character Detail screen");
+
+			public static ConfigEntry<bool> Use_FancySkillDesc = config.Bind("SimpleUI", "Use_FancySkillDesc", true, "Make skill description text fancy");
 			#endregion
 
 			#region Workbench
