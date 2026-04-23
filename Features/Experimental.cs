@@ -23,6 +23,7 @@ namespace Symphony.Features {
 		private static bool FastLoaded = false;
 
 		public void Start() {
+			Application.SetStackTraceLogType(LogType.Exception, StackTraceLogType.Full); 
 			var harmony = new Harmony("Symphony.Experimental");
 
 			#region Freezing fixers
@@ -430,24 +431,24 @@ namespace Symphony.Features {
 					while (downloadQueue.Count > 0 || runningCount > 0) {
 						while (runningCount < maxConcurrentDownload && downloadQueue.Count > 0) {
 							var manifestItem = downloadQueue.Dequeue();
-							var bundleName = manifestItem.fileName;
-							var savePath = serverURL + bundleName;
-
 							runningCount++;
+
+							var DownloadBundleWithRetry = resourceManager
+								.XGetMethod<AssetBundleManifest, string, AssetFileManifest, Action<bool>, IEnumerator>("DownloadBundleWithRetry");
+
 							resourceManager.StartCoroutine(
-								(IEnumerator)AccessTools.Method(typeof(ResourceManager), "DownloadBundleWithRetry")
-									.Invoke(resourceManager, [
-										bundleWWWManifest,
-										savePath,
-										bundleName,
-										(Action<bool>)(isSuccess => {
-											--runningCount;
-											if (!isSuccess)
-												downloadQueue.Enqueue(manifestItem);
-											else
-												Debug.Log("다운로드 완료: " + bundleName);
-										})
-									])
+								DownloadBundleWithRetry(
+									bundleWWWManifest,
+									serverURL,
+									manifestItem,
+									delegate (bool isSuccess) {
+										--runningCount;
+										if (!isSuccess)
+											downloadQueue.Enqueue(manifestItem);
+										else
+											Debug.Log("다운로드 완료: " + manifestItem.fileName);
+									}
+								)
 							);
 						}
 						yield return null;
@@ -518,8 +519,27 @@ namespace Symphony.Features {
 				resourceManager.XSetPropertyValue<NeedDownloadDelegate>("needDownloadDelegate", null);
 				resourceManager.onUpdateAssetLoading.Invoke("네트워크 통신중...", -1f);
 			}
-			__result = Fn();
+			__result = TraceCoroutine("CoLoadAssetBundles", Fn());
 			return false;
+		}
+		static IEnumerator TraceCoroutine(string name, IEnumerator inner) {
+			while (true) {
+				object current;
+				try {
+					if (!inner.MoveNext())
+						yield break;
+
+					current = inner.Current;
+				} catch (Exception ex) {
+					Plugin.Logger.LogError($"[{name}] coroutine exception\n{ex}");
+					throw; // throw ex; 금지
+				}
+
+				if (current is IEnumerator nested)
+					yield return TraceCoroutine(name + " -> nested", nested);
+				else
+					yield return current;
+			}
 		}
 
 		private static IEnumerator Patch_AssetPlatformManifestObject_PatchCheckCoroutine(
