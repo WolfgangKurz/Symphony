@@ -1,151 +1,80 @@
-﻿using System;
+﻿using LO_ClientNetwork;
+
+using Sgml;
+
+using Symphony.Data;
+
+using System;
 using System.Collections.Generic;
-using System.Globalization;
+using System.IO;
 using System.Linq;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Xml;
 using System.Xml.Linq;
 
 using UnityEngine;
 
-	namespace Symphony.Features {
+using ElemDict = System.Collections.Generic.Dictionary<string, System.Xml.Linq.XElement>;
+using ElemList = System.Collections.Generic.List<System.Xml.Linq.XElement>;
+
+namespace Symphony.Features {
 	internal class SimpleUI_FancySkillDesc {
 		private static readonly Regex UnitKeyRegex = new Regex(@"^Skill_(.+)_(?:N|CH)_(?:[0-9]+)$", RegexOptions.Compiled);
 		private static readonly Regex SkillKeyRegex = new Regex(@"^.+_(N|CH)_([0-9]+)$", RegexOptions.Compiled);
 
-		private static readonly Regex SectionRegex = new(@"\$\$([A-Za-z0-9\-_]+)\$?~(.+?)~\$\$(\1)\$?", RegexOptions.Compiled | RegexOptions.Singleline);
-		private static readonly Regex CommentSectionRegex = new(@"^\$\$([A-Za-z0-9\-_]+)(?::([?0-9,\-@]+))?\$?$", RegexOptions.Compiled);
-		private static readonly Regex ParamAttrRegex = new(@"param=""\$([0-9]+)(?::([PpNn]))?""", RegexOptions.Compiled);
-		private static readonly Regex TagRegex = new(@"<(?<close>/)?(?<name>[A-Za-z0-9_-]+)(?<attrs>[^<>]*?)(?<self>/)?>", RegexOptions.Compiled);
-		private static readonly Regex SymbolTokenRegex = new(@"\[\$(?<kind>elem|buff):(?<key>[^\]]+)\]", RegexOptions.Compiled);
-		private static readonly string[] BooleanAttributes = [ "r", "rr", "inv", "signless", "floor", "loc" ];
-
-		private static int SectionCounter = 0;
-		private static string LastRenderCacheKey = "";
-		private static readonly Dictionary<string, RenderCacheEntry> RenderCache = [];
-		private static readonly Dictionary<string, float> SymbolAspectCache = [];
-		private static INGUIAtlas BuffIconAtlas;
-
-		private static readonly HashSet<string> BuffIconSet = [
-			"ACCURACY_DOWN", "ACCURACY_UP", "Action_Number_Change_Down", "Action_Number_Change_Up", "AP_DOWN", "AP_SHIFT", "AP_UP",
-			"ARMORED_DMG_DOWN", "ARMORED_DMG_UP", "ATK_DOWN", "ATK_UP", "BARRIER", "BARRIER_PIERCE", "BUFFEFFECTRATE_CHANGE",
-			"CHANGE_CHAR", "CHANGE_GRID", "charge", "COLLAPSE", "COUNTER", "CRITICAL_DOWN", "CRITICAL_UP", "Current_Hp_Piercedown",
-			"DAMAGE_ABSORB", "DAMAGE_REDUCE", "DamageAmp_Me", "DamageAmp_Opp", "DEBUFF_PERDOWN", "DEBUFF_RATEUP", "DEF_All",
-			"DEF_Char", "DEF_DOWN", "DEF_Line", "DEF_PIERCE_UP", "DEF_RESSURRECT", "DEF_Side", "DEF_UP", "Disallow", "EVADE_DOWN",
-			"EVADE_UP", "EXP_UP", "FireATK_UP", "FireDMG_DOT", "FIRERES_DOWN", "FIRERES_UP", "FireRes_Value_Fix", "FireRes_Value_Min",
-			"FireRes_Value_Reverse", "Guardpierce_Apply", "Guardpierce_No_Apply", "HP_DOWN", "HP_UP", "IceATK_UP", "IceDMG_DOT",
-			"ICERES_DOWN", "ICERES_UP", "IceRes_Value_Fix", "IceRes_Value_Min", "IceRes_Value_Reverse", "IMMUNITY_DEBUFF",
-			"INVINCIBLE", "LightningATK_UP", "LightningDMG_DOT", "LIGHTNINGRES_DOWN", "LIGHTNINGRES_UP", "LightningRes_Value_Fix",
-			"LightningRes_Value_Min", "LightningRes_Value_Reverse", "MARKING", "MOBILITY_DMG_DOWN", "MOBILITY_DMG_UP", "PhyATK_UP",
-			"phyDMG_DOT", "PROVOKE", "Pull", "Push", "RANGE_DOWN", "RANGE_UP", "REMOVE_BUFF", "Remove_Buff_Resist", "REMOVE_DEBUFF",
-			"SCOUTING", "SEAL_SKILL", "SKILL_DOWN", "SKILL_UP", "SNARE", "Speed_DOWN", "Speed_UP", "STUN", "SUMMON_INSTENV",
-			"SUPPORT_ATTACK", "TOGETHER_ATTACK", "TROOPER_DMG_DOWN", "TROOPER_DMG_UP", "VULNERABLE", "White",
-		];
-
-		private sealed class CommentData {
-			public string Title { get; set; }
-			public string Body { get; set; }
-			public string RawBody { get; set; }
-		}
-
-		private sealed class SymbolSpriteEntry {
-			public int StartIndex { get; set; }
-			public int PlaceholderLength { get; set; }
-			public float Width { get; set; }
-			public float Height { get; set; }
-			public INGUIAtlas Atlas { get; set; }
-			public string SpriteName { get; set; }
-			public float X { get; set; }
-			public float Y { get; set; }
-		}
-
-		private sealed class PlaceholderBuildResult {
-			public string Text { get; set; } = "";
-			public int DotStartOffset { get; set; }
-			public int VisibleLength { get; set; }
-			public float PrintedWidth { get; set; }
-			public float TargetWidth { get; set; }
-		}
-
-		private sealed class RenderCacheEntry {
-			public string Text { get; set; } = "";
-			public Dictionary<string, CommentData> Actions { get; set; } = [];
-		}
-
-		private sealed class RenderContext {
-			public Table_SkillLevel SkillLevel;
-			public double[,] AttrValue;
-			public List<(float BaseValue, float LevelValue, int Count, float Rate)> Buffs { get; set; }
-			public int BonusLevel { get; set; }
-			public Dictionary<string, CommentData> Comments { get; set; }
-		}
-
-		#region SkillDesc Rendering
-		internal static bool GetSkillDesc(
-			ref string __result,
-			Table_Skill skill,
-			Table_SkillLevel skillLevel,
-			double[,] attrValue,
-			string fullLinkKey = null,
-			ClientPcInfo myInfo = null
-		) {
-			if (!Conf.SimpleUI.Use_FancySkillDesc.Value) return true;
-
-			var cacheKey = BuildRenderCacheKey(skill?.Key, skillLevel?.SkillLevel ?? 0);
-			if (TryGetRenderedSkillDesc(cacheKey, out var cachedEntry) && cachedEntry != null) {
-				__result = cachedEntry.Text ?? "";
-				LastRenderCacheKey = cacheKey;
-				return false;
-			}
-
-			if (!TryGetUnitData(skill.Key, out var data)) {
-				Plugin.Logger.LogWarning($"[Symphony::SimpleUI::FancySkillDesc] Failed to render {skill.Key}: Cannot parse unit's key");
-				return true;
-			}
-
-			if (!TryGetDescriptionKey(skill.Key, data, out var desc)) {
-				Plugin.Logger.LogWarning($"[Symphony::SimpleUI::FancySkillDesc] Failed to render {skill.Key}: Not found in database");
-				return true;
-			}
-
-			try {
-				var context = BuildContext(skillLevel, attrValue, fullLinkKey, myInfo);
-				__result = RenderDescription(desc, context);
-				CacheRenderedSkillDesc(cacheKey, __result, context);
-				LastRenderCacheKey = cacheKey;
-				return false;
-			} catch (Exception e) {
-				Plugin.Logger.LogError($"[Symphony::SimpleUI::FancySkillDesc] Failed to render {skill.Key}: {e}");
-				return true;
-			}
-		}
+		private static int? cachedFontSize = null;
 
 		internal static void Patch_SkillDesc(Panel_CharacterDetails __instance) {
+			if (!Conf.SimpleUI.Use_FancySkillDesc.Value) return;
+
+			var skillIndex = __instance.XGetFieldValue<int>("_skillIndex");
+			var skillInfo = __instance.XGetFieldValue<SkillInfo>("_SelectSkillInfo");
+
+			var skillKey = skillInfo.SkillKeyString;
+
 			var lbl = __instance.XGetFieldValue<UILabel>("_lblSkillDesc");
-			if (lbl == null) return;
+			if (lbl == null) {
+				Plugin.Logger.LogWarning($"[Symphony::Experimental::FancySkillDesc] Failed to render {skillKey}: SkillDesc label not found");
+				return;
+			}
 
-			var binder = lbl.GetComponent<FancySkillDescBinding>();
-			if (binder == null)
-				binder = lbl.gameObject.AddComponent<FancySkillDescBinding>();
+			if (!TryGetUnitData(skillKey, out var unitKey, out var data)) {
+				Plugin.Logger.LogWarning($"[Symphony::Experimental::FancySkillDesc] Failed to render {skillKey}: Cannot parse unit's key");
+				return;
+			}
+
+			if (!TryGetDescriptionKey(skillKey, data, out var desc)) {
+				Plugin.Logger.LogWarning($"[Symphony::Experimental::FancySkillDesc] Failed to render {skillKey}: Not found in database");
+				return;
+			}
+
+			var comp = lbl.GetComponent<SkillDesc>();
+			if (comp == null)
+				comp = lbl.gameObject.AddComponent<SkillDesc>();
+
+			comp.targetPC = SingleTon<DataManager>.Instance.GetTablePC($"Char_{unitKey}_N");
+			comp.targetClientPC = __instance.XGetFieldValue<ClientPcInfo>("_SelectPCInfo");
+			comp.isCH = __instance.XGetFieldValue<ChangeCharType>("_changeCharType") != ChangeCharType.Normal;
+			comp.skillInfo = skillInfo;
+			comp.text = desc; // SkillDesc component will patch automatically
+
+			if (cachedFontSize == null)
+				cachedFontSize = lbl.fontSize;
+
+			lbl.fontSize = (int)(cachedFontSize * 0.95f);
 		}
 
-		private static int GetSkillDamage(Table_SkillLevel skillLevel, double[,] attrValue, float bonusValue) {
-			var f = Common.FloatParseNotCulture(DataManager.GetAttrPcAttack(attrValue)) *
-				(Common.FloatParseNotCulture(skillLevel.SkillAttackRate) + bonusValue);
-			return (int)Mathf.Floor(f);
-		}
-
-		private static bool TryGetUnitData(string skillKey, out Dictionary<string, string> data) {
+		private static bool TryGetUnitData(string skillKey, out string unitKey, out Dictionary<string, string> data) {
+			unitKey = null;
 			data = null;
 
 			var match = UnitKeyRegex.Match(skillKey);
 			if (!match.Success) return false;
 
-			var unitKey = match.Groups[1].Value;
+			unitKey = match.Groups[1].Value;
 			return Data.FancySkillDesc.Data.TryGetValue(unitKey, out data);
 		}
-
 		private static bool TryGetDescriptionKey(string skillKey, Dictionary<string, string> data, out string desc) {
 			desc = null;
 
@@ -158,838 +87,1859 @@ using UnityEngine;
 			return data.TryGetValue(dataKey, out desc);
 		}
 
-		private static RenderContext BuildContext(Table_SkillLevel skillLevel, double[,] attrValue, string fullLinkKey, ClientPcInfo myInfo) {
-			// Build buff list
-			var buffs = new List<(float BaseValue, float LevelValue, int Count, float Rate)>();
-			foreach (var buffIdx in skillLevel.BuffEffectIndex) {
-				var be = SingleTon<DataManager>.Instance.GetTableBuffEffect(buffIdx);
-				var descs = be._dic_BuffDesc;
-				for (var i = 0; i < 5; i++) {
-					var key = (i + 1).ToString();
-					if (!descs.ContainsKey(key)) continue;
 
-					var desc = descs[key];
-					if ( // Except invalid buffs
-						desc.BuffIcon == "" &&
-						desc.BuffEffectType_Desc == "" &&
-						desc.BuffEffectValue == "0" &&
-						desc.BuffEffectType == (BUFFEFFECT_TYPE)0
-					) continue;
+		public class SkillDesc : MonoBehaviour {
+			public Texture2D boxTexture = new Texture2D(2, 2);
 
-					float rate = i switch {
-						0 => ParseFloat(be.BuffEffectRate1),
-						1 => ParseFloat(be.BuffEffectRate2),
-						2 => ParseFloat(be.BuffEffectRate3),
-						3 => ParseFloat(be.BuffEffectRate4),
-						4 => ParseFloat(be.BuffEffectRate5),
-						_ => 0f,
-					};
+			private UILabel sourceLabel = null;
+			private GameObject viewObject = null;
+			private TooltipInstance tooltipInstance = new();
 
-					buffs.Add((
-						ParseFloat(desc.BuffEffectValue),
-						ParseFloat(desc.BuffEffectLevelValue),
-						desc.BuffEffectLeftCount,
-						rate
-					));
+			private ElemDict dictSections = new();
+			private ElemList dictComments = new();
+			private ElemDict inheritedSections = null;
+
+			private bool subscribed = false;
+			private bool renderQueued = false;
+			private bool sourceSnapshotValid = false;
+			private int sourceSnapshotWidth = -1;
+			private int sourceSnapshotHeight = -1;
+			private int screenSnapshotWidth = -1;
+			private int screenSnapshotHeight = -1;
+
+			private void Start() {
+				ImageConversion.LoadImage(this.boxTexture, Resource.SkillSubbox);
+			}
+			private void OnEnable() {
+				Setup();
+				InvalidateSourceSnapshot();
+				QueueRender();
+			}
+			private void OnDisable() {
+				Unset();
+				CleanupViews();
+			}
+
+			private void LateUpdate() {
+				if (!this.renderQueued || this.sourceLabel == null) return;
+				this.renderQueued = false;
+
+				if (!HasSourceChanged(this.sourceLabel)) return;
+				if (!TryBuildRoot(this.text ?? "", out var root)) {
+					CaptureSourceSnapshot(this.sourceLabel);
+					return;
+				}
+
+				RenderTemplate(root, this.sourceLabel);
+			}
+
+			#region Game Data
+			private Table_PC _targetPC = null;
+			public Table_PC targetPC {
+				get { return this._targetPC; }
+				set {
+					if (this._targetPC == value) return;
+
+					this._targetPC = value;
+
+					this.QueueRender();
 				}
 			}
 
-			var linkBonus = (int)Common.GetLinkBonusValue(myInfo, CORE_LINK_BONUS.STAGE_BUFFLEVEL_UP);
-			var fullLinkBonus = (int)Common.GetFullLinkBonusValue(fullLinkKey, CORE_LINK_BONUS.STAGE_BUFFLEVEL_UP);
-			var favorBonus = (int?)myInfo?.GetFavorBonusValue(CORE_LINK_BONUS.STAGE_BUFFLEVEL_UP) ?? 0;
-			return new RenderContext {
-				AttrValue = attrValue,
-				Buffs = buffs,
-				BonusLevel = skillLevel.SkillLevel - 1 + linkBonus + fullLinkBonus + favorBonus,
-				Comments = [],
-				SkillLevel = skillLevel,
-			};
-		}
+			private bool _isCH = false;
+			public bool isCH {
+				get { return this._isCH; }
+				set {
+					if (this._isCH == value) return;
 
-		private static string RenderDescription(string desc, RenderContext context) {
-			var sectionBodies = new Dictionary<string, string>();
-			foreach (Match match in SectionRegex.Matches(desc))
-				sectionBodies[match.Groups[1].Value] = match.Groups[2].Value.Trim('\r', '\n');
+					this._isCH = value;
 
-			var content = SectionRegex.Replace(desc, "");
-			var root = ParseFragment(content);
-			return RenderNodes(root.Nodes(), context, sectionBodies).Trim();
-		}
-
-		private static string RenderNodes(IEnumerable<XNode> nodes, RenderContext context, Dictionary<string, string> sectionBodies) {
-			var sb = new StringBuilder();
-			foreach (var node in nodes) {
-				switch (node) {
-					case XText text:
-						sb.Append(text.Value);
-						break;
-					case XElement element:
-						sb.Append(RenderElement(element, context, sectionBodies));
-						break;
+					this.QueueRender();
 				}
 			}
-			return sb.ToString();
-		}
 
-		private static string RenderElement(XElement element, RenderContext context, Dictionary<string, string> sectionBodies) {
-			var inner = RenderNodes(element.Nodes(), context, sectionBodies);
-			switch (element.Name.LocalName) {
-				case "sec":
-					return WrapColor(GetSectionColor(element.Attribute("typ")?.Value), inner);
-				case "dmg":
-					if (!element.HasElements && string.IsNullOrWhiteSpace(inner)) {
-						var damage = GetSkillDamage(context.SkillLevel, context.AttrValue, context.BonusLevel - (context.SkillLevel.SkillLevel - 1));
-						var dmg = damage.ToString("#,###");
+			private ClientPcInfo _targetClientPC = null;
+			public ClientPcInfo targetClientPC {
+				get { return this._targetClientPC; }
+				set {
+					if (this._targetClientPC == value) return;
 
-						var elems = element.Attribute("elem")?.Value.Split(",") ?? [];
-						var tokens = string.Join("", elems.Select(RenderElemToken));
-						var elemDisps = string.Join("・", elems.Select(GetElemDisplayName));
+					this._targetClientPC = value;
 
-						var adaptive = elems.Length > 1 ? "적응형 " : "";
+					this.QueueRender();
+				}
+			}
 
-						return WrapColor("fce391", $"{tokens} {dmg} {elemDisps} {adaptive}피해");
+			private SkillInfo _skillInfo = null;
+			public SkillInfo skillInfo {
+				get { return this._skillInfo; }
+				set {
+					if (this._skillInfo == value) return;
+
+					this._skillInfo = value;
+
+					if (value != null) {
+						try {
+							var skillKey = value.SkillKeyString;
+							this.tableSkillLevel = SingleTon<DataManager>.Instance.GetTableSkillLevel(skillKey, value.SkillLevel);
+						} catch { // Invalid data
+							this.tableSkillLevel = null;
+							this._skillInfo = null;
+						}
 					}
-					return WrapColor("fce391", inner);
-				case "val":
-					return RenderValue(element, context);
-				case "chance":
-					return WrapColor("198754", RenderChance(element, context));
-				case "elem":
-					return RenderElemToken(element.Attribute("type")?.Value);
-				case "buff":
-					return RenderBuffToken(element.Attribute("typ")?.Value, inner);
-				case "cmt":
-					return RenderComment(element, context, sectionBodies);
-				case "box":
-					return RenderBox(element, inner);
-				case "char":
-					return RenderChar(element.Attribute("uid")?.Value);
-				case "equip":
-					return RenderEquip(element.Attribute("uid")?.Value);
-				case "strike":
-					return $"[s]{inner}[/s]";
-				case "strong":
-					return $"[b]{inner}[/b]";
-				case "sub":
-					return inner;
-				case "i":
-				case "s":
-					return inner;
-				default:
-					return inner;
+
+					this.QueueRender();
+				}
 			}
-		}
+			private Table_SkillLevel tableSkillLevel = null;
 
-		#region RenderXXX
-		private static string RenderComment(XElement element, RenderContext context, Dictionary<string, string> sectionBodies) {
-			var title = element.Attribute("t")?.Value ?? innerText(element);
-			var rawBody = innerText(element).Trim();
-			var renderedBody = rawBody;
-
-			var sectionMatch = CommentSectionRegex.Match(rawBody);
-			if (sectionMatch.Success) {
-				var sectionKey = sectionMatch.Groups[1].Value;
-				if (sectionBodies.TryGetValue(sectionKey, out var body)) {
-					var expanded = ConvertSectionParams(body, sectionMatch.Groups[2].Value);
-					var root = ParseFragment(expanded);
-					renderedBody = RenderNodes(root.Nodes(), context, sectionBodies).Trim();
-					rawBody = body;
+			private string _text = null;
+			public string text {
+				get { return this._text; }
+				set {
+					if (this._text == value) return;
+					this._text = value;
+					this.QueueRender();
 				}
 			}
 
-			var actionId = $"action_{System.Threading.Interlocked.Increment(ref SectionCounter)}";
-			context.Comments[actionId] = new CommentData {
-				Title = title,
-				Body = renderedBody,
-				RawBody = rawBody,
-			};
+			private string GetUnitName(string key)
+				=> (SingleTon<DataManager>.Instance.GetTableCharCollection(key)?.Char_Name ??
+				SingleTon<DataManager>.Instance.GetTableCharCollection($"Char_{key}_N")?.Char_Name ?? 
+				key).Localize();
 
-			return $"[url={actionId}][u]{title}[/u][/url]";
-		}
-		private static string RenderBox(XElement element, string inner) {
-			var title = element.Attribute("title")?.Value ?? element.Attribute("t")?.Value ?? "";
-			var lines = inner.Trim('\r', '\n');
-			return $"\n{WrapColor("adb5bd", $"# {title}")}\n{lines}\n";
-		}
-		private static string RenderChar(string uid) {
-			var name = SingleTon<DataManager>.Instance.GetTablePC(uid)?.Name?.Localize() ?? uid;
-			return WrapColor("deebf7", $"[u]{name}[/u]");
-		}
-		private static string RenderEquip(string uid) {
-			var name = SingleTon<DataManager>.Instance.GetTableItemEquip(uid)?.ItemName?.Localize() ?? uid;
-			return WrapColor("deebf7", $"[u]{name}[/u]");
-		}
-		private static string RenderValue(XElement element, RenderContext context) {
-			float baseValue;
-			float perValue;
+			private string GetEquipName(string key)
+				=> (SingleTon<DataManager>.Instance.GetTableItemEquip(key)?.ItemName ??
+				SingleTon<DataManager>.Instance.GetTableItemEquip($"{key}_T4")?.ItemName ??
+				key).Localize().Replace(" EX", "");
 
-			var idxAttr = element.Attribute("idx")?.Value;
-			if (!string.IsNullOrEmpty(idxAttr) && int.TryParse(idxAttr, out var idx) && idx >= 0 && idx < context.Buffs.Count) {
-				var buff = context.Buffs[idx];
-				baseValue = buff.BaseValue;
-				perValue = buff.LevelValue;
-			} else {
-				baseValue = ParseFloat(element.Attribute("base")?.Value);
-				perValue = ParseFloat(element.Attribute("per")?.Value);
-			}
+			private int GetSkillLevel() => this.skillInfo?.SkillLevel ?? 0;
+			public float GetSkillValue(int slot, int idx) {
+				if (this.skillInfo == null || this.targetPC == null) return 0f;
+				if (slot == 0 || slot > 10) return 0f; // Invalid slot id
 
-			var value = baseValue + perValue * context.BonusLevel;
-			var ratio = element.Attribute("r") != null;
-			var ratio2 = element.Attribute("rr") != null;
-			if (ratio2) value *= 10000f;
-			else if (ratio) value *= 100f;
+				Table_SkillLevel sk = null;
+				if (slot < 0)
+					sk = this.tableSkillLevel;
 
-			var displaySign = value >= 0f;
-			if (element.Attribute("inv") != null)
-				displaySign = !displaySign;
-
-			var absValue = Math.Abs(value);
-			if (element.Attribute("floor") != null)
-				absValue = (float)Math.Floor(absValue);
-
-			var forcePn = element.Attribute("forcePN")?.Value?.ToLowerInvariant();
-			var signText = forcePn switch {
-				"p" => "+",
-				"n" => "-",
-				_ => absValue == 0f ? "" : (displaySign ? "+" : "-"),
-			};
-
-			var signless = element.Attribute("signless") != null;
-			var color = (forcePn == "n" || (!string.IsNullOrEmpty(signText) && signText == "-")) ? "dc3545" : "0d6efd";
-			var number = absValue.ToString("0.####", CultureInfo.InvariantCulture).TrimEnd('0').TrimEnd('.');
-			if (string.IsNullOrEmpty(number)) number = "0";
-
-			return WrapColor(color, $"{(signless ? "" : signText)}{number}{(ratio || ratio2 ? "%" : "")}");
-		}
-		private static string RenderChance(XElement element, RenderContext context) {
-			var idxAttr = element.Attribute("idx")?.Value;
-			var chance = 0f;
-			if (!string.IsNullOrEmpty(idxAttr) && int.TryParse(idxAttr, out var idx) && idx >= 0 && idx < context.Buffs.Count)
-				chance = context.Buffs[idx].Rate * 100f;
-
-			var text = chance.ToString("0.####", CultureInfo.InvariantCulture).TrimEnd('0').TrimEnd('.');
-			if (string.IsNullOrEmpty(text)) text = "0";
-			return $"{text}%";
-		}
-		#endregion
-
-		private static XElement ParseFragment(string content) {
-			return XElement.Parse($"<root>{NormalizeXmlLikeMarkup(content)}</root>", LoadOptions.PreserveWhitespace);
-		}
-		private static string NormalizeXmlLikeMarkup(string content) {
-			if (string.IsNullOrEmpty(content)) return content;
-
-			return TagRegex.Replace(content, match => {
-				if (match.Groups["close"].Success) return match.Value;
-
-				var attrs = match.Groups["attrs"].Value;
-				foreach (var attr in BooleanAttributes)
-					attrs = Regex.Replace(attrs, $@"(?<=\s){attr}(?=(\s|/|$))", $@"{attr}=""true""");
-
-				var selfClose = match.Groups["self"].Success ? "/" : "";
-				return $"<{match.Groups["name"].Value}{attrs}{selfClose}>";
-			});
-		}
-
-		private static string ConvertSectionParams(string body, string parameterText) {
-			var parameters = ParseSectionParameters(parameterText);
-			return ParamAttrRegex.Replace(body, match => {
-				var rawIndex = int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture) - 1;
-				var forcePn = match.Groups[2].Success ? match.Groups[2].Value.ToLowerInvariant() : "";
-
-				if (rawIndex < 0 || rawIndex >= parameters.Count)
-					return forcePn == "" ? @"base=""0"" per=""0""" : $@"base=""0"" per=""0"" forcePN=""{forcePn}""";
-
-				var parameter = parameters[rawIndex];
-				if (!parameter.HasValue)
-					return forcePn == "" ? "" : $@"forcePN=""{forcePn}""";
-
-				return forcePn == ""
-					? $@"idx=""{parameter.Value}"""
-					: $@"idx=""{parameter.Value}"" forcePN=""{forcePn}""";
-			});
-		}
-
-		private static List<int?> ParseSectionParameters(string parameterText) {
-			if (string.IsNullOrWhiteSpace(parameterText)) return [];
-
-			return parameterText
-				.Split(',')
-				.Select(part => {
-					part = part.Trim();
-					if (part == "?") return (int?)null;
-					return int.TryParse(part, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-						? value
-						: null;
-				})
-				.ToList();
-		}
-
-		private static string RenderElemToken(string elem) {
-			if (string.IsNullOrWhiteSpace(elem)) return "[$elem:physics]";
-			var tokens = elem.Split(',').Select(x => x.Trim()).Where(x => x.Length > 0).Select(x => $"[$elem:{x}]");
-			return string.Join("", tokens);
-		}
-		private static string RenderBuffToken(string buffIcon, string inner) {
-			if (string.IsNullOrWhiteSpace(buffIcon) || !BuffIconSet.Contains(buffIcon))
-				return "";
-
-			return $"[$buff:{buffIcon}]{inner}";
-		}
-
-		private static string ReplaceSymbolTokensWithPlaceholders(UILabel label, string text, List<SymbolSpriteEntry> entries = null) {
-			if (string.IsNullOrEmpty(text)) return text;
-			if (label == null) return text;
-
-			label.UpdateNGUIText();
-
-			var sb = new StringBuilder(text.Length);
-			var lastIndex = 0;
-			var outputIndex = 0;
-			var x = 0f;
-			foreach (Match match in SymbolTokenRegex.Matches(text)) {
-				if (match.Index > lastIndex) {
-					var segment = text.Substring(lastIndex, match.Index - lastIndex);
-					sb.Append(segment);
-					x = CalculateWrappedTextX(segment, x);
-					outputIndex += segment.Length;
-				}
-
-				var placeholder = BuildSymbolPlaceholder(
-					label,
-					match.Groups["kind"].Value,
-					match.Groups["key"].Value,
-					entries
-				);
-				if (placeholder.Text.Length > 0) {
-					if (x > 0f && x + placeholder.TargetWidth > label.width) {
-						sb.Append('\n');
-						outputIndex += 1;
-						x = 0f;
-					}
-				}
-
-				if (entries != null && placeholder.VisibleLength > 0) {
-					var entry = entries[^1];
-					entry.StartIndex = outputIndex + placeholder.DotStartOffset;
-				}
-
-				sb.Append(placeholder.Text);
-				x += placeholder.TargetWidth;
-				outputIndex += placeholder.Text.Length;
-				lastIndex = match.Index + match.Length;
-			}
-
-			if (lastIndex < text.Length) {
-				var tail = text.Substring(lastIndex);
-				sb.Append(tail);
-			}
-
-			return sb.ToString();
-		}
-
-		private static PlaceholderBuildResult BuildSymbolPlaceholder(UILabel label, string kind, string key, List<SymbolSpriteEntry> entries) {
-			if (!TryGetSymbolSpriteInfo(kind, key, out var atlas, out var spriteName, out var aspect))
-				return new PlaceholderBuildResult();
-
-			var symbolHeight = GetPrintedLineHeight(label);
-			var targetWidth = Mathf.Max(1f, symbolHeight * aspect);
-			var placeholder = BuildTransparentDotPlaceholder(targetWidth);
-
-			entries?.Add(new SymbolSpriteEntry {
-				StartIndex = -1,
-				PlaceholderLength = placeholder.VisibleLength,
-				Width = targetWidth,
-				Height = symbolHeight,
-				Atlas = atlas,
-				SpriteName = spriteName,
-			});
-			return placeholder;
-		}
-
-		private static PlaceholderBuildResult BuildTransparentDotPlaceholder(float targetWidth) {
-			const string prefix = "[c][00000000]";
-			const string suffix = "[-][/c]";
-			var dots = new StringBuilder();
-			var printedWidth = 0f;
-
-			while (printedWidth < targetWidth || dots.Length == 0) {
-				dots.Append('.');
-				printedWidth = GetPrintedWidth(dots.ToString());
-			}
-
-			return new PlaceholderBuildResult {
-				Text = $"{prefix}{dots}{suffix}",
-				DotStartOffset = prefix.Length,
-				VisibleLength = dots.Length,
-				PrintedWidth = printedWidth,
-				TargetWidth = targetWidth,
-			};
-		}
-
-		private static float CalculateWrappedTextX(string segment, float currentX) {
-			if (string.IsNullOrEmpty(segment))
-				return currentX;
-
-			var seg = segment.Split('\n').Last();
-
-			var targetWidth = NGUIText.regionWidth;
-			var textLength = seg.Length;
-			var x = segment.Contains('\n', StringComparison.Ordinal) ? 0f : currentX;
-
-			var prevChar = 0;
-			var subscriptMode = 0;
-			var isBold = false;
-			var isItalic = false;
-			var isUnderline = false;
-			var isStrike = false;
-			var ignoreColor = false;
-
-			var emptyList = new BetterList<Color>();
-
-			for (var i = 0; i < textLength; i++) {
-				var c = seg[i];
-				if (c < 32) {
-					prevChar = c;
-					continue;
-				}
-
-				if (
-					NGUIText.encoding &&
-					NGUIText.ParseSymbol(
-						seg, ref i, emptyList, NGUIText.premultiply,
-						ref subscriptMode, ref isBold, ref isItalic, ref isUnderline, ref isStrike, ref ignoreColor
-					)
-				) {
-					i--;
-					continue;
-				}
-
-				var glyphScale = subscriptMode == 0 ? NGUIText.fontScale : NGUIText.fontScale * 0.6f;
-
-				var symbol = NGUIText.useSymbols ? NGUIText.GetSymbol(seg, i, textLength) : null;
-				if (symbol != null) {
-					var symbolSize = symbol.advance * glyphScale;
-					var next = x + symbolSize;
-
-					if (next > targetWidth) x = 0f;
-					x += symbolSize + NGUIText.finalSpacingX;
-					i += symbol.length - 1;
-					prevChar = 0;
-				}
 				else {
-					var glyph = NGUIText.GetGlyph(c, prevChar, glyphScale);
-					if (glyph == null) continue;
+					var grp = SingleTon<DataManager>.Instance.GetTableSkillGroup(
+						this.isCH
+							? this.targetPC.SkillGroupIndex_CH
+							: this.targetPC.SkillGroupIndex
+					);
+					if(grp == null) return 0f;
 
-					prevChar = c;
-
-					var glyphSize = glyph.advance + NGUIText.finalSpacingX;
-					var next = x + glyphSize;
-
-					if (next > targetWidth) x = 0f;
-					x += glyphSize;
-					if (subscriptMode != 0) x = Mathf.Round(x);
-				}
-			}
-			return x;
-		}
-
-		private static float GetPrintedWidth(string text) {
-			if (string.IsNullOrEmpty(text)) return 0f;
-			return NGUIText.CalculatePrintedSize(text).x;
-		}
-
-		private static float GetPrintedLineHeight(UILabel label) {
-			if (label == null) return 1f;
-			var printed = NGUIText.CalculatePrintedSize(".");
-			return Mathf.Max(printed.y, 1f);
-		}
-
-		private static bool TryGetSymbolSpriteInfo(string kind, string key, out INGUIAtlas atlas, out string spriteName, out float aspect) {
-			atlas = null;
-			spriteName = null;
-			var cacheKey = $"{kind}:{key}";
-			if (SymbolAspectCache.TryGetValue(cacheKey, out aspect)) {
-				switch (kind) {
-					case "elem":
-						atlas = GetBuffIconAtlas();
-						spriteName = GetElemSpriteName(key);
-						break;
-					case "buff" when BuffIconSet.Contains(key):
-						atlas = GetBuffIconAtlas();
-						spriteName = $"BuffIcon_{key}";
-						break;
-				}
-				return aspect > 0f && atlas != null && !string.IsNullOrEmpty(spriteName);
-			}
-
-			aspect = 0f;
-			var sprite = default(UISpriteData);
-			switch (kind) {
-				case "elem":
-					atlas = GetBuffIconAtlas();
-					spriteName = GetElemSpriteName(key);
-					sprite = atlas?.GetSprite(spriteName);
-					break;
-				case "buff" when BuffIconSet.Contains(key):
-					atlas = GetBuffIconAtlas();
-					spriteName = $"BuffIcon_{key}";
-					sprite = atlas?.GetSprite(spriteName);
-					break;
-			}
-			if (sprite == null || sprite.width <= 0 || sprite.height <= 0) {
-				SymbolAspectCache[cacheKey] = 0f;
-				atlas = null;
-				spriteName = null;
-				return false;
-			}
-
-			aspect = (float)sprite.width / sprite.height;
-			SymbolAspectCache[cacheKey] = aspect;
-			return true;
-		}
-
-		private static string GetElemDisplayName(string key) => key switch {
-			"physics" => "물리",
-			"fire" => "화염",
-			"ice" => "냉기",
-			"lightning" => "전기",
-			_ => "???",
-		};
-		private static string GetElemSpriteName(string key) => key switch {
-			"fire" => "UI_Battle_Atktype_fire",
-			"ice" => "UI_Battle_Atktype_ice",
-			"lightning" => "UI_Battle_Atktype_electric",
-			_ => "UI_Battle_Atktype_normal",
-		};
-
-		private static INGUIAtlas GetBuffIconAtlas() => BuffIconAtlas ??= SingleTon<ResourceManager>.Instance.LoadAtlas("BuffIconAtlas");
-		private static string GetSectionColor(string typ) => typ switch {
-			null => "fff2cc",
-			"dmg" => "fce391",
-			"note" => "98d718",
-			"buff" => "a6d0f7",
-			"important" => "42deff",
-			"attr" => "ffc107",
-			"cond" => "d63384",
-			"chance" => "198754",
-			"ref" => "6c757d",
-			_ => "fff2cc",
-		};
-
-		private static string WrapColor(string color, string content) {
-			if (string.IsNullOrEmpty(content)) return "";
-			return $"[c][{color}]{content}{Common.COLOR_END}";
-		}
-
-		private static string BuildRenderCacheKey(string skillKey, int skillLevel) => $"{skillKey ?? ""}::{skillLevel}";
-
-		private static void CacheRenderedSkillDesc(string cacheKey, string renderedText, RenderContext context) {
-			if (string.IsNullOrEmpty(cacheKey)) return;
-
-			RenderCache[cacheKey] = new RenderCacheEntry {
-				Text = renderedText ?? "",
-				Actions = new Dictionary<string, CommentData>(context.Comments),
-			};
-		}
-
-		private static bool TryGetRenderedSkillDesc(string cacheKey, out RenderCacheEntry entry) {
-			if (!string.IsNullOrEmpty(cacheKey) && RenderCache.TryGetValue(cacheKey, out entry)) {
-				return true;
-			}
-
-			entry = null;
-			return false;
-		}
-
-		private static string GetLastRenderCacheKey() => LastRenderCacheKey;
-
-		private static float ParseFloat(string value) {
-			if (string.IsNullOrWhiteSpace(value)) return 0f;
-			if (!float.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var parsed)) return 0f;
-			return parsed;
-		}
-
-		private static string innerText(XElement element) => string.Concat(element.Nodes().Select(node => node switch {
-			XText text => text.Value,
-			XElement child => child.ToString(SaveOptions.DisableFormatting),
-			_ => "",
-		}));
-		#endregion
-
-		#region UILabel Patch
-		private sealed class FancySkillDescBinding : MonoBehaviour {
-			private UILabel Label;
-			private string LastSourceText = "";
-			private string LastCacheKey = "";
-			private string LastText = "";
-			private int LastSymbolCount = 0;
-			private Dictionary<string, CommentData> Actions = [];
-			private readonly List<SymbolSpriteEntry> SymbolEntries = [];
-			private readonly List<GameObject> SymbolObjects = [];
-			private Transform SymbolRoot;
-			private GameObject PopupRoot;
-			private UILabel PopupLabel;
-			private int OriginalFontSize = -1;
-
-			public void Start() {
-				if(!TryGetComponent<UILabel>(out Label))
-					return;
-
-				ApplyFontSizeAdjustment();
-				RefreshIfNeeded(force: true);
-			}
-
-			public void LateUpdate() {
-				RefreshIfNeeded();
-			}
-
-			public void OnClick() {
-				if (Label == null) return;
-
-				var action = Label.GetUrlAtPosition(UICamera.lastWorldPosition);
-				if (string.IsNullOrEmpty(action)) return;
-				if (!Actions.TryGetValue(action, out var data)) return;
-
-				TogglePopup(data);
-			}
-
-			public void OnDestroy() {
-				ClearSymbols();
-				if (PopupRoot != null)
-					Destroy(PopupRoot);
-
-				Actions.Clear();
-				LastSourceText = "";
-				LastCacheKey = "";
-				LastText = "";
-				LastSymbolCount = 0;
-			}
-
-			private void RefreshIfNeeded(bool force = false) {
-				if (Label == null) return;
-				ApplyFontSizeAdjustment();
-
-				var currentCacheKey = GetLastRenderCacheKey();
-				var sourceText = Label.text ?? "";
-				if (TryGetRenderedSkillDesc(currentCacheKey, out var currentEntry) && currentEntry != null)
-					sourceText = currentEntry.Text ?? sourceText;
-
-				if (
-					!force &&
-					LastSourceText == sourceText &&
-					LastCacheKey == currentCacheKey &&
-					string.Equals(Label.text ?? "", LastText ?? "", StringComparison.Ordinal) &&
-					IsSymbolStateCurrent()
-				)
-					return;
-
-				SymbolEntries.Clear();
-				var currentText = ReplaceSymbolTokensWithPlaceholders(Label, sourceText, SymbolEntries);
-				var symbolsChanged = LastSymbolCount != SymbolEntries.Count;
-				var textChanged = !string.Equals(currentText, Label.text ?? "", StringComparison.Ordinal);
-
-				if (!force && !textChanged && !symbolsChanged && IsSymbolStateCurrent()) {
-					LastSourceText = sourceText;
-					LastCacheKey = currentCacheKey;
-					LastText = currentText;
-					Actions = currentEntry?.Actions ?? [];
-					return;
+					sk = SingleTon<DataManager>.Instance.GetTableSkillLevel(slot switch {
+						1 => grp.SkillIndex1,
+						2 => grp.SkillIndex2,
+						3 => grp.SkillIndex3,
+						4 => grp.SkillIndex4,
+						5 => grp.SkillIndex5,
+						6 => grp.SkillIndex6,
+						7 => grp.SkillIndex7,
+						8 => grp.SkillIndex8,
+						9 => grp.SkillIndex9,
+						10 => grp.SkillIndex10,
+						_ => null
+					}, this.skillInfo.SkillLevel);
 				}
 
-				if (!string.Equals(currentText, Label.text ?? "", StringComparison.Ordinal))
-					Label.text = currentText;
+				if (sk == null) return 0f;
 
-				LastSourceText = sourceText;
-				LastCacheKey = currentCacheKey;
-				LastText = currentText;
-				LastSymbolCount = SymbolEntries.Count;
-				Actions = [];
-				HidePopup();
+				var current = 0;
+				foreach (var buffKey in sk.BuffEffectIndex.Where(x => !string.IsNullOrEmpty(x))) {
+					var buff = SingleTon<DataManager>.Instance.GetTableBuffEffect(buffKey);
+					if (buff == null) {
+						if (current == idx) return 0f; // unknown value
+						current++;
 
-				if (currentEntry == null)
-				{
-					SymbolEntries.Clear();
-					ClearSymbols();
-					return;
-				}
-
-				Actions = currentEntry.Actions ?? [];
-				ClearSymbols();
-				LayoutSymbols();
-				BuildSymbolSprites();
-			}
-
-			private bool IsSymbolStateCurrent() {
-				if (LastSymbolCount <= 0)
-					return SymbolRoot == null && SymbolObjects.Count == 0;
-
-				return SymbolRoot != null && SymbolObjects.Count == LastSymbolCount;
-			}
-
-			private void TogglePopup(CommentData data) {
-				if (PopupRoot != null && PopupRoot.activeSelf && PopupLabel != null && PopupLabel.text == data.Body) {
-					HidePopup();
-					return;
-				}
-
-				EnsurePopup();
-				PopupLabel.text = data.Body ?? data.RawBody ?? "";
-				PopupRoot.SetActive(true);
-			}
-
-			private void EnsurePopup() {
-				if (PopupRoot != null && PopupLabel != null) return;
-
-				PopupRoot = new GameObject("FancySkillDescPopup");
-				PopupRoot.layer = Label.gameObject.layer;
-				PopupRoot.transform.SetParent(Label.transform.parent, false);
-				PopupRoot.transform.localPosition = Label.transform.localPosition + new Vector3(0f, -Mathf.Max(Label.height, 40f) - 12f, 0f);
-
-				PopupLabel = PopupRoot.AddComponent<UILabel>();
-				PopupLabel.bitmapFont = Label.bitmapFont;
-				PopupLabel.trueTypeFont = Label.trueTypeFont;
-				PopupLabel.fontSize = Label.fontSize;
-				PopupLabel.width = Mathf.Max(Label.width, 480);
-				PopupLabel.overflowMethod = UILabel.Overflow.ResizeHeight;
-				PopupLabel.supportEncoding = true;
-				PopupLabel.symbolStyle = Label.symbolStyle;
-				PopupLabel.pivot = UIWidget.Pivot.TopLeft;
-				PopupLabel.color = Color.white;
-			}
-
-			private void HidePopup() {
-				if (PopupRoot != null)
-					PopupRoot.SetActive(false);
-			}
-
-			private void LayoutSymbols() {
-				if (Label == null || SymbolEntries.Count == 0)
-					return;
-
-				Label.UpdateNGUIText();
-				var verts = new List<Vector3>();
-				var indices = new List<int>();
-				NGUIText.PrintApproximateCharacterPositions(LastText, verts, indices);
-
-				foreach (var entry in SymbolEntries) {
-					if (entry == null)
 						continue;
+					}
 
-					if (!TryGetSymbolPosition(entry, verts, indices, out var x, out var y))
-						continue;
+					if (buff._dic_BuffDesc == null) continue;
 
-					entry.X = x;
-					entry.Y = y;
-				}
-			}
-
-			private void BuildSymbolSprites() {
-				if (Label == null || SymbolEntries.Count == 0)
-					return;
-
-				var root = EnsureSymbolRoot();
-				if (root == null)
-					return;
-
-					foreach (var entry in SymbolEntries) {
-						if (entry == null || entry.Atlas == null || string.IsNullOrEmpty(entry.SpriteName))
+					for (var i = 1; i <= 5; i++) {
+						if (!buff._dic_BuffDesc.TryGetValue(i.ToString(), out var b))
 							continue;
 
-					var spriteData = entry.Atlas.GetSprite(entry.SpriteName);
-					if (spriteData == null)
-						continue;
+						if (string.IsNullOrEmpty(b.BuffIcon) &&
+							string.IsNullOrEmpty(b.BuffEffectType_Desc) &&
+							b.BuffEffectValue == "0"
+						)
+							continue;
 
-					var go = new GameObject($"FancySkillDescSymbol_{entry.SpriteName}");
-					go.layer = Label.gameObject.layer;
-					go.transform.SetParent(root, false);
+						if (
+							!float.TryParse(b.BuffEffectValue, out var value) ||
+							!float.TryParse(b.BuffEffectLevelValue, out var levelValue)
+						) {
+							current++;
+							continue;
+						}
 
-					var sprite = go.AddComponent<UISprite>();
-					sprite.atlas = entry.Atlas;
-					sprite.spriteName = entry.SpriteName;
-					sprite.pivot = UIWidget.Pivot.TopLeft;
-						sprite.width = Mathf.Max(1, Mathf.RoundToInt(entry.Width));
-						sprite.height = Mathf.Max(1, Mathf.RoundToInt(entry.Height));
-						sprite.depth = Label.depth + 1;
+						if (current == idx)
+							return value + (this.skillInfo.SkillLevel - 1) * levelValue;
 
-						var localX = entry.X;
-						var localY = entry.Y;
-						sprite.cachedTransform.localPosition = new Vector3(localX, localY, 0f);
-						SymbolObjects.Add(go);
+						current++;
 					}
+				}
+				return 0f;
+			}
+			public int GetSkillDamage() {
+				if (this.skillInfo == null || this.targetPC == null || this.targetClientPC == null || this.tableSkillLevel == null)
+					return 0;
+
+				var pc = this.targetClientPC;
+
+				var attrValue = pc.attrValue;
+				var fullLinkKey = pc.CoreLinkBonus_KeyString;
+
+				var linkBonus = Common.GetLinkBonusValue(pc, CORE_LINK_BONUS.STAGE_SKILLRATIO_UP);
+				var fullLinkBonus = Common.GetFullLinkBonusValue(fullLinkKey, CORE_LINK_BONUS.STAGE_SKILLRATIO_UP);
+				var favorBonus = pc.GetFavorBonusValue(CORE_LINK_BONUS.STAGE_SKILLRATIO_UP);
+				var bonus = linkBonus + fullLinkBonus + favorBonus;
+
+				return (int)Mathf.Floor(
+					Common.FloatParseNotCulture(DataManager.GetAttrPcAttack(attrValue)) *
+					(Common.FloatParseNotCulture(tableSkillLevel.SkillAttackRate) + bonus)
+				);
 			}
 
-			private static bool TryGetSymbolPosition(SymbolSpriteEntry entry, List<Vector3> verts, List<int> indices, out float x, out float y) {
-				x = 0f;
-				y = 0f;
+			private static INGUIAtlas LoadSymbolAtlas() => SingleTon<ResourceManager>.Instance.LoadAtlas("BuffIconAtlas").GetComponent<UIAtlas>();
+			#endregion
 
-				if (entry == null || verts == null || indices == null || verts.Count == 0 || indices.Count == 0)
-					return false;
+			#region Setup & Unset
+			private void Setup() {
+				// already set up
+				if (this.sourceLabel != null) return;
 
-				var start = entry.StartIndex;
-				var end = start + Math.Max(entry.PlaceholderLength - 1, 0);
-				var minX = float.MaxValue;
-				var maxY = float.MinValue;
-				var found = false;
-
-				for (var i = 0; i < verts.Count && i < indices.Count; i++) {
-					var index = indices[i];
-					if (index < start || index > end)
-						continue;
-
-					var pos = verts[i];
-					minX = Mathf.Min(minX, pos.x);
-					maxY = Mathf.Max(maxY, pos.y);
-					found = true;
+				if (!this.TryGetComponent<UILabel>(out var label)) {
+					Debug.LogWarning("SkillDesc should be attached to UILabel gameobject.");
+					return;
 				}
 
-				if (!found)
-					return false;
+				// fires when need to update
+				if (!this.subscribed) {
+					label.onPostFill += OnSourcePostFill;
+					label.SetDirty();
+					this.subscribed = true;
+				}
 
-				x = minX;
-				y = maxY;
+				this.sourceLabel = label;
+			}
+			private void Unset() {
+				if (this.sourceLabel != null && subscribed)
+					this.sourceLabel.onPostFill -= OnSourcePostFill;
+
+				this.subscribed = false;
+				this.sourceLabel = null;
+			}
+
+			private void OnSourcePostFill(UIWidget widget, int bufferOffset, List<Vector3> verts, List<Vector2> uvs, List<Color> cols) {
+				if (HasSourceChanged(widget as UILabel ?? this.sourceLabel))
+					QueueRender();
+
+				// make original label skip drawing
+				verts.Clear();
+				uvs.Clear();
+				cols.Clear();
+			}
+			#endregion
+
+			#region Template
+			private void QueueRender() {
+				if (!this.isActiveAndEnabled) return;
+				this.renderQueued = true;
+			}
+
+			private void InvalidateSourceSnapshot() {
+				this.sourceSnapshotValid = false;
+				this.sourceSnapshotWidth = -1;
+				this.sourceSnapshotHeight = -1;
+				this.screenSnapshotWidth = -1;
+				this.screenSnapshotHeight = -1;
+			}
+
+			private bool HasSourceChanged(UILabel label) {
+				if (label == null) return false;
+				if (!this.sourceSnapshotValid) return true;
+
+				return this.sourceSnapshotWidth != label.width ||
+					   this.sourceSnapshotHeight != label.height ||
+					   this.screenSnapshotWidth != Screen.width ||
+					   this.screenSnapshotHeight != Screen.height;
+			}
+
+			private void CaptureSourceSnapshot(UILabel label) {
+				if (label == null) {
+					InvalidateSourceSnapshot();
+					return;
+				}
+
+				this.sourceSnapshotValid = true;
+				this.sourceSnapshotWidth = label.width;
+				this.sourceSnapshotHeight = label.height;
+				this.screenSnapshotWidth = Screen.width;
+				this.screenSnapshotHeight = Screen.height;
+			}
+
+			private bool TryBuildRoot(string source, out XElement root) {
+				root = null;
+				if (string.IsNullOrWhiteSpace(source)) // Nothing to draw
+				{
+					CleanupViews();
+					return false;
+				}
+
+				var src = PreprocessBox(TranspileSections(source.Replace("\t", ""))).Trim();
+				Plugin.Logger.LogInfo(src);
+				root = XElement.Load(new SgmlReader {
+					DocType = "HTML",
+					InputStream = new StringReader($"<_>{src}</_>"),
+					IgnoreDtd = true, // prevent insert <html> and <body> tag
+					WhitespaceHandling = System.Xml.WhitespaceHandling.All, // preserve all whitespace only nodes
+					TextWhitespace = TextWhitespaceHandling.None, // preserve leading/trailing whitespaces in text nodes
+				});
+
 				return true;
 			}
 
-			private Transform EnsureSymbolRoot() {
-				if (SymbolRoot != null)
-					return SymbolRoot;
+			private LayoutData RenderTemplate(XElement root, UILabel sourceLabel) {
+				// Remove previous views
+				this.CleanupViews();
 
-				var root = new GameObject("FancySkillDescSymbols");
-				root.layer = Label.gameObject.layer;
-				root.transform.SetParent(Label.cachedTransform, false);
-				root.transform.localPosition = Vector3.zero;
-				root.transform.localScale = Vector3.one;
-				SymbolRoot = root.transform;
-				return SymbolRoot;
+				this.dictSections = this.inheritedSections != null
+					? new ElemDict(this.inheritedSections)
+					: new ElemDict();
+				this.dictComments = new();
+
+				this.viewObject = CreateChildObject("SkillDescView", sourceLabel.transform);
+				var layout = CreateRenderLayers(
+					sourceLabel,
+					viewObject.transform,
+					root.Nodes(),
+					sourceLabel.width,
+					sourceLabel.height,
+					-1f,
+					dictSections,
+					dictComments
+				);
+				CaptureSourceSnapshot(sourceLabel);
+				return layout;
 			}
 
-			private void ClearSymbols() {
-				foreach (var go in SymbolObjects) {
-					if (go != null)
-						Destroy(go);
+			private void CleanupViews() {
+				this.CleanupTooltip();
+
+				if (this.viewObject != null) {
+					Destroy(this.viewObject);
+					this.viewObject = null;
 				}
-				SymbolObjects.Clear();
+			}
+			#endregion
 
-				if (SymbolRoot != null && SymbolRoot.childCount == 0) {
-					Destroy(SymbolRoot.gameObject);
-					SymbolRoot = null;
+			#region Tooltip
+			private struct TooltipInstance {
+				public GameObject tooltip;
+				public GameObject dim;
+				public GameObject background;
+			}
+
+			private void CleanupTooltip() {
+				if (this.tooltipInstance.tooltip != null)
+					Destroy(this.tooltipInstance.tooltip);
+
+				this.tooltipInstance.tooltip = null;
+
+				// will be destroyed with tooltip
+				this.tooltipInstance.dim = null;
+				this.tooltipInstance.background = null;
+			}
+
+			private void CloseTooltip() {
+				// no tooltip generated
+				if (this.tooltipInstance.tooltip == null) return;
+
+				var tooltip = this.tooltipInstance.tooltip;
+
+				// disable colliders
+				foreach (var col in tooltip.GetComponentsInChildren<Collider>(true)) col.enabled = false;
+				foreach (var col in tooltip.GetComponentsInChildren<Collider2D>(true)) col.enabled = false;
+
+				var dim = this.tooltipInstance.dim?.GetComponent<UITexture>();
+				var bg = this.tooltipInstance.background?.GetComponent<UITexture>();
+
+				var f1 = dim != null ? FadeWidget(dim, 0f, UITweener.Method.EaseIn) : null;
+				var f2 = bg != null ? FadeWidget(bg, 0f, UITweener.Method.EaseIn) : null;
+				var f = f1 ?? f2;
+
+				if (f != null)
+					f?.SetOnFinished(() => this.CleanupTooltip());
+				else
+					this.CleanupTooltip();
+			}
+
+			private void ShowTooltip(IEnumerable<XNode> nodes, Vector3 worldPosition) {
+				this.CleanupTooltip();
+
+				if (this.sourceLabel == null || nodes == null) return;
+
+				var label = this.sourceLabel;
+
+				var tooltipRoot = GetTooltipRootTransform(label);
+				var tooltip = CreateChildObject("SkillDescTooltip", tooltipRoot);
+				this.tooltipInstance = new() {
+					tooltip = tooltip
+				};
+
+				var padding = Mathf.Max(12f, label.fontSize);
+				var width = Mathf.Clamp(label.width - padding * 2f, 160f, 420f);
+				var contentWidth = Mathf.Max(2, Mathf.RoundToInt(width - padding * 2f));
+				var screenRect = this.GetScreenRectInLocal(tooltipRoot);
+
+				#region Dim
+				var dim = CreateTooltipTexture("Dim", tooltip.transform, Texture2D.whiteTexture, new Color(0f, 0f, 0f, 0f), label.depth + 90);
+				dim.SetRect(
+					Mathf.Round(screenRect.xMin),
+					Mathf.Round(screenRect.yMin),
+					Mathf.Max(1f, Mathf.Round(screenRect.width)),
+					Mathf.Max(1f, Mathf.Round(screenRect.height))
+				);
+
+				var dismiss = dim.gameObject.AddComponent<TooltipDismissHandler>();
+				dismiss.owner = this;
+				NGUITools.AddWidgetCollider(dim.gameObject);
+				this.tooltipInstance.dim = dim.gameObject;
+				#endregion
+
+				#region Popup
+				var popup = CreateChildObject("Popup", tooltip.transform);
+
+				var local = tooltipRoot.InverseTransformPoint(worldPosition);
+				local.x = ClampLoose(local.x + padding, screenRect.xMin + padding, screenRect.xMax - width - padding);
+				local.y -= padding;
+				local.z = 0f;
+				popup.transform.localPosition = local;
+
+				var bg = CreateTooltipTexture("Background", popup.transform, boxTexture != null ? boxTexture : Texture2D.whiteTexture, new Color(0.035f, 0.035f, 0.04f, 0f), label.depth - 4);
+				bg.type = UIBasicSprite.Type.Sliced;
+				bg.border = new Vector4(8f, 8f, 8f, 8f);
+				this.tooltipInstance.background = bg.gameObject;
+
+				var contentLabel = CreateTooltipLabel(
+					"Content Label",
+					popup.transform,
+					label,
+					contentWidth,
+					Mathf.Max(8, Mathf.RoundToInt(label.fontSize * 0.9f)),
+					new Vector3(padding, -padding, 0f),
+					SerializeNodes(nodes)
+				);
+
+				var contentDesc = contentLabel.gameObject.AddComponent<SkillDesc>();
+				contentDesc.boxTexture = this.boxTexture;
+				contentDesc.inheritedSections = this.dictSections.Count > 0
+					? new ElemDict(this.dictSections)
+					: null;
+
+				LayoutData layout = null;
+				if (contentDesc.TryBuildRoot(contentLabel.text ?? "", out var contentRoot)) {
+					layout = contentDesc.RenderTemplate(contentRoot, contentLabel);
+					contentDesc.renderQueued = false;
+				}
+
+				// resize height to content size
+				var contentHeight = layout?.contentHeight ?? contentLabel.fontSize;
+				var height = Mathf.Max(label.fontSize + padding * 2f, contentHeight + padding * 2f);
+				bg.SetRect(0f, -Mathf.Round(height), Mathf.Round(width), Mathf.Round(height));
+
+				// fade in
+				FadeWidget(dim, 0.48f, UITweener.Method.EaseOut);
+				FadeWidget(bg, 0.88f, UITweener.Method.EaseOut);
+
+				local.y = ClampLoose(local.y, screenRect.yMin + height + padding, screenRect.yMax - padding);
+				popup.transform.localPosition = local;
+				#endregion
+
+				// Adjust depth
+				foreach (var widget in popup.GetComponentsInChildren<UIWidget>(true))
+					widget.depth += 100;
+				var minPopupDepth = popup.GetComponentsInChildren<UIWidget>(true)
+					.Where(w => w != bg)
+					.Min(w => w.depth);
+
+				bg.depth = minPopupDepth - 1;
+				dim.depth = bg.depth - 1;
+			}
+
+			private static Transform GetTooltipRootTransform(UILabel label) {
+				if (label == null) return null;
+
+				var root = label.root;
+				if (root == null)
+					root = NGUITools.FindInParents<UIRoot>(label.transform);
+				if (root == null)
+					root = UIRoot.list.FirstOrDefault(r => r != null && r.gameObject.layer == label.gameObject.layer);
+
+				return root != null ? root.transform : label.transform;
+			}
+
+			private static float ClampLoose(float value, float min, float max) => min <= max ? Mathf.Clamp(value, min, max) : max;
+
+			private static TweenAlpha FadeWidget(UIWidget widget, float alpha, UITweener.Method method) {
+				if (widget == null) return null;
+				var tween = TweenAlpha.Begin(widget.gameObject, 0.14f /* duration */, alpha);
+				tween.method = method;
+				return tween;
+			}
+
+			private static UITexture CreateTooltipTexture(string name, Transform parent, Texture texture, Color color, int depth) {
+				var tex = CreateChildObject(name, parent).AddComponent<UITexture>();
+				tex.mainTexture = texture;
+				tex.pivot = UIWidget.Pivot.TopLeft;
+				tex.color = color;
+				tex.depth = depth;
+				return tex;
+			}
+
+			private static UILabel CreateTooltipLabel(
+				string name,
+				Transform parent,
+				UILabel template,
+				int width,
+				int fontSize,
+				Vector3 localPosition,
+				string text
+			) {
+				var label = CreateChildObject(name, parent).AddComponent<UILabel>();
+				label.pivot = UIWidget.Pivot.TopLeft;
+				label.width = Mathf.Max(2, width);
+				label.height = Mathf.Max(2, template.height);
+				label.depth = template.depth;
+				label.color = Color.white;
+				label.fontSize = fontSize;
+				label.fontStyle = template.fontStyle;
+				label.spacingX = template.spacingX;
+				label.overflowMethod = UILabel.Overflow.ClampContent;
+				label.keepCrispWhenShrunk = template.keepCrispWhenShrunk;
+				label.supportEncoding = false;
+
+				if (template.trueTypeFont != null)
+					label.trueTypeFont = template.trueTypeFont;
+				else
+					label.bitmapFont = template.bitmapFont;
+
+				label.text = text ?? "";
+				label.transform.localPosition = localPosition;
+				return label;
+			}
+
+			private static string SerializeNodes(IEnumerable<XNode> nodes) {
+				if (nodes == null) return "";
+
+				var sb = new StringBuilder();
+				using (var writer = XmlWriter.Create(new StringWriter(sb), new XmlWriterSettings {
+					OmitXmlDeclaration = true,
+					ConformanceLevel = ConformanceLevel.Fragment
+				})) {
+					foreach (var node in nodes)
+						node.WriteTo(writer);
+				}
+
+				return sb.ToString();
+			}
+
+			private void ShowCommentTooltip(int index, Vector3 worldPosition) {
+				if (this.sourceLabel == null) return;
+				if (index < 0 || index >= this.dictComments.Count) return;
+
+				var comment = this.dictComments[index];
+				if (comment == null) return;
+				this.ShowTooltip(comment.Nodes(), worldPosition);
+			}
+
+			private Rect GetScreenRectInLocal(Transform localRoot) {
+				var fallback = GetSourceLabelRectInLocal(localRoot);
+				if (localRoot == null) return fallback;
+
+				var cam = NGUITools.FindCameraForLayer(localRoot.gameObject.layer);
+				if (cam == null) cam = UICamera.currentCamera;
+				if (cam == null) return fallback;
+
+				var z = cam.WorldToScreenPoint(localRoot.position).z;
+				var corners = new[]
+				{
+			localRoot.InverseTransformPoint(cam.ScreenToWorldPoint(new Vector3(0f, 0f, z))),
+			localRoot.InverseTransformPoint(cam.ScreenToWorldPoint(new Vector3(0f, Screen.height, z))),
+			localRoot.InverseTransformPoint(cam.ScreenToWorldPoint(new Vector3(Screen.width, Screen.height, z))),
+			localRoot.InverseTransformPoint(cam.ScreenToWorldPoint(new Vector3(Screen.width, 0f, z))),
+		};
+
+				var xMin = corners.Min(p => p.x);
+				var xMax = corners.Max(p => p.x);
+				var yMin = corners.Min(p => p.y);
+				var yMax = corners.Max(p => p.y);
+				if (xMax <= xMin || yMax <= yMin) return fallback;
+				return Rect.MinMaxRect(xMin, yMin, xMax, yMax);
+			}
+
+			private Rect GetSourceLabelRectInLocal(Transform localRoot) {
+				if (this.sourceLabel == null) return Rect.MinMaxRect(0f, 0f, 1f, 1f);
+
+				var relativeTo = localRoot != null ? localRoot : this.sourceLabel.transform;
+				var bounds = this.sourceLabel.CalculateBounds(relativeTo);
+				if (bounds.size.x > 0f && bounds.size.y > 0f)
+					return Rect.MinMaxRect(bounds.min.x, bounds.min.y, bounds.max.x, bounds.max.y);
+
+				return Rect.MinMaxRect(0f, -this.sourceLabel.height, this.sourceLabel.width, 0f);
+			}
+			#endregion
+
+			#region Event Handling
+			private sealed class TooltipDismissHandler : MonoBehaviour {
+				public SkillDesc owner;
+
+				private void OnClick() => owner?.CloseTooltip();
+			}
+			#endregion
+
+			#region Layer
+			private LayoutData CreateRenderLayers(
+				UILabel template,
+				Transform parent,
+				IEnumerable<XNode> nodes,
+				int width,
+				int height,
+				float defaultFontSize,
+				ElemDict sections,
+				ElemList comments,
+				Color? initialColor = null,
+				bool shadowText = false
+			) {
+				var symbolAtlas = LoadSymbolAtlas();
+				var origin = GetTopLeftOffset(template, width, height);
+				var layout = BuildLayout(
+					template,
+					nodes.ToList(),
+					width,
+					height,
+					defaultFontSize,
+					sections,
+					comments,
+					initialColor ?? template.color,
+					shadowText,
+					symbolAtlas,
+					origin
+				);
+				var layerHeight = Mathf.CeilToInt(layout.contentHeight);
+				var widgetHeight = IsTopPivot(template.pivot) ? layerHeight : height;
+
+				var boxLayer = CreateChildObject("Box Layer", parent).AddComponent<BoxLayerWidget>();
+				SetupLayer(boxLayer, width, widgetHeight, template.depth - 20, template.pivot);
+				boxLayer.mesh = BuildBoxMesh(boxTexture != null ? boxTexture : Texture2D.whiteTexture, layout);
+				boxLayer.texture = boxTexture != null ? boxTexture : Texture2D.whiteTexture;
+
+				var textLayer = CreateChildObject("Text Layer", parent).AddComponent<TextLayerWidget>();
+				SetupLayer(textLayer, width, widgetHeight, template.depth, template.pivot);
+				textLayer.mesh = BuildTextMesh(template, width, layerHeight, layout);
+				textLayer.textMaterial = GetFontMaterial(template);
+				textLayer.comments = layout.comments;
+
+				var symbolLayer = CreateChildObject("Symbol Layer", parent).AddComponent<SymbolLayerWidget>();
+				SetupLayer(symbolLayer, width, widgetHeight, template.depth + 1, template.pivot);
+				symbolLayer.mesh = BuildSymbolMesh(symbolAtlas, layout);
+				symbolLayer.symbolMaterial = symbolAtlas != null ? symbolAtlas.spriteMaterial : null;
+
+				textLayer.hitCheck = textLayer.IsCommentHit;
+				var handler = textLayer.gameObject.AddComponent<CommentHitHandler>();
+				handler.owner = this;
+				handler.textLayer = textLayer;
+				NGUITools.AddWidgetCollider(textLayer.gameObject);
+
+				// Adjust layer position
+				boxLayer.transform.localPosition += new Vector3(0, 5f);
+				symbolLayer.transform.localPosition += new Vector3(0, 5f);
+
+				boxLayer.MarkAsChanged();
+				textLayer.MarkAsChanged();
+				symbolLayer.MarkAsChanged();
+				return layout;
+			}
+
+			private static void SetupLayer(UIWidget widget, int width, int height, int depth, UIWidget.Pivot pivot) {
+				widget.pivot = pivot;
+				widget.width = Mathf.Max(2, width);
+				widget.height = Mathf.Max(2, height);
+				widget.depth = depth;
+				widget.color = Color.white;
+				// NGUI may move the transform while preserving the pivot position.
+				widget.transform.localPosition = Vector3.zero;
+			}
+
+			private static bool IsTopPivot(UIWidget.Pivot pivot)
+				=> pivot == UIWidget.Pivot.TopLeft || pivot == UIWidget.Pivot.Top || pivot == UIWidget.Pivot.TopRight;
+
+			private static Vector2 GetTopLeftOffset(UIWidget widget, int width, int height) {
+				if (widget == null) return Vector2.zero;
+
+				var pivot = widget.pivotOffset;
+				return new Vector2(-pivot.x * width, (1f - pivot.y) * height);
+			}
+
+			private LayoutData BuildLayout(
+				UILabel template,
+				IEnumerable<XNode> nodes,
+				int width,
+				int height,
+				float defaultFontSize,
+				ElemDict sections,
+				ElemList comments,
+				Color initialColor,
+				bool shadowText,
+				INGUIAtlas symbolAtlas,
+				Vector2 origin
+			) {
+				var layout = new LayoutData();
+				var renderer = new LayerRenderer(
+					this,
+					template,
+					layout,
+					Mathf.Max(2, width),
+					Mathf.Max(2, height),
+					defaultFontSize,
+					sections,
+					comments,
+					initialColor,
+					shadowText,
+					symbolAtlas,
+					origin.x,
+					origin.y
+				);
+				renderer.RenderNodes(nodes ?? Enumerable.Empty<XNode>());
+				renderer.Trim();
+				layout.contentHeight = renderer.ContentHeight;
+				return layout;
+			}
+
+			private static MeshData BuildTextMesh(UILabel template, int width, int height, LayoutData layout) {
+				var mesh = new MeshData();
+				if (template == null || layout == null) return mesh;
+
+				for (var i = 0; i < layout.texts.Count; i++) {
+					var run = layout.texts[i];
+					if (string.IsNullOrEmpty(run.text)) continue;
+
+					if (run.shadow)
+						AddText(mesh, template, width, height, run.text, run.position + new Vector3(1f, -1f, 0f), run.fontSize, run.scale, new Color(0f, 0f, 0f, run.color.a * 0.65f));
+					AddText(mesh, template, width, height, run.text, run.position, run.fontSize, run.scale, run.color);
+				}
+
+				return mesh;
+			}
+
+			private static void AddText(MeshData mesh, UILabel template, int width, int height, string text, Vector3 offset, int fontSize, float scale, Color color) {
+				var start = mesh.verts.Count;
+				scale = scale > 0f ? scale : 1f;
+				ConfigureText(template, fontSize, Mathf.Max(2, width), Mathf.Max(2, height), color);
+				NGUIText.Print(text, mesh.verts, mesh.uvs, mesh.cols);
+
+				for (var i = start; i < mesh.verts.Count; i++)
+					mesh.verts[i] = new Vector3(mesh.verts[i].x * scale, mesh.verts[i].y * scale, mesh.verts[i].z) + offset;
+
+				NGUIText.bitmapFont = null;
+				NGUIText.dynamicFont = null;
+			}
+
+			private static MeshData BuildBoxMesh(Texture texture, LayoutData layout) {
+				var mesh = new MeshData();
+				if (layout == null) return mesh;
+
+				var tex = texture != null ? texture : Texture2D.whiteTexture;
+				if (tex == null) return mesh;
+
+				for (var i = 0; i < layout.boxes.Count; i++) {
+					var box = layout.boxes[i];
+					if (box.line) {
+						mesh.pixelLines.Add(new PixelLineDraw {
+							rect = box.rect,
+							color = box.color
+						});
+						continue;
+					}
+
+					AddSlicedTexture(mesh.verts, mesh.uvs, mesh.cols, tex, box);
+				}
+
+				return mesh;
+			}
+
+			private static MeshData BuildSymbolMesh(INGUIAtlas atlas, LayoutData layout) {
+				var mesh = new MeshData();
+				if (layout == null || atlas == null) return mesh;
+
+				var mat = atlas.spriteMaterial;
+				var tex = mat != null ? mat.mainTexture : null;
+				if (tex == null) return mesh;
+
+				for (var i = 0; i < layout.symbols.Count; i++) {
+					var sym = layout.symbols[i];
+					var sp = atlas.GetSprite(sym.spriteName);
+					if (sp == null) continue;
+
+					var uv = NGUIMath.ConvertToTexCoords(new Rect(sp.x, sp.y, sp.width, sp.height), tex.width, tex.height);
+					AddTexturedQuad(mesh.verts, mesh.uvs, mesh.cols, sym.rect.xMin, sym.rect.yMin, sym.rect.xMax, sym.rect.yMax, uv.xMin, uv.yMin, uv.xMax, uv.yMax, sym.color);
+				}
+
+				return mesh;
+			}
+
+			private static Material GetFontMaterial(UILabel label) {
+				if (label == null) return null;
+				if (label.trueTypeFont != null) return label.trueTypeFont.material;
+
+				var font = label.bitmapFont;
+				font = font != null ? font.finalFont : null;
+				return font != null ? font.material : null;
+			}
+
+			private static void ConfigureText(UILabel template, int fontSize, int width, int height, Color color) {
+				NGUIText.fontSize = fontSize;
+				NGUIText.fontStyle = template.fontStyle;
+				NGUIText.rectWidth = Mathf.Max(2, width);
+				NGUIText.rectHeight = Mathf.Max(2, height);
+				NGUIText.regionWidth = Mathf.Max(2, width);
+				NGUIText.regionHeight = Mathf.Max(2, height);
+				NGUIText.gradient = false;
+				NGUIText.encoding = false;
+				NGUIText.premultiply = false;
+				NGUIText.symbolStyle = NGUIText.SymbolStyle.None;
+				NGUIText.maxLines = 0;
+				NGUIText.spacingX = template.spacingX;
+				NGUIText.spacingY = GetLineSpacing(fontSize);
+				NGUIText.tint = color;
+				NGUIText.alignment = NGUIText.Alignment.Left;
+				NGUIText.pixelDensity = 1f;
+
+				var font = template.bitmapFont;
+				font = font != null ? font.finalFont : null;
+				var ttf = template.trueTypeFont;
+				NGUIText.fontScale = ttf != null
+					? 1f
+					: font != null && font.defaultSize > 0
+						? (float)fontSize / font.defaultSize
+						: 1f;
+				NGUIText.bitmapFont = font;
+				NGUIText.dynamicFont = ttf;
+				NGUIText.Update();
+			}
+
+			private static int GetLineSpacing(float fontSize)
+				=> Mathf.RoundToInt(fontSize / 2.5f);
+
+			private sealed class MeshData {
+				public readonly List<Vector3> verts = new();
+				public readonly List<Vector2> uvs = new();
+				public readonly List<Color> cols = new();
+				public readonly List<PixelLineDraw> pixelLines = new();
+
+				public void AddTo(List<Vector3> targetVerts, List<Vector2> targetUvs, List<Color> targetCols) {
+					targetVerts.AddRange(verts);
+					targetUvs.AddRange(uvs);
+					targetCols.AddRange(cols);
 				}
 			}
 
-			private void ApplyFontSizeAdjustment() {
-				if (Label == null)
-					return;
-
-				if (OriginalFontSize <= 0)
-					OriginalFontSize = Label.fontSize;
-
-				var adjustedFontSize = Mathf.Max(1, OriginalFontSize - 2);
-				if (Label.fontSize != adjustedFontSize)
-					Label.fontSize = adjustedFontSize;
+			private sealed class LayoutData {
+				public readonly List<TextDraw> texts = new();
+				public readonly List<BoxDraw> boxes = new();
+				public readonly List<SymbolDraw> symbols = new();
+				public readonly List<CommentHit> comments = new();
+				public float contentHeight;
 			}
 
+			private struct TextDraw {
+				public string text;
+				public Vector3 position;
+				public int fontSize;
+				public float scale;
+				public Color color;
+				public bool shadow;
+			}
+
+			private struct BoxDraw {
+				public Rect rect;
+				public Color color;
+				public float titleHeight;
+				public bool titleOnlyFill;
+				public bool line;
+			}
+
+			private struct PixelLineDraw {
+				public Rect rect;
+				public Color color;
+			}
+
+			private struct SymbolDraw {
+				public string spriteName;
+				public Rect rect;
+				public Color color;
+			}
+
+			private struct CommentHit {
+				public int index;
+				public Rect rect;
+			}
+
+			private sealed class CommentHitHandler : MonoBehaviour {
+				public SkillDesc owner;
+				public TextLayerWidget textLayer;
+
+				private void OnClick() {
+					if (owner == null || textLayer == null) return;
+					if (textLayer.TryGetCommentAtWorld(UICamera.lastWorldPosition, out var index))
+						owner.ShowCommentTooltip(index, UICamera.lastWorldPosition);
+				}
+			}
+
+			private sealed class LayerRenderer {
+				private readonly SkillDesc owner;
+				private readonly UILabel template;
+				private readonly LayoutData layout;
+				private readonly int maxWidth;
+				private readonly int maxHeight;
+				private readonly float defaultFontSize;
+				private readonly float lineGap;
+				private readonly ElemDict sections;
+				private readonly ElemList comments;
+				private readonly Color currentColor;
+				private readonly bool shadowText;
+				private readonly INGUIAtlas symbolAtlas;
+				private readonly float originX;
+				private readonly float originY;
+				private readonly float textScale;
+
+				private float x;
+				private float y;
+				private float lineHeight;
+				private float lineStart;
+				private bool trimmed;
+				private readonly StringBuilder pendingText = new();
+				private readonly List<float> lineStarts = new();
+				private readonly List<float> lineWidths = new();
+				private readonly List<float> lineTops = new();
+
+				public float ContentHeight { get; private set; }
+				private int LineCount => lineWidths.Count;
+				private float LastLineWidth => lineWidths.Count > 0 ? lineWidths[lineWidths.Count - 1] : x;
+				private float EffectiveFontSize => defaultFontSize * textScale;
+
+				public LayerRenderer(
+					SkillDesc owner,
+					UILabel template,
+					LayoutData layout,
+					int width,
+					int height,
+					float defaultFontSize = -1f,
+					ElemDict sections = null,
+					ElemList comments = null,
+					Color? initialColor = null,
+					bool shadowText = false,
+					INGUIAtlas symbolAtlas = null,
+					float originX = 0f,
+					float originY = 0f,
+					float textScale = 1f
+				) {
+					this.owner = owner;
+					this.template = template;
+					this.layout = layout;
+					this.maxWidth = Mathf.Max(2, width);
+					this.maxHeight = Mathf.Max(2, height);
+					this.defaultFontSize = defaultFontSize > 0f ? defaultFontSize : template.fontSize;
+					this.textScale = Mathf.Max(0.01f, textScale);
+					this.lineGap = Mathf.Max(2f, GetLineSpacing(EffectiveFontSize) * 0.25f);
+					this.lineHeight = EffectiveFontSize;
+					this.sections = sections ?? new ElemDict();
+					this.comments = comments ?? new ElemList();
+					this.currentColor = initialColor ?? Color.white;
+					this.shadowText = shadowText;
+					this.originX = originX;
+					this.originY = originY;
+					this.symbolAtlas = symbolAtlas;
+				}
+
+				public void RenderNodes(IEnumerable<XNode> nodes) {
+					foreach (var node in nodes)
+						RenderNode(node);
+				}
+
+				public void Trim() {
+					if (trimmed) return;
+
+					FlushText();
+					CaptureLine();
+					ContentHeight = Mathf.Max(ContentHeight, -y + lineHeight);
+					trimmed = true;
+				}
+
+				private void RenderNode(XNode node) {
+					switch (node) {
+						case XText text:
+							AddText(text.Value);
+							break;
+						case XElement el:
+							RenderElement(el);
+							break;
+					}
+				}
+
+				private void RenderElement(XElement el) {
+					switch (el.Name.LocalName) {
+						case "buff": {
+								var typ = el.Attribute("typ")?.Value;
+								AddSymbol(string.IsNullOrEmpty(typ) ? null : "BuffIcon_" + typ);
+							}
+							return;
+						case "elem": {
+								var typ = el.Attribute("type")?.Value;
+								AddSymbol(string.IsNullOrEmpty(typ) ? null : GetElementSpriteName(typ));
+							}
+							return;
+						case "val":
+							AddValue(el);
+							return;
+						case "char": {
+								var key = el.Attribute("uid")?.Value;
+								if (key == null) return;
+								var name = owner.GetUnitName(key);
+								FlushText();
+								AddInlineText(name ?? key, HexToColorLocal("6e7bf7"), -1);
+								return;
+							}
+						case "equip": {
+								var key = el.Attribute("uid")?.Value;
+								if (key == null) return;
+								var name = owner.GetEquipName(key);
+								FlushText();
+								AddInlineText(name ?? key, HexToColorLocal("6e7bf7"), -1);
+								return;
+							}
+						case "cmt":
+							AddComment(el);
+							return;
+						case "sec":
+							FlushText();
+							AddRange(el);
+							return;
+						case "dmg":
+							FlushText();
+							AddRange(el, nested => nested.AddDamage(el, owner.GetSkillDamage()));
+							return;
+						case "box":
+							FlushText();
+							AddBox(el);
+							return;
+						case "define": {
+								var name = el.Attribute("name")?.Value;
+								if (!string.IsNullOrEmpty(name))
+									sections[name] = el;
+								return;
+							}
+						case "import": {
+								var name = el.Attribute("name")?.Value;
+								if (!string.IsNullOrEmpty(name) && sections.TryGetValue(name, out var section))
+									RenderNodes(section.Nodes());
+								return;
+							}
+					}
+
+					RenderNodes(el.Nodes());
+				}
+
+				private void AddValue(XElement el) {
+					FlushText();
+
+					var level = owner.GetSkillLevel();
+					float value;
+
+					var pBase = el.Attribute("base")?.Value;
+					var pPer = el.Attribute("per")?.Value;
+					var pIdx = el.Attribute("idx")?.Value;
+					if (float.TryParse(pBase, out var fBase) && float.TryParse(pPer, out var fPer))
+						value = fBase + fPer * level;
+					else if (int.TryParse(pIdx, out var iIdx)) {
+						var pSlot = el.Attribute("slot")?.Value;
+						value = int.TryParse(pSlot, out var iSlot)
+							? owner.GetSkillValue(iSlot, iIdx)
+							: owner.GetSkillValue(-1, iIdx);
+					}
+					else
+						value = 0f;
+
+					var bR = el.Attribute("r")?.Value != null;
+					var bInv = el.Attribute("inv")?.Value != null;
+					var bSignless = el.Attribute("signless")?.Value != null;
+
+					if (bInv) value = -value;
+					if (bR) value *= 100f;
+
+					var sign = bSignless || value == 0f ? "" : value > 0f ? "+" : "";
+					var postfix = bR ? "%" : "";
+					var color = value == 0f
+						? "232323"
+						: (bSignless ? -1f : 1f) * value > 0f
+							? "0d6efd"
+							: "dc3545";
+					AddInlineText($"{sign}{value:#,##0.##}{postfix}", HexToColorLocal(color), -1);
+				}
+
+				private void AddComment(XElement el) {
+					FlushText();
+
+					var title = GetCommentTitle(el);
+					var index = comments.Count;
+					comments.Add(el);
+					AddInlineText(title, CurrentColor, index, true);
+				}
+
+				private void AddDamage(XElement el, int damage) {
+					var elems = (el.Attribute("elem")?.Value ?? "")
+						.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries)
+						.Select(v => v.Trim())
+						.Where(v => !string.IsNullOrEmpty(v))
+						.ToArray();
+
+					foreach (var elem in elems)
+						AddSymbol(GetElementSpriteName(elem));
+
+					var elemDisps = string.Join("·", elems.Select(x => x switch
+					{
+						"physics" => "물리",
+						"fire" => "화염",
+						"ice" => "냉기",
+						"lightning" => "전기",
+						_ => "???",
+					}));
+					var adaptive = elems.Length > 1 ? "적응형 " : "";
+					var text = elems.Length > 0
+						? $" {damage:#,##0} {elemDisps} {adaptive}피해"
+						: $" {damage:#,##0} 피해";
+					AddInlineText(text, Color.black, -1);
+				}
+
+				private void AddRange(XElement el, Action<LayerRenderer> renderOverride = null) {
+					var (inner, foreground) = GetRangeColors(el);
+					var parentFontSize = Mathf.Max(1f, EffectiveFontSize);
+					var contentFontSize = Mathf.Max(8f, parentFontSize * 0.8f);
+					var rangeTextScale = contentFontSize / parentFontSize;
+					var paddingX = parentFontSize * 0.32f;
+					var paddingY = parentFontSize * 0.18f;
+					var rangeLineHeight = parentFontSize + paddingY * 2f;
+
+					var startX = x;
+					var startY = y;
+					if (startX > 0f) {
+						var previewVerticalInset = (GetLineAdvance() - rangeLineHeight) * 0.5f;
+						var previewContentYOffset = Mathf.Max(0f, (rangeLineHeight - contentFontSize) * 0.5f - contentFontSize * 0.16f);
+						var preview = RenderRangeContent(
+							new LayoutData(),
+							new ElemDict(sections),
+							new ElemList(comments),
+							startX,
+							startY,
+							previewVerticalInset,
+							previewContentYOffset);
+
+						if (preview.WouldStartOrContinueOnAnotherLine())
+							NewLine(false);
+					}
+
+					startX = x;
+					startY = y;
+					var verticalInset = (GetLineAdvance() - rangeLineHeight) * 0.5f;
+					var contentYOffset = Mathf.Max(0f, (rangeLineHeight - contentFontSize) * 0.5f - contentFontSize * 0.16f);
+					var rangeBoxIndex = layout.boxes.Count;
+					var nested = RenderRangeContent(layout, sections, comments, startX, startY, verticalInset, contentYOffset);
+
+					var firstLine = 0;
+					while (firstLine < nested.LineCount && nested.IsLineEmpty(firstLine))
+						firstLine++;
+
+					if (firstLine >= nested.LineCount)
+						return;
+
+					var lastLine = nested.LineCount - 1;
+					while (lastLine > firstLine && nested.IsLineEmpty(lastLine))
+						lastLine--;
+
+					if (firstLine == lastLine) {
+						var lineX = nested.lineStarts[firstLine];
+						var lineW = Mathf.Max(0f, nested.lineWidths[firstLine] - lineX);
+						var lineTop = startY + nested.lineTops[firstLine];
+						var contentW = Mathf.Min(maxWidth - lineX, Mathf.Max(lineW + paddingX * 2f, parentFontSize));
+						var boxH = rangeLineHeight;
+						var boxTop = lineTop - verticalInset;
+						InsertBoxRect(ref rangeBoxIndex, Rect.MinMaxRect(originX + lineX, originY + boxTop - boxH, originX + lineX + contentW, originY + boxTop), inner, 0f, false);
+
+						y = lineTop;
+						x = lineX + contentW + 2f;
+						lineHeight = Mathf.Max(lineHeight, boxH);
+						ContentHeight = Mathf.Max(ContentHeight, -y);
+						return;
+					}
+
+					for (var i = firstLine; i <= lastLine; i++) {
+						if (nested.IsLineEmpty(i)) continue;
+
+						var isLast = i == lastLine;
+						var lineX = nested.lineStarts[i];
+						var lineW = Mathf.Max(0f, nested.lineWidths[i] - lineX);
+						var lineTop = startY + nested.lineTops[i];
+						var boxTop = lineTop - verticalInset;
+						var segmentW = isLast
+							? Mathf.Min(maxWidth - lineX, Mathf.Max(lineW + paddingX * 2f, parentFontSize))
+							: maxWidth - lineX;
+						InsertBoxRect(ref rangeBoxIndex, Rect.MinMaxRect(originX + lineX, originY + boxTop - rangeLineHeight, originX + lineX + segmentW, originY + boxTop), inner, 0f, false);
+					}
+
+					y = startY + nested.lineTops[lastLine];
+					var lastLineX = nested.lineStarts[lastLine];
+					var lastLineW = Mathf.Max(0f, nested.lineWidths[lastLine] - lastLineX);
+					x = lastLineX + Mathf.Min(maxWidth - lastLineX, Mathf.Max(lastLineW + paddingX * 2f, parentFontSize)) + 2f;
+					lineHeight = Mathf.Max(lineHeight, rangeLineHeight);
+					ContentHeight = Mathf.Max(ContentHeight, -y);
+
+					LayerRenderer RenderRangeContent(
+						LayoutData targetLayout,
+						ElemDict targetSections,
+						ElemList targetComments,
+						float renderStartX,
+						float renderStartY,
+						float renderVerticalInset,
+						float renderContentYOffset) {
+						var renderer = new LayerRenderer(
+							owner,
+							template,
+							targetLayout,
+							Mathf.RoundToInt(maxWidth - paddingX * 2f),
+							maxHeight,
+							defaultFontSize,
+							targetSections,
+							targetComments,
+							HexToColorLocal(foreground),
+							true,
+							symbolAtlas,
+							originX + paddingX,
+							originY + renderStartY - renderVerticalInset - renderContentYOffset,
+							textScale * rangeTextScale
+						) {
+							x = renderStartX,
+							lineStart = renderStartX
+						};
+
+						if (renderOverride != null) renderOverride(renderer);
+						else renderer.RenderNodes(el.Nodes());
+						renderer.Trim();
+						return renderer;
+					}
+				}
+
+				private void AddBox(XElement el) {
+					if (x > 0f) NewLine(false);
+
+					var title = el.Attribute("t")?.Value ?? el.Attribute("title")?.Value ?? "Box";
+					var padX = Mathf.Max(8f, template.fontSize * 0.45f);
+					var padY = Mathf.Max(6f, template.fontSize * 0.35f);
+					var titleSize = Mathf.Max(8, Mathf.RoundToInt(template.fontSize * 0.72f));
+					var titleExtraPadding = Mathf.Max(4f, padY * 0.6f);
+					var titleBarHeight = Mathf.Max(titleSize + 4f, titleSize + padY * 0.7f) + titleExtraPadding;
+					var contentSize = Mathf.Max(8, Mathf.RoundToInt(template.fontSize * 0.9f));
+					var startY = y;
+
+					var titleSizePx = MeasureText(title, titleSize);
+					var titleOffsetY = Mathf.Max(0f, (titleBarHeight - Mathf.Max(1f, titleSizePx.y)) * 0.5f + 1f);
+					layout.texts.Add(new TextDraw {
+						text = title,
+						position = new Vector3(originX + Mathf.Max(2f, padX * 0.45f), originY + startY - titleOffsetY, 0f),
+						fontSize = titleSize,
+						scale = 1f,
+						color = Color.white,
+						shadow = true
+					});
+
+					var nested = new LayerRenderer(
+						owner,
+						template,
+						layout,
+						Mathf.RoundToInt(maxWidth - padX * 2f),
+						maxHeight,
+						contentSize,
+						sections,
+						comments,
+						CurrentColor,
+						shadowText,
+						symbolAtlas,
+						originX + padX,
+						originY + startY - titleBarHeight - padY,
+						textScale
+					) {
+						x = 0f,
+						y = 0f,
+						lineHeight = contentSize * textScale
+					};
+					nested.RenderNodes(el.Nodes());
+					nested.Trim();
+
+					var boxHeight = titleBarHeight + padY + nested.ContentHeight + padY;
+					AddBoxRect(Rect.MinMaxRect(originX, originY + startY - boxHeight, originX + maxWidth, originY + startY), new Color(0.8392157f, 0.854902f, 0.8705882f, 0.1490196f), titleBarHeight, true);
+
+					y -= boxHeight + lineGap * 2f;
+					x = 0f;
+					lineHeight = EffectiveFontSize;
+					ContentHeight = Mathf.Max(ContentHeight, -y);
+				}
+
+				private void AddText(string text) {
+					if (string.IsNullOrEmpty(text)) return;
+
+					var start = 0;
+					for (var i = 0; i < text.Length; i++) {
+						if (text[i] != '\n') continue;
+						if (i > start)
+							AppendText(text.Substring(start, i - start));
+						FlushText();
+						NewLine();
+						start = i + 1;
+					}
+
+					if (start < text.Length)
+						AppendText(text.Substring(start));
+				}
+
+				private void AppendText(string text) {
+					if (!string.IsNullOrEmpty(text))
+						pendingText.Append(text);
+				}
+
+				private void FlushText() {
+					if (pendingText.Length <= 0) return;
+
+					var text = pendingText.ToString();
+					pendingText.Length = 0;
+					AddInlineText(text, CurrentColor, -1);
+				}
+
+				private void AddInlineText(string text, Color color, int commentIndex, bool underline = false) {
+					if (string.IsNullOrEmpty(text)) return;
+
+					text = text.Replace("\r", "");
+					var line = new StringBuilder();
+					var lineLimit = Mathf.Max(2f, maxWidth - x);
+
+					foreach (var part in EnumerateWrapUnits(text)) {
+						if (part == "\n") {
+							EmitTextRun(line.ToString(), color, commentIndex, underline);
+							line.Length = 0;
+							NewLine(false);
+							lineLimit = maxWidth;
+							continue;
+						}
+
+						var candidate = line.ToString() + part;
+						if (!string.IsNullOrWhiteSpace(part) && MeasureText(candidate, Mathf.RoundToInt(defaultFontSize), textScale).x > lineLimit) {
+							if (line.Length > 0) {
+								EmitTextRun(line.ToString().TrimEnd(), color, commentIndex, underline);
+								line.Length = 0;
+								NewLine(false);
+								lineLimit = maxWidth;
+							}
+							else if (x > 0f) {
+								NewLine(false);
+								lineLimit = maxWidth;
+							}
+
+							if (string.IsNullOrWhiteSpace(part)) continue;
+						}
+
+						line.Append(part);
+					}
+
+					if (line.Length > 0)
+						EmitTextRun(line.ToString(), color, commentIndex, underline);
+				}
+
+				private void EmitTextRun(string text, Color color, int commentIndex, bool underline = false) {
+					if (string.IsNullOrEmpty(text)) return;
+
+					var fontSize = Mathf.RoundToInt(defaultFontSize);
+					var size = MeasureText(text, fontSize, textScale);
+					layout.texts.Add(new TextDraw {
+						text = text,
+						position = new Vector3(originX + x, originY + y, 0f),
+						fontSize = fontSize,
+						scale = textScale,
+						color = color,
+						shadow = shadowText
+					});
+
+					if (commentIndex >= 0) {
+						layout.comments.Add(new CommentHit {
+							index = commentIndex,
+							rect = Rect.MinMaxRect(originX + x, originY + y - size.y, originX + x + size.x, originY + y)
+						});
+					}
+
+					if (underline) {
+						var underlineTop = y - Mathf.Max(1f, size.y) + Mathf.Max(1f, EffectiveFontSize * 0.12f);
+						layout.boxes.Add(new BoxDraw {
+							rect = Rect.MinMaxRect(originX + x, originY + underlineTop - 1f, originX + x + size.x, originY + underlineTop),
+							color = color,
+							line = true
+						});
+					}
+
+					x += size.x;
+					lineHeight = Mathf.Max(lineHeight, size.y);
+				}
+
+				private void AddSymbol(string spriteName) {
+					FlushText();
+
+					var sp = !string.IsNullOrEmpty(spriteName) && symbolAtlas != null ? symbolAtlas.GetSprite(spriteName) : null;
+					if (sp == null) {
+						ReserveSymbolSpace();
+						return;
+					}
+
+					var size = Mathf.Max(8f, EffectiveFontSize);
+					var width = sp.height > 0 ? size * sp.width / sp.height : size;
+					var advance = width + Mathf.Max(2f, EffectiveFontSize * 0.15f);
+
+					if (x > 0f && x + advance > maxWidth)
+						NewLine(false);
+
+					var topAdjust = Mathf.Max(0f, (GetLineAdvance() - size) * 0.5f);
+					layout.symbols.Add(new SymbolDraw {
+						spriteName = spriteName,
+						rect = Rect.MinMaxRect(originX + x, originY + y - topAdjust - size, originX + x + width, originY + y - topAdjust),
+						color = Color.white
+					});
+
+					x += advance;
+					lineHeight = Mathf.Max(lineHeight, size);
+				}
+
+				private void ReserveSymbolSpace() {
+					var size = Mathf.Max(8f, EffectiveFontSize);
+					var advance = size + Mathf.Max(2f, EffectiveFontSize * 0.15f);
+
+					if (x > 0f && x + advance > maxWidth)
+						NewLine(false);
+
+					x += advance;
+					lineHeight = Mathf.Max(lineHeight, size);
+				}
+
+				private void AddBoxRect(Rect rect, Color color, float titleHeight, bool titleOnlyFill) {
+					layout.boxes.Add(new BoxDraw {
+						rect = rect,
+						color = color,
+						titleHeight = titleHeight,
+						titleOnlyFill = titleOnlyFill
+					});
+				}
+
+				private void InsertBoxRect(ref int index, Rect rect, Color color, float titleHeight, bool titleOnlyFill) {
+					layout.boxes.Insert(Mathf.Clamp(index, 0, layout.boxes.Count), new BoxDraw {
+						rect = rect,
+						color = color,
+						titleHeight = titleHeight,
+						titleOnlyFill = titleOnlyFill
+					});
+					index++;
+				}
+
+				private void NewLine(bool addHr = true) {
+					CaptureLine();
+					var advance = GetLineAdvance();
+					if (addHr) {
+						var margin = Mathf.Max(4f, lineGap * 1.6f);
+						var lineBottom = y - advance;
+						var hrTop = lineBottom - margin;
+						layout.boxes.Add(new BoxDraw {
+							rect = Rect.MinMaxRect(originX, originY + hrTop - 1f, originX + maxWidth, originY + hrTop),
+							color = new Color(1f, 1f, 1f, 0.25f),
+							line = true
+						});
+						y = hrTop - 1f - margin;
+					}
+					else
+						y -= advance + lineGap;
+
+					x = 0f;
+					lineStart = 0f;
+					ContentHeight = Mathf.Max(ContentHeight, -y);
+					lineHeight = EffectiveFontSize;
+				}
+
+				private float GetLineAdvance()
+					=> Mathf.Max(lineHeight, EffectiveFontSize + GetLineSpacing(EffectiveFontSize));
+
+				private void CaptureLine() {
+					if (trimmed) return;
+					lineStarts.Add(lineStart);
+					lineWidths.Add(x);
+					lineTops.Add(y);
+				}
+
+				private bool IsLineEmpty(int index)
+					=> index < 0 || index >= lineWidths.Count || lineWidths[index] <= lineStarts[index] + 0.01f;
+
+				private bool WouldStartOrContinueOnAnotherLine() {
+					var firstLine = 0;
+					while (firstLine < LineCount && IsLineEmpty(firstLine))
+						firstLine++;
+
+					if (firstLine >= LineCount) return false;
+					if (firstLine > 0) return true;
+
+					var lastLine = LineCount - 1;
+					while (lastLine > firstLine && IsLineEmpty(lastLine))
+						lastLine--;
+
+					return lastLine > firstLine;
+				}
+
+				private Vector2 MeasureText(string text, int fontSize, float scale = 1f) {
+					if (string.IsNullOrEmpty(text)) return Vector2.zero;
+
+					SkillDesc.ConfigureText(template, fontSize, 100000, maxHeight, CurrentColor);
+					var size = NGUIText.CalculatePrintedSize(text);
+					NGUIText.bitmapFont = null;
+					NGUIText.dynamicFont = null;
+					return size * Mathf.Max(0.01f, scale);
+				}
+
+				private Color CurrentColor => currentColor;
+
+				private static IEnumerable<string> EnumerateWrapUnits(string text) {
+					for (var i = 0; i < text.Length; i++) {
+						if (text[i] == '\n') {
+							yield return "\n";
+							continue;
+						}
+
+						if (char.IsHighSurrogate(text[i]) && i + 1 < text.Length && char.IsLowSurrogate(text[i + 1])) {
+							yield return text.Substring(i, 2);
+							i++;
+							continue;
+						}
+
+						yield return text[i].ToString();
+					}
+				}
+
+				private static string GetElementSpriteName(string type) {
+					return "UI_Battle_Atktype_" + (type switch {
+						"physics" => "normal",
+						"lightning" => "electric",
+						_ => type,
+					});
+				}
+
+				private static string GetCommentTitle(XElement el) {
+					var title = el.Attribute("t")?.Value ?? el.Attribute("title")?.Value;
+					if (!string.IsNullOrEmpty(title)) return title;
+
+					var text = (el.Value ?? "").Trim();
+					return string.IsNullOrEmpty(text) ? "Comment" : text;
+				}
+
+				private (Color inner, string foreground) GetRangeColors(XElement el) {
+					var tuple = el.Name.LocalName == "dmg"
+						? ("fce391", "000000")
+						: el.Attribute("typ")?.Value switch {
+							"dmg" => ("fce391", "000000"),
+							"note" => ("e2f0d9", "000000"),
+							"buff" => ("f8f9fa", "000000"),
+							"important" => ("0d6efd", "ffffff"),
+							"attr" => ("ffc107", "000000"),
+							"cond" => ("712529", "ffffff"),
+							"chance" => ("198754", "ffffff"),
+							"ref" => ("21252926", "000000"),
+							_ => ("fff2cc", "000000"),
+						};
+
+					return (HexToColorLocal(tuple.Item1), tuple.Item2);
+				}
+
+				private static Color HexToColorLocal(string color) {
+					var value = Convert.ToUInt32(color, 16);
+					if (color.Length == 6)
+						return new Color(
+							((value >> 16) & 0xFF) / 255f,
+							((value >> 8) & 0xFF) / 255f,
+							(value & 0xFF) / 255f,
+							1f);
+
+					return new Color(
+						((value >> 24) & 0xFF) / 255f,
+						((value >> 16) & 0xFF) / 255f,
+						((value >> 8) & 0xFF) / 255f,
+						(value & 0xFF) / 255f);
+				}
+			}
+
+			private static GameObject CreateChildObject(string name, Transform parent) => CreateChildObject(name, parent, Vector3.zero);
+			private static GameObject CreateChildObject(string name, Transform parent, Vector3 localPosition) {
+				var go = new GameObject(name);
+				var tr = go.transform;
+				if (parent != null) {
+					tr.SetParent(parent, false);
+					go.layer = parent.gameObject.layer;
+				}
+				tr.localPosition = localPosition;
+				tr.localScale = Vector3.one;
+				return go;
+			}
+
+			private sealed class TextLayerWidget : UIWidget {
+				public MeshData mesh;
+				public List<CommentHit> comments;
+				public Material textMaterial;
+
+				public override Material material => textMaterial;
+				public override Texture mainTexture {
+					get {
+						var mat = material;
+						return mat != null ? mat.mainTexture : null;
+					}
+				}
+
+				public bool IsCommentHit(Vector3 worldPos) => TryGetCommentAtWorld(worldPos, out _);
+
+				public bool TryGetCommentAtWorld(Vector3 worldPos, out int index) {
+					index = -1;
+					if (comments == null) return false;
+
+					var local = transform.InverseTransformPoint(worldPos);
+					for (var i = 0; i < comments.Count; i++) {
+						var hit = comments[i];
+						if (!hit.rect.Contains(new Vector2(local.x, local.y))) continue;
+
+						index = hit.index;
+						return true;
+					}
+
+					return false;
+				}
+
+				public override void OnFill(List<Vector3> verts, List<Vector2> uvs, List<Color> cols) {
+					var offset = verts.Count;
+					mesh?.AddTo(verts, uvs, cols);
+
+					if (onPostFill != null)
+						onPostFill(this, offset, verts, uvs, cols);
+				}
+			}
+
+			private sealed class BoxLayerWidget : UIWidget {
+				public MeshData mesh;
+				public Texture texture;
+
+				private Shader boxShader;
+
+				public override Texture mainTexture => texture != null ? texture : Texture2D.whiteTexture;
+				public override Shader shader => boxShader != null ? boxShader : (boxShader = Shader.Find("Unlit/Transparent Colored"));
+
+				public override void OnFill(List<Vector3> verts, List<Vector2> uvs, List<Color> cols) {
+					mesh?.AddTo(verts, uvs, cols);
+					if (mesh == null) return;
+
+					for (var i = 0; i < mesh.pixelLines.Count; i++)
+						AddPixelLine(verts, uvs, cols, mesh.pixelLines[i]);
+				}
+
+				private void AddPixelLine(List<Vector3> verts, List<Vector2> uvs, List<Color> cols, PixelLineDraw line) {
+					var left = Mathf.Round(line.rect.xMin);
+					var top = Mathf.Round(line.rect.yMax);
+					var width = Mathf.Max(1f, Mathf.Round(line.rect.width));
+					var x0 = left;
+					var x1 = left + width;
+					var y0 = top - 1f;
+					var y1 = top;
+
+					var camera = panel != null ? NGUITools.FindCameraForLayer(gameObject.layer) : null;
+					if (camera != null) {
+						var t = cachedTransform;
+						var ptLeft = new Vector3(line.rect.xMin, line.rect.yMax, 0f);
+						var ptRight = new Vector3(line.rect.xMax, line.rect.yMax, 0f);
+						ptLeft = camera.WorldToScreenPoint(t.TransformPoint(ptLeft));
+						ptRight = camera.WorldToScreenPoint(t.TransformPoint(ptRight));
+						var depth = ptLeft.z;
+						var snappedLeft = Mathf.Round(ptLeft.x);
+						var snappedRight = Mathf.Round(ptRight.x);
+						var screenX0 = Mathf.Min(snappedLeft, snappedRight);
+						var screenX1 = Mathf.Max(snappedLeft, snappedRight);
+						if (screenX1 - screenX0 < 1f) screenX1 = screenX0 + 1f;
+						var screenY1 = Mathf.Round(ptLeft.y);
+						var screenY0 = screenY1 - 1f;
+						var localMin = t.InverseTransformPoint(camera.ScreenToWorldPoint(new Vector3(screenX0, screenY0, depth)));
+						var localMax = t.InverseTransformPoint(camera.ScreenToWorldPoint(new Vector3(screenX1, screenY1, depth)));
+
+						x0 = Mathf.Min(localMin.x, localMax.x);
+						x1 = Mathf.Max(localMin.x, localMax.x);
+						y0 = Mathf.Min(localMin.y, localMax.y);
+						y1 = Mathf.Max(localMin.y, localMax.y);
+					}
+
+					var c = line.color;
+					c.a *= finalAlpha;
+					AddTexturedQuad(verts, uvs, cols, x0, y0, x1, y1, 0.5f, 0.5f, 0.5f, 0.5f, c);
+				}
+			}
+
+			private sealed class SymbolLayerWidget : UIWidget {
+				public MeshData mesh;
+				public Material symbolMaterial;
+
+				public override Material material => symbolMaterial;
+				public override Texture mainTexture {
+					get {
+						var mat = material;
+						return mat != null ? mat.mainTexture : null;
+					}
+				}
+
+				public override void OnFill(List<Vector3> verts, List<Vector2> uvs, List<Color> cols) {
+					mesh?.AddTo(verts, uvs, cols);
+				}
+			}
+
+			private static void AddSlicedTexture(List<Vector3> verts, List<Vector2> uvs, List<Color> cols, Texture tex, BoxDraw box) {
+				var rect = box.rect;
+				if (rect.width <= 0f || rect.height <= 0f) return;
+
+				if (tex.width <= 0 || tex.height <= 0) return;
+
+				var sourceBorder = new Vector4(
+					Mathf.Min(8f, tex.width * 0.5f),
+					Mathf.Min(8f, tex.height * 0.5f),
+					Mathf.Min(8f, tex.width * 0.5f),
+					Mathf.Min(8f, tex.height * 0.5f)
+				);
+				var drawBorder = new Vector4(4f, 4f, 4f, 4f);
+				drawBorder.x = Mathf.Min(drawBorder.x, rect.width * 0.5f);
+				drawBorder.z = Mathf.Min(drawBorder.z, rect.width * 0.5f);
+				drawBorder.y = Mathf.Min(drawBorder.y, rect.height * 0.5f);
+				drawBorder.w = Mathf.Min(drawBorder.w, rect.height * 0.5f);
+
+				var invW = 1f / tex.width;
+				var invH = 1f / tex.height;
+				var x = new[] { rect.xMin, rect.xMin + drawBorder.x, rect.xMax - drawBorder.z, rect.xMax };
+				var y = new[] { rect.yMin, rect.yMin + drawBorder.y, rect.yMax - drawBorder.w, rect.yMax };
+				var u = new[] { 0f, sourceBorder.x * invW, 1f - sourceBorder.z * invW, 1f };
+				var v = new[] { 0f, sourceBorder.y * invH, 1f - sourceBorder.w * invH, 1f };
+
+				var c = box.color;
+				var titleBottom = rect.yMax - Mathf.Clamp(box.titleHeight, 0f, rect.height);
+
+				for (var ix = 0; ix < 3; ix++) {
+					for (var iy = 0; iy < 3; iy++) {
+						if (box.titleOnlyFill && ix == 1 && iy == 1) {
+							var fillBottom = Mathf.Max(titleBottom, y[iy]);
+							var fillTop = y[iy + 1];
+							if (fillBottom >= fillTop) continue;
+
+							var uvBottom = Mathf.Lerp(v[iy], v[iy + 1], Mathf.InverseLerp(y[iy], y[iy + 1], fillBottom));
+							AddTexturedQuad(verts, uvs, cols, x[ix], fillBottom, x[ix + 1], fillTop, u[ix], uvBottom, u[ix + 1], v[iy + 1], c);
+							continue;
+						}
+
+						AddTexturedQuad(verts, uvs, cols, x[ix], y[iy], x[ix + 1], y[iy + 1], u[ix], v[iy], u[ix + 1], v[iy + 1], c);
+					}
+				}
+			}
+
+			private static void AddTexturedQuad(
+				List<Vector3> verts, List<Vector2> uvs, List<Color> cols,
+				float x0, float y0, float x1, float y1,
+				float u0, float v0, float u1, float v1, Color color
+			) {
+				verts.Add(new Vector3(x0, y0, 0f));
+				verts.Add(new Vector3(x0, y1, 0f));
+				verts.Add(new Vector3(x1, y1, 0f));
+				verts.Add(new Vector3(x1, y0, 0f));
+
+				uvs.Add(new Vector2(u0, v0));
+				uvs.Add(new Vector2(u0, v1));
+				uvs.Add(new Vector2(u1, v1));
+				uvs.Add(new Vector2(u1, v0));
+
+				cols.Add(color);
+				cols.Add(color);
+				cols.Add(color);
+				cols.Add(color);
+			}
+			#endregion
+
+			#region Preprocess
+			private string TranspileSections(string input) {
+				var rgDefine = new Regex(@"\$\$([A-Za-z0-9\-_]+)~\n(.+?)\n~\$\$(\1)$", RegexOptions.Compiled | RegexOptions.Singleline);
+				var rgCall = new Regex(@"\$\$([A-Za-z0-9\-_]+):([^$]+)\$", RegexOptions.Compiled);
+
+				var sections = new StringBuilder();
+
+				// Convert section defines
+				var sb = new StringBuilder();
+				var cursor = 0;
+				while (cursor < input.Length) {
+					var m = rgDefine.Match(input, cursor);
+					if (!m.Success) break;
+
+					if (m.Index != cursor)
+						sb.Append(input.Substring(cursor, m.Index - cursor));
+
+					var name = m.Groups[1].Value;
+					var body = m.Groups[2].Value.Trim();
+					sections.Append($"<define name=\"{name}\">{body}</define>");
+
+					cursor = m.Index + m.Length;
+				}
+				if (cursor < input.Length)
+					sb.Append(input.Substring(cursor));
+
+				// Convert section calls
+				input = sb.ToString();
+				sb.Clear();
+				cursor = 0;
+				while (cursor < input.Length) {
+					var m = rgCall.Match(input, cursor);
+					if (!m.Success) break;
+
+					if (m.Index != cursor)
+						sb.Append(input.Substring(cursor, m.Index - cursor));
+
+					var name = m.Groups[1].Value;
+					var @params = m.Groups[2].Value.Split(',');
+					sb.Append($"<import name=\"{name}\"");
+					for (var pi = 0; pi < @params.Length; pi++)
+						sb.Append($" p{pi}=\"{@params[pi]}\"");
+					sb.Append($"/>");
+
+					cursor = m.Index + m.Length;
+				}
+				if (cursor < input.Length)
+					sb.Append(input.Substring(cursor));
+
+				return sections.ToString() + sb.ToString();
+			}
+			private string PreprocessBox(string input) {
+				var regexBox = new Regex(@"\n?(<box[^>]*>)\n?(.*?)\n?(</box>)\n?", RegexOptions.Compiled | RegexOptions.Singleline);
+				var regexLine = new Regex(@"(.+)", RegexOptions.Compiled | RegexOptions.Multiline);
+
+				return regexBox.Replace(input, m => m.Groups[1].Value + regexLine.Replace(m.Groups[2].Value, "  $1") + m.Groups[3].Value);
+			}
+			#endregion
 		}
-		#endregion
 	}
 }

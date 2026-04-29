@@ -47,6 +47,7 @@
     <!-- <PackageReference Include="BepInEx.Core" Version="5.*" /> -->
     <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.8" />
+    <PackageReference Include="Microsoft.Xml.SgmlReader" Version="1.8.30" />
     <PackageReference Include="SQLitePCLRaw.core" Version="2.1.6" />
     <PackageReference Include="SQLitePCLRaw.bundle_winsqlite3" Version="2.1.6" />
     <PackageReference Include="UnityEngine.Modules" Version="6000.0.58" PrivateAssets="all" />
@@ -120,6 +121,7 @@
       <_EmbedCandidate Include="@(ReferencePath)" Condition="'%(Filename)%(Extension)' == 'Symphony.Utils.dll'" />
       <_EmbedCandidate Include="@(ReferencePath)" Condition="$([System.String]::Copy('%(Filename)').StartsWith('Microsoft.Data.Sqlite'))" />
       <_EmbedCandidate Include="@(ReferencePath)" Condition="$([System.String]::Copy('%(Filename)').StartsWith('SQLitePCLRaw'))" />
+      <_EmbedCandidate Include="@(ReferencePath)" Condition="$([System.String]::Copy('%(Filename)').StartsWith('SgmlReaderDll'))" />
 
       <_EmbedCandidate Update="@(_EmbedCandidate)" Condition="'%(Filename)' == 'SQLitePCLRaw.core'">
         <DependencyPriority>0</DependencyPriority>
