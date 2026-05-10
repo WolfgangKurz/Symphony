@@ -2439,7 +2439,6 @@ namespace Symphony.Features {
 			) 
 				return true;
 
-			__instance.ShowWaitMessage(show: true);
 			SingleTon<GameManager>.Instance.ExShopBuyCount = count; // for message
 			SimpleUI.ExchangeCount = count;
 
@@ -2447,6 +2446,7 @@ namespace Symphony.Features {
 				while (SimpleUI.ExchangeCount > 0) {
 					var cnt = SimpleUI.ExchangeCount;
 
+					__instance.ShowWaitMessage(show: true);
 					C2WPacket.Send_C2W_EXSHOP_BUY(
 						SingleTon<DataManager>.Instance.AccessToken,
 						SingleTon<DataManager>.Instance.WID,
