@@ -32,6 +32,8 @@ namespace Symphony.Features {
 
 		public static Table_MapStage LastBattleMap_Target { get; private set; }
 
+		private static int ExchangeCount = 0;
+
 		public void Start() {
 			var harmony = new Harmony("Symphony.SimpleUI");
 
@@ -289,6 +291,19 @@ namespace Symphony.Features {
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_ExShopBuyMsg), nameof(Panel_ExShopBuyMsg.SetExShopData), [typeof(Table_ExShop), typeof(Panel_ExShop)]),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Exchange_ShopPopup))
+			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_ExShopBuyMsg), "GetMaxCount"),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Exchange_ShopPopup_GetMaxCount))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_ExShopBuyMsg), nameof(Panel_ExShopBuyMsg.OnBtnBuy)),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Exchange_ShopPopup_OnBtnBuy))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_ExShop), "HandlePakcetExShopBuy"),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_HandlePakcetExShopBuy))
 			);
 			#endregion
 
@@ -2387,6 +2402,72 @@ namespace Symphony.Features {
 			if (!lbl) return;
 
 			lbl.text += $"  {Common.COLOR_BLUE}(x {item.StackCount.ToString("#,###")}){Common.COLOR_END}";
+		}
+
+		private static bool Patch_Exchange_ShopPopup_GetMaxCount(Panel_ExShopBuyMsg __instance, ref int __result) {
+			if (!Conf.SimpleUI.Use_Exchange_NoMessyHand.Value) return true;
+
+			var data = __instance.XGetFieldValue<Table_ExShop>("_exShopData");
+			if (data == null) return true;
+
+			if (data.Purchase_Limit20 == 1) {
+				try {
+					data.Purchase_Limit20 = 0;
+
+					// call original without 20 limit
+					__result = __instance.XGetMethod<int>("GetMaxCount")?.Invoke() ?? __result;
+				} finally {
+					data.Purchase_Limit20 = 1;
+				}
+				return false;
+			}
+			return true;
+		}
+		private static bool Patch_Exchange_ShopPopup_OnBtnBuy(Panel_ExShopBuyMsg __instance) {
+			if (!Conf.SimpleUI.Use_Exchange_NoMessyHand.Value) return true;
+
+			var data = __instance.XGetFieldValue<Table_ExShop>("_exShopData");
+			var count = __instance.XGetFieldValue<int>("_buyCount");
+
+			SimpleUI.ExchangeCount = 0;
+			if (
+				!SingleTon<DataManager>.Instance.IsEqualShopVersion() ||
+				!__instance.XGetFieldValue<bool>("_isEnableBuy") ||
+				data == null || 
+				data.Purchase_Limit20 == 0 ||
+				count <= 20
+			) 
+				return true;
+
+			__instance.ShowWaitMessage(show: true);
+			SingleTon<GameManager>.Instance.ExShopBuyCount = count; // for message
+			SimpleUI.ExchangeCount = count;
+
+			IEnumerator fn() {
+				while (SimpleUI.ExchangeCount > 0) {
+					var cnt = SimpleUI.ExchangeCount;
+
+					C2WPacket.Send_C2W_EXSHOP_BUY(
+						SingleTon<DataManager>.Instance.AccessToken,
+						SingleTon<DataManager>.Instance.WID,
+						data.Key,
+						Math.Min(20, SimpleUI.ExchangeCount),
+						SingleTon<DataManager>.Instance.ClientShopVersion
+					);
+
+					yield return new WaitUntil(() => SimpleUI.ExchangeCount < cnt);
+				}
+			}
+			__instance.StartCoroutine(fn());
+			return false;
+		}
+		private static bool Patch_HandlePakcetExShopBuy(WebResponseState obj) {
+			if (!Conf.SimpleUI.Use_Exchange_NoMessyHand.Value) return true;
+
+			SimpleUI.ExchangeCount = Math.Max(0, SimpleUI.ExchangeCount - 20);
+			if (SimpleUI.ExchangeCount > 0) return false;
+
+			return true;
 		}
 		#endregion
 
