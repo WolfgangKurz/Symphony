@@ -340,10 +340,6 @@ namespace Symphony.Features {
 				AccessTools.PropertyGetter(typeof(DataManager), nameof(DataManager.FinalVoteBenefitList)),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.BenefitDisplay_Final))
 			);
-			harmony.Patch(
-				AccessTools.PropertyGetter(typeof(DataManager), nameof(DataManager.IsNeedRequestVoteBenefit)),
-				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.BenefitDisplay_IsNeedRequest))
-			);
 			#endregion
 
 			////////////////////////////////////////////////////////////
@@ -2559,9 +2555,6 @@ namespace Symphony.Features {
 				set.Add(key);
 
 			__result = set.ToList();
-		}
-		private static void BenefitDisplay_IsNeedRequest(DataManager __instance, ref bool __result) {
-			__result = false;
 		}
 		#endregion
 
