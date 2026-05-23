@@ -213,10 +213,30 @@ namespace Symphony.Features {
 			lblDiscompose.text = $"※ 재시작 시 자동 분해될 전투원 : {charDiscomposeText}  /  장비 : {equipDiscomposeText}";
 			#endregion
 
+			#region Check Restart-able (event closed?)
+			var mapRestartable = new Func<bool>(() => {
+				var man = SingleTon<DataManager>.Instance;
+
+				var map = man.GetTableChapterStage(last.StageKey);
+				if (map == null) return false;
+
+				var chapter = map != null ? man.GetTableMapChapter(map.ChapterIndex) : null;
+				if (!string.IsNullOrEmpty(chapter?.Event_Category)) {
+					var evChapter = man.GetTableEventChapter(chapter.Key);
+					if (evChapter.Event_OpenType == 0) { // Closed event
+						Plugin.Logger.LogWarning("[Symphony::Automation] Last offline map was event and closed, disable restart");
+						return false;
+					}
+				}
+
+				return true;
+			}).Invoke();
+			#endregion
+
 			var enoughResource = SingleTon<DataManager>.Instance.Metal >= last.Metal &&
 				SingleTon<DataManager>.Instance.Nutrient >= last.Nutrient &&
 				SingleTon<DataManager>.Instance.Power >= last.Power;
-			if (enoughResource) {
+			if (enoughResource && mapRestartable) {
 				btn.onClick.Add(new(() => {
 					var stage = SingleTon<DataManager>.Instance.GetTableChapterStage(last.StageKey);
 					if(stage == null) {
