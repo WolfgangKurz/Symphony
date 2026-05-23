@@ -479,20 +479,6 @@ namespace Symphony.Features {
 						}
 					}
 
-					if (!string.IsNullOrEmpty(chapter?.Event_Category)) {
-						var evChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
-						if (evChapter.Event_OpenType == 0) { // Closed event
-							Plugin.Logger.LogWarning("[Symphony::SimpleUI] Last visited map was event and closed, reset to none");
-
-							if (use_lastBattle)
-								Conf.SimpleUI.LastBattleMapKey.Value = "";
-							else
-								Conf.SimpleUI.LastOfflineBattleKey.Value = "";
-							map = null;
-							chapter = null;
-						}
-					}
-
 					var btn = GameObject.Instantiate(goMain);
 					btn.name = names[i];
 					btn.transform.SetParent(goMain.transform.parent);
