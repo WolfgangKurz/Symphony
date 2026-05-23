@@ -65,6 +65,8 @@ This modifies parts of the UI to make them easier to use.
 - Provides improvements for Base facility list - `Better Facility List`
 - Provides navigation button for Base screen - `Give me back LivingStation navigation`
 ---
+- Provides decorative feature that simulates vote-benefit effect on scrap book.
+---
 - Provides clearing all member in squad feature.
 - Provides accelerated scrolling via the mouse wheel.
 

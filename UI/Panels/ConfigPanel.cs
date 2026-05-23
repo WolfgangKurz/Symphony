@@ -118,7 +118,7 @@ namespace Symphony.UI.Panels {
 			}
 			offset += 20 + 4;
 		}
-		private void DrawToggle(ref float offset, string name, ref bool value, VoidDelegate onChecked, float leftMargin = 0f, float rightMargin = 0f) {
+		private void DrawToggle(ref float offset, string name, ref bool value, VoidDelegate onChecked = null, float leftMargin = 0f, float rightMargin = 0f) {
 			var prev = value;
 			value = GUIX.Toggle(
 					new Rect(leftMargin, offset, WIDTH_FILL - leftMargin - rightMargin, 20),

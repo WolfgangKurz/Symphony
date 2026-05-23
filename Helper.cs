@@ -55,7 +55,7 @@ namespace Symphony {
 		}.Contains(k);
 
 		public static LogLevel ToLogLevel(this LogType t) {
-			switch(t) {
+			switch (t) {
 				case LogType.Error:
 				case LogType.Assert: return LogLevel.Error;
 				case LogType.Warning: return LogLevel.Warning;
@@ -71,7 +71,7 @@ namespace Symphony {
 				var p2 = v2.Split(".").Select(int.Parse).ToArray();
 
 				var len = Math.Min(p1.Length, p2.Length);
-				for(var i=0; i<len; i++) {
+				for (var i = 0; i < len; i++) {
 					if (p1[i] < p2[i])
 						return true;
 					else if (p1[i] > p2[i])
@@ -380,7 +380,7 @@ namespace Symphony {
 		public static Rect Shrink(this Rect rc, float horizontal, float vertical) => rc.Shrink(horizontal, vertical, horizontal, vertical);
 		public static Rect Shrink(this Rect rc, float amount) => rc.Shrink(amount, amount, amount, amount);
 
-		public static Rect Expand(this Rect rc, float left, float top, float right, float bottom) => rc.Shrink(-left,-top,-right,-bottom);
+		public static Rect Expand(this Rect rc, float left, float top, float right, float bottom) => rc.Shrink(-left, -top, -right, -bottom);
 		public static Rect Expand(this Rect rc, float horizontal, float vertical) => rc.Expand(horizontal, vertical, horizontal, vertical);
 		public static Rect Expand(this Rect rc, float amount) => rc.Expand(amount, amount, amount, amount);
 
@@ -514,6 +514,26 @@ namespace Symphony {
 		public static T[] GetValues<T>() where T : Enum {
 
 			return (T[])Enum.GetValues(typeof(T));
+		}
+	}
+
+	public class Throttle {
+		public Action Action { get; }
+		public long IntervalTick { get; }
+
+		private long lastTick = 0;
+
+		public Throttle(Action action, long intervalTick) {
+			this.Action = action;
+			this.IntervalTick = intervalTick;
+		}
+
+		public bool Run() {
+			if (DateTime.UtcNow.Ticks < this.lastTick + this.IntervalTick) return false;
+
+			this.Action?.Invoke();
+			this.lastTick = DateTime.UtcNow.Ticks;
+			return true;
 		}
 	}
 }

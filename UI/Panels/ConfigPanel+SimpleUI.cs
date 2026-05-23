@@ -1,4 +1,8 @@
-﻿using UnityEngine;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+
+using UnityEngine;
 
 namespace Symphony.UI.Panels {
 	internal partial class ConfigPanel {
@@ -11,10 +15,47 @@ namespace Symphony.UI.Panels {
 			CharacterDetail, // 전투원 상세 정보
 			Workbench, // 공방
 			Composite, // 복합
+			Benefit, // 베네핏 효과
 		}
 		private ConfigPanel_SimpleUI_SubpageType Conf_SimpleUI_Subpage = ConfigPanel_SimpleUI_SubpageType.None;
 
+		private bool BenefitExpandNormal = false;
+		private bool BenefitExpandFinal = false;
+
+		private HashSet<string> BenefitNormalList_Cached = null;
+		private HashSet<string> BenefitFinalList_Cached = null;
+
+		private static Table_CharCollection[] UnitKeys = null;
+		private static Dictionary<int, string> UnitNameTable = null;
+		private static Throttle UnitKeysThrottle = new(FetchUnitKey, TimeSpan.TicksPerSecond);
+
+		private static void FetchUnitKey() {
+			var man = SingleTon<DataManager>.Instance;
+			if ((man.GetAllPc()?.Count ?? 0) == 0) return;
+			// Should player's character list not empty,
+			// that means game loaded fully
+
+			var pc = SingleTon<DataManager>.Instance.GetTableCharCollection();
+			ConfigPanel.UnitKeys = pc.Values
+				.OrderBy(x => x.Char_Number)
+				.ToArray();
+
+			ConfigPanel.UnitNameTable = pc.Values
+				.ToDictionary(
+					v => v.Char_Number,
+					v => v.Char_Name.Localize()
+				);
+		}
+
 		private void Conf_SimpleUI(ref float offset) {
+			if (ConfigPanel.UnitKeys == null)
+				ConfigPanel.UnitKeysThrottle.Run();
+
+			if(this.BenefitNormalList_Cached == null) {
+				this.BenefitNormalList_Cached = new(Conf.SimpleUI.List_BenefitUnits_Normal.Value.Split(",", StringSplitOptions.RemoveEmptyEntries));
+				this.BenefitFinalList_Cached = new(Conf.SimpleUI.List_BenefitUnits_Final.Value.Split(",", StringSplitOptions.RemoveEmptyEntries));
+			}
+
 			void Subpage_Battle(ref float offset) {
 				DrawToggle(ref offset, "마지막 방문 전투 지역 버튼 추가", Conf.SimpleUI.Use_LastBattleMap);
 				DrawToggle(ref offset, "마지막 자율 전투 지역 버튼 추가", Conf.SimpleUI.Use_LastOfflineBattle);
@@ -88,6 +129,49 @@ namespace Symphony.UI.Panels {
 				DrawToggle(ref offset, "기지 네비게이션 돌려내", Conf.SimpleUI.Use_GiveMeBackLivingStationNavigation);
 				DrawLabel(ref offset, "기지의 상단에 네비게이션 버튼을 다시 표시합니다.", Color_description, 12);
 			}
+			void Subpage_Benefit(ref float offset) {
+				DrawLineButton(ref offset, "일반 베네핏 효과 대상 " + (this.BenefitExpandNormal ? "▲" : "▼"), () => {
+					this.BenefitExpandNormal = !this.BenefitExpandNormal;
+				});
+				if(this.BenefitExpandNormal) {
+					if (UnitKeys != null) {
+						foreach (var kv in UnitKeys) {
+							bool b = this.BenefitNormalList_Cached.Contains(kv.Key);
+							DrawToggle(ref offset, ConfigPanel.UnitNameTable[kv.Char_Number], ref b, () => {
+								if (b)
+									this.BenefitNormalList_Cached.Add(kv.Key);
+								else
+									this.BenefitNormalList_Cached.Remove(kv.Key);
+
+								Conf.SimpleUI.List_BenefitUnits_Normal.Value = string.Join(",", this.BenefitNormalList_Cached);
+							}, 10);
+						}
+					}
+				}
+
+				offset += 10f;
+				DrawSeparator(ref offset);
+				offset += 10f;
+
+				DrawLineButton(ref offset, "최종 베네핏 효과 대상 " + (this.BenefitExpandFinal ? "▲" : "▼"), () => {
+					this.BenefitExpandFinal = !this.BenefitExpandFinal;
+				});
+				if (this.BenefitExpandFinal) {
+					if (UnitKeys != null) {
+						foreach (var kv in UnitKeys) {
+							bool b = this.BenefitFinalList_Cached.Contains(kv.Key);
+							DrawToggle(ref offset, ConfigPanel.UnitNameTable[kv.Char_Number], ref b, () => {
+								if (b)
+									this.BenefitFinalList_Cached.Add(kv.Key);
+								else
+									this.BenefitFinalList_Cached.Remove(kv.Key);
+
+								Conf.SimpleUI.List_BenefitUnits_Final.Value = string.Join(",", this.BenefitFinalList_Cached);
+							}, 10);
+						}
+					}
+				}
+			}
 
 			var headingRect = new Rect(60, offset, WIDTH_FILL - 60, 20);
 			if (this.Conf_SimpleUI_Subpage != ConfigPanel_SimpleUI_SubpageType.None) {
@@ -119,6 +203,9 @@ namespace Symphony.UI.Panels {
 					});
 					DrawLineButton(ref offset, "복합 개선", () => {
 						this.Conf_SimpleUI_Subpage = ConfigPanel_SimpleUI_SubpageType.Composite;
+					});
+					DrawLineButton(ref offset, "베네핏 효과", () => {
+						this.Conf_SimpleUI_Subpage = ConfigPanel_SimpleUI_SubpageType.Benefit;
 					});
 
 					DrawSeparator(ref offset);
@@ -164,6 +251,10 @@ namespace Symphony.UI.Panels {
 				case ConfigPanel_SimpleUI_SubpageType.Composite:
 					GUIX.Heading(headingRect, "복합 개선", alignment: TextAnchor.MiddleCenter);
 					Subpage_Composite(ref offset);
+					break;
+				case ConfigPanel_SimpleUI_SubpageType.Benefit:
+					GUIX.Heading(headingRect, "베네핏 효과", alignment: TextAnchor.MiddleCenter);
+					Subpage_Benefit(ref offset);
 					break;
 			}
 

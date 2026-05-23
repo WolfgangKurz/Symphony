@@ -123,6 +123,9 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_NovelDialog_LabelFix = config.Bind("SimpleUI", "Use_NovelDialog_LabelFix", false, "Fix Story Viewer's label invalid displaying");
 
 			public static readonly ConfigEntry<bool> Use_ScrollableConsumableDescription= config.Bind("SimpleUI", "Use_ConsumableDescriptionScrollable", false, "Wrap consumable description with ScrollView");
+
+			public static readonly ConfigEntry<string> List_BenefitUnits_Normal = config.Bind("SimpleUI", "List_BenefitUnits_Normal", "", "Unit key list to display normal benefit effect");
+			public static readonly ConfigEntry<string> List_BenefitUnits_Final= config.Bind("SimpleUI", "List_BenefitUnits_Final", "", "Unit key list to display final benefit effect");
 		}
 		internal class Notification {
 			public static readonly ConfigEntry<bool> Handle_Notification = config.Bind("Notification", "Handle_Notification", true, "Handle in-game push notification as windows notification.");

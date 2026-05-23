@@ -331,6 +331,23 @@ namespace Symphony.Features {
 			#endregion
 			#endregion
 
+			#region Benefit
+			harmony.Patch(
+				AccessTools.PropertyGetter(typeof(DataManager), nameof(DataManager.NormalVoteBenefitList)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.BenefitDisplay_Normal))
+			);
+			harmony.Patch(
+				AccessTools.PropertyGetter(typeof(DataManager), nameof(DataManager.FinalVoteBenefitList)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.BenefitDisplay_Final))
+			);
+			harmony.Patch(
+				AccessTools.PropertyGetter(typeof(DataManager), nameof(DataManager.IsNeedRequestVoteBenefit)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.BenefitDisplay_IsNeedRequest))
+			);
+			#endregion
+
+			////////////////////////////////////////////////////////////
+
 			#region Squad Clear Button
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_SquadInfo), "Start"),
@@ -2537,6 +2554,32 @@ namespace Symphony.Features {
 		}
 		#endregion
 		#endregion
+
+		#region Benefit
+		private static void BenefitDisplay_Normal(DataManager __instance, ref List<string> __result) {
+			var set = new HashSet<string>(__result ?? []);
+
+			var appends = Conf.SimpleUI.List_BenefitUnits_Normal.Value.Split(",", StringSplitOptions.RemoveEmptyEntries);
+			foreach (var key in appends)
+				set.Add(key);
+
+			__result = set.ToList();
+		}
+		private static void BenefitDisplay_Final(DataManager __instance, ref List<string> __result) {
+			var set = new HashSet<string>(__result ?? []);
+
+			var appends = Conf.SimpleUI.List_BenefitUnits_Final.Value.Split(",", StringSplitOptions.RemoveEmptyEntries);
+			foreach (var key in appends)
+				set.Add(key);
+
+			__result = set.ToList();
+		}
+		private static void BenefitDisplay_IsNeedRequest(DataManager __instance, ref bool __result) {
+			__result = false;
+		}
+		#endregion
+
+		////////////////////////////////////////////////
 
 		#region Squad Clear Button
 		private static void Patch_Squad_Clear(Panel_SquadInfo __instance) {
