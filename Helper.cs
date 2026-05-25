@@ -536,4 +536,59 @@ namespace Symphony {
 			return true;
 		}
 	}
+
+	public class ObservableHashSet<T> : HashSet<T> {
+		public delegate void OnChangeDelegate();
+		private OnChangeDelegate OnChange;
+
+		public ObservableHashSet(OnChangeDelegate OnChange) : base() {
+			this.OnChange = OnChange;
+		}
+		public ObservableHashSet(IEnumerable<T> collection, OnChangeDelegate OnChange) : base(collection) {
+			this.OnChange = OnChange;
+		}
+		public ObservableHashSet(IEqualityComparer<T> comparer, OnChangeDelegate OnChange) : base(comparer) {
+			this.OnChange = OnChange;
+		}
+		public ObservableHashSet(int capacity, OnChangeDelegate OnChange) : base(capacity) {
+			this.OnChange = OnChange;
+		}
+		public ObservableHashSet(IEnumerable<T> collection, IEqualityComparer<T> comparer, OnChangeDelegate OnChange) : base(collection, comparer) {
+			this.OnChange = OnChange;
+		}
+		public ObservableHashSet(int capacity, IEqualityComparer<T> comparer, OnChangeDelegate OnChange) : base(capacity, comparer) {
+			this.OnChange = OnChange;
+		}
+
+		public new bool Add(T item) {
+			var r = base.Add(item);
+			if (r) this.OnChange();
+			return r;
+		}
+		public new void Clear() {
+			var r = this.Count > 0;
+			base.Clear();
+			if (r) this.OnChange();
+		}
+		public new void ExceptWith(IEnumerable<T> other) {
+			var count = this.Count;
+			base.ExceptWith(other);
+			if (this.Count != count) this.OnChange();
+		}
+		public new bool Remove(T item) {
+			var r = base.Remove(item);
+			if (r) this.OnChange();
+			return r;
+		}
+		public new int RemoveWhere(Predicate<T> match) {
+			var r = base.RemoveWhere(match);
+			if (r > 0) this.OnChange();
+			return r;
+		}
+		public new void UnionWith(IEnumerable<T> other) {
+			var count = this.Count;
+			base.UnionWith(other);
+			if (this.Count != count) this.OnChange();
+		}
+	}
 }

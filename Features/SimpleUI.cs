@@ -10,6 +10,8 @@ using LOEventSystem;
 
 using LOEventSystem.Msg;
 
+using SLua;
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -203,6 +205,29 @@ namespace Symphony.Features {
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_CharacterDetails), nameof(Panel_CharacterDetails.Start)),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterDetail_NextPre))
+			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_CharacterDetails), nameof(Panel_CharacterDetails.Start)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterDetail_Favorite))
+			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_PcWarehouse), nameof(Panel_PcWarehouse.Start)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_BasePc_Favorite))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_AndroidInventory), nameof(Panel_AndroidInventory.Start)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_BasePc_Favorite))
+			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_PcWarehouse), nameof(Panel_PcWarehouse.ToogleChange)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_BasePc_ToggleChange))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_PcWarehouse), nameof(Panel_AndroidInventory.ToogleChange)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_BasePc_ToggleChange))
 			);
 			#endregion
 
@@ -1622,6 +1647,118 @@ namespace Symphony.Features {
 				EventManager.StopListening(__instance, 204u, HandlePacketResponsePcInfo);
 				fn();
 			}));
+		}
+
+		private static void Patch_CharacterDetail_Favorite(Panel_CharacterDetails __instance) {
+			if (!Conf.SimpleUI.Use_Character_Favorite.Value) return;
+
+			var _SelectPCInfo = __instance.XGetFieldValue<ClientPcInfo>("_SelectPCInfo");
+			var _goFavorMarriageIcon = __instance.XGetFieldValue<GameObject>("_goFavorMarriageIcon");
+			if (_SelectPCInfo == null || _goFavorMarriageIcon == null) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Cannot get client PC info or source button from scene");
+				return;
+			}
+
+			var go = GameObject.Instantiate(_goFavorMarriageIcon, _goFavorMarriageIcon.transform.parent, true);
+			go.name = "Favorite";
+			Destroy(go.transform.Find("BtnMarriageVoice")?.gameObject);
+
+			go.SetActive(true);
+			go.transform.localPosition = new Vector3(300f, 30f, 0f);
+			//go.transform.localPosition += new Vector3(0f, -370f, 0f);
+
+			var loc = go.GetComponentInChildren<UILocalize>();
+			if (loc != null) {
+				loc.enabled = false;
+				Destroy(loc);
+			}
+
+			var lbl = go.GetComponentInChildren<UILabel>();
+			if (lbl != null) lbl.text = "즐겨찾기";
+
+			if(!go.TryGetComponent<UISprite>(out var sp) || !go.TryGetComponent<UIButton>(out var btn)) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Cannot get component, failed to add favorite feature on CharacterDetail");
+				Destroy(go);
+				return;
+			}
+
+			btn.normalSprite = Conf.SimpleUI.ChracterFavorites.Contains(_SelectPCInfo.PCId) ? "Bg_Star_Active_Y" : "Bg_Star_Empty";
+			sp.spriteName = btn.normalSprite;
+
+			btn.hoverSprite = null;
+			btn.pressedSprite = null;
+
+			btn.onClick.Clear();
+			btn.onClick.Add(new EventDelegate(() => {
+				var cont = Conf.SimpleUI.ChracterFavorites.Contains(_SelectPCInfo.PCId);
+				if (cont)
+					Conf.SimpleUI.ChracterFavorites.Remove(_SelectPCInfo.PCId);
+				else
+					Conf.SimpleUI.ChracterFavorites.Add(_SelectPCInfo.PCId);
+
+				btn.normalSprite = !cont ? "Bg_Star_Active_Y" : "Bg_Star_Empty";
+				sp.spriteName = btn.normalSprite;
+			}));
+		}
+		private static void Patch_BasePc_Favorite(Panel_BasePc __instance) {
+			if (!Conf.SimpleUI.Use_Character_Favorite.Value) return;
+
+			var _costToggle = __instance.XGetFieldValue<UIToggle>("_costToggle");
+			if (_costToggle == null) {
+				Plugin.Logger.LogDebug("[Symphony::SimpleUI] Cannot find reference input objecet");
+				return;
+			}
+
+			var go = GameObject.Instantiate(_costToggle.gameObject, _costToggle.transform.parent, true);
+			go.name = "FavoriteToggle";
+			go.transform.localPosition += new Vector3(300f, 0f, 0f);
+			go.SetActive(true);
+
+			if (!go.TryGetComponent<UIToggle>(out var toggle)) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Cannot get toggle from clone");
+				Destroy(go);
+				return;
+			}
+
+			var loc = toggle.GetComponentInChildren<UILocalize>();
+			if (loc != null) {
+				loc.enabled = false;
+				Destroy(loc);
+			}
+
+			var lbl = toggle.GetComponentInChildren<UILabel>();
+			if (lbl != null) lbl.text = "즐겨찾기만 표시";
+
+			toggle.onChange.Clear();
+			toggle.onChange.Add(new EventDelegate(() => {
+				Conf.Cache.FavoriteOnly = toggle.value;
+				__instance.ToogleChange();
+			}));
+
+			toggle.value = Conf.Cache.FavoriteOnly;
+		}
+		private static void Patch_BasePc_ToggleChange(Panel_BasePc __instance) {
+			if (!Conf.SimpleUI.Use_Character_Favorite.Value || !Conf.Cache.FavoriteOnly) return;
+
+			var _reUseGrid = __instance.XGetFieldValue<UIReuseGrid>("_reUseGrid");
+			if (_reUseGrid == null) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Cannot get reUseGrid");
+				return;
+			}
+
+			var _listCurFilter = __instance.XGetFieldValue<List<ItemCellInvenCharacter>>("_listCurFilter");
+			if (_listCurFilter == null) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Cannot get listCurFilter");
+				return;
+			}
+
+			var lst = _reUseGrid.GetCellData();
+			lst.RemoveAll(x => !Conf.SimpleUI.ChracterFavorites.Contains(x.GetPCID()));
+
+			_listCurFilter.Clear();
+			_listCurFilter.AddRange(lst.Cast<ItemCellInvenCharacter>());
+
+			_reUseGrid.UpdateAllCellData();
 		}
 		#endregion
 

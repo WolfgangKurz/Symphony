@@ -96,6 +96,24 @@ namespace Symphony {
 
 			#region CharacterDetail
 			public static ConfigEntry<bool> Use_CharacterDetail_NextPrev = config.Bind("SimpleUI", "Use_CharacterDetail_NextPrev", false, "Add next/prev character button to Character Detail screen");
+
+			public static ConfigEntry<bool> Use_Character_Favorite = config.Bind("SimpleUI", "Use_Character_Favorite", false, "Add favorite feature for Character");
+
+			public static ConfigEntry<string> ChracterFavorites_Raw = config.Bind("SimpleUI", "ChracterFavorites", "", "List of favorite for Character");
+			public static ObservableHashSet<ulong> ChracterFavorites = new(
+				ChracterFavorites_Raw.Value
+					.Split(",")
+					.Select(x => {
+						var b = ulong.TryParse(x, out var v);
+						if (b) return (pass: true, value: v);
+						return (pass: false, value: 0UL);
+					})
+					.Where(x => x.pass)
+					.Select(x => x.value),
+				() => {
+					ChracterFavorites_Raw.Value = string.Join(",", Conf.SimpleUI.ChracterFavorites);
+				}
+			);
 			#endregion
 
 			#region Workbench
@@ -165,6 +183,13 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_ResourceLogging = config.Bind("Statistics", "Use_ResourceLogging", false, "Writes log for resource changes");
 
 			public static readonly ConfigEntry<bool> Use_ItemsLogging = config.Bind("Statistics", "Use_ItemsLogging", false, "When use Resource Logging, item changes also writes");
+		}
+
+		/// <summary>
+		/// App-life cache, not be written to file
+		/// </summary>
+		internal class Cache {
+			public static bool FavoriteOnly = false;
 		}
 
 		public static void Migrate() {
