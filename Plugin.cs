@@ -105,8 +105,13 @@ namespace Symphony {
 			try {
 				var json = req.downloadHandler.text;
 				var release = JsonMapper.ToObject<GithubReleaseInfo>(json);
+
 				var tag = release.tag_name;
-				if (tag != Plugin.VersionTag && release.assets.Length > 0)
+				if (tag.StartsWith("v")) tag = tag.Substring(1);
+
+				var curVer = Plugin.VersionTag.Substring(1);
+
+				if (release.assets.Length > 0 && Helper.IsLesserVersion(curVer, tag))
 					UIManager.Instance.AddPanel(new UpdateAvailablePanel(this, tag, release.assets));
 			} catch (Exception e) {
 				Logger.LogError($"[Symphony] Cannot fetch update data: {e.ToString()}");
