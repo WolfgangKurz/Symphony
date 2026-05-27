@@ -202,11 +202,14 @@ namespace Symphony.Features {
 			#endregion
 
 			#region CharacterDetail
+			#region NextPre
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_CharacterDetails), nameof(Panel_CharacterDetails.Start)),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterDetail_NextPre))
 			);
+			#endregion
 
+			#region Favorite
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_CharacterDetails), nameof(Panel_CharacterDetails.Start)),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_CharacterDetail_Favorite))
@@ -229,6 +232,33 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Panel_PcWarehouse), nameof(Panel_AndroidInventory.ToogleChange)),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_BasePc_ToggleChange))
 			);
+			#endregion
+
+			#region Better Stat Enchant
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Workbench), nameof(Panel_Workbench.OnRefreshPCEnchant)),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_PCStatEnchant_Update))
+			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Workbench), nameof(Panel_Workbench.OnBtnStatMinus)),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_PCStatEnchant_Minus))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Workbench), nameof(Panel_Workbench.OnBtnStatPlus)),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_PCStatEnchant_Plus))
+			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Workbench), nameof(Panel_Workbench.OnBtnPCEnchantOk)),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_PCStatEnchant_OK))
+			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_Workbench), "HandlePakcetPCEnchantReset"),
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_Workbench_HandlePacketPCEnchantReset))
+			);
+			#endregion
 			#endregion
 
 			#region Workbench
@@ -1543,6 +1573,7 @@ namespace Symphony.Features {
 		#endregion
 
 		#region CharacterDetail
+		#region NextPre
 		private static void Patch_CharacterDetail_NextPre(Panel_CharacterDetails __instance) {
 			if (!Conf.SimpleUI.Use_CharacterDetail_NextPrev.Value) return;
 			if (SingleTon<GameManager>.Instance.CharacterDetailOpeType != 1) return; // From Warehouse
@@ -1648,7 +1679,9 @@ namespace Symphony.Features {
 				fn();
 			}));
 		}
+		#endregion
 
+		#region Favorite
 		private static void Patch_CharacterDetail_Favorite(Panel_CharacterDetails __instance) {
 			if (!Conf.SimpleUI.Use_Character_Favorite.Value) return;
 
@@ -1760,6 +1793,135 @@ namespace Symphony.Features {
 
 			_reUseGrid.UpdateAllCellData();
 		}
+		#endregion
+
+		#region Better Stat Enchant
+		private static void Patch_PCStatEnchant_Update(Panel_Workbench __instance) {
+			var _listEnchantAddPoint = __instance.XGetFieldValue<List<int>>("_listEnchantAddPoint");
+
+			for (var attr = 0; attr < _listEnchantAddPoint.Count; attr++) {
+				if (_listEnchantAddPoint[attr] != 0) {
+					__instance.XGetFieldValue<UIButton>("_btnPCEnchant").isEnabled = true;
+					__instance.XGetFieldValue<UIButton>("_btnUndoAllocate").isEnabled = true;
+				}
+			}
+		}
+
+		private static bool Patch_PCStatEnchant_Minus(Panel_Workbench __instance, Transform pointName = null) {
+			if (!Conf.SimpleUI.Use_BetterPCEnchant.Value) return true;
+
+			var _enchantPcInfo = __instance.XGetFieldValue<ClientPcInfo>("_enchantPcInfo");
+			if (_enchantPcInfo == null) return false;
+
+			var statType = __instance.XGetFieldValue<ACTOR_ATTR_TYPE>("statType");
+			if (pointName != null) {
+				var _listActorAttr = __instance.XGetFieldValue<List<Panel_Workbench.ActorAttr>>("_listActorAttr");
+				statType = (ACTOR_ATTR_TYPE)_listActorAttr.FindIndex(a => a.CheckIndex(pointName));
+			}
+
+			if (statType != ACTOR_ATTR_TYPE.NONE) {
+				var iStatType = (int)statType;
+
+				var _enchantMaxCount = __instance.XGetFieldValue<long>("_enchantMaxCount");
+				var _listEnchantAddPoint = __instance.XGetFieldValue<List<int>>("_listEnchantAddPoint");
+				_listEnchantAddPoint[iStatType]--;
+
+				var pCEnchantAttrInfo = _enchantPcInfo.PCEnchantAttrInfoList.Find(p => p.AttrType == (byte)statType);
+				var next = (pCEnchantAttrInfo?.EnchantAfterCount ?? 0) + _listEnchantAddPoint[iStatType];
+				if (next < 0) {
+					_listEnchantAddPoint[iStatType]++;
+					__instance.XSetFieldValue("_isAutoCountPlus", false);
+				}
+				else {
+					__instance.OnRefreshPCEnchant();
+				}
+			}
+
+			__instance.XSetFieldValue("statType", statType);
+			return false;
+		}
+		private static bool Patch_PCStatEnchant_Plus(Panel_Workbench __instance, Transform pointName = null) {
+			if (!Conf.SimpleUI.Use_BetterPCEnchant.Value) return true;
+
+			var _enchantPcInfo = __instance.XGetFieldValue<ClientPcInfo>("_enchantPcInfo");
+			if (_enchantPcInfo == null) return false;
+
+			var statType = __instance.XGetFieldValue<ACTOR_ATTR_TYPE>("statType");
+			if (pointName != null) {
+				var _listActorAttr = __instance.XGetFieldValue<List<Panel_Workbench.ActorAttr>>("_listActorAttr");
+				statType = (ACTOR_ATTR_TYPE)_listActorAttr.FindIndex(a => a.CheckIndex(pointName));
+			}
+
+			if (statType != ACTOR_ATTR_TYPE.NONE) {
+				var iStatType = (int)statType;
+
+				var _enchantMaxCount = __instance.XGetFieldValue<long>("_enchantMaxCount");
+				var _listEnchantAddPoint = __instance.XGetFieldValue<List<int>>("_listEnchantAddPoint");
+				_listEnchantAddPoint[iStatType]++;
+
+				var pCEnchantAttrInfo = _enchantPcInfo.PCEnchantAttrInfoList.Find(p => p.AttrType == (byte)statType);
+				var next = (pCEnchantAttrInfo?.EnchantAfterCount ?? 0) + _listEnchantAddPoint[iStatType];
+				if (next > _enchantPcInfo.GetMaxStatAttr() || _enchantMaxCount == 0L) {
+					_listEnchantAddPoint[iStatType]--;
+					__instance.XSetFieldValue("_isAutoCountPlus", false);
+				}
+				else 
+					__instance.OnRefreshPCEnchant();
+			}
+
+			__instance.XSetFieldValue("statType", statType);
+			return false;
+		}
+
+		private static bool Patch_PCStatEnchant_OK(Panel_Workbench __instance) {
+			if (!Conf.SimpleUI.Use_BetterPCEnchant.Value) return true;
+
+			IEnumerator Fn() {
+				var pc = __instance.XGetFieldValue<ClientPcInfo>("_enchantPcInfo");
+				var pcId = pc.PCId;
+				var _listEnchantAddPoint = __instance.XGetFieldValue<List<int>>("_listEnchantAddPoint");
+
+				var needReset = _listEnchantAddPoint.Any(x => x < 0);
+				int attr(byte type) {
+					var v = _listEnchantAddPoint[type];
+					if (needReset)
+						return (int)(pc.PCEnchantAttrInfoList.Find(x => x.AttrType == type)?.EnchantAfterCount ?? 0) + v;
+					else
+						return v;
+				}
+
+				var pCEnchantInfo = new PCEnchantInfo();
+				pCEnchantInfo.AtkValue = attr(0);
+				pCEnchantInfo.DefValue = attr(1);
+				pCEnchantInfo.HPValue = attr(2) ;
+				pCEnchantInfo.EvadeValue = attr(3);
+				pCEnchantInfo.CriValue = attr(5);
+				pCEnchantInfo.AccValue = attr(6);
+
+				__instance.ShowWaitMessage(show: true);
+
+				if (needReset) {
+					Conf.Cache.Workbench_Awaiting = true;
+					C2WPacket.Send_C2W_PCENCHANT_RESET(SingleTon<DataManager>.Instance.AccessToken, SingleTon<DataManager>.Instance.WID, pcId);
+					yield return new WaitUntil(() => Conf.Cache.Workbench_Awaiting == false);
+				}
+
+				__instance.ShowWaitMessage(show: true);
+				C2WPacket.Send_C2W_PC_ENCHANT(SingleTon<DataManager>.Instance.AccessToken, SingleTon<DataManager>.Instance.WID, pcId, pCEnchantInfo);
+			}
+			__instance.StartCoroutine(Fn());
+
+			return false;
+		}
+
+		private static bool Patch_Workbench_HandlePacketPCEnchantReset(WebResponseState obj) {
+			if (!Conf.SimpleUI.Use_BetterPCEnchant.Value) return true;
+
+			Conf.Cache.Workbench_Awaiting = false;
+			return false;
+		}
+
+		#endregion
 		#endregion
 
 		#region Workbench

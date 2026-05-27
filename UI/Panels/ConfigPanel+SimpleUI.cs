@@ -93,6 +93,8 @@ namespace Symphony.UI.Panels {
 				DrawToggle(ref offset, "이전/다음 전투원 버튼 추가", Conf.SimpleUI.Use_CharacterDetail_NextPrev);
 
 				DrawToggle(ref offset, "즐겨찾기 추가", Conf.SimpleUI.Use_Character_Favorite);
+
+				DrawToggle(ref offset, "더 나은 전투원 강화", Conf.SimpleUI.Use_BetterPCEnchant);
 			}
 			void Subpage_Workbench(ref float offset) {
 				DrawToggle(ref offset, "전투원 제조 결과 미리보기", Conf.SimpleUI.Use_CharacterMakingPreview);

@@ -57,6 +57,7 @@ This modifies parts of the UI to make them easier to use.
 ---
 - Provides a Previous/Next button to character detail screen.
 - Provides a Favorite feature to character detail screen and list.
+- Provides a feature to decrease character stats without resetting them.
 ---
 - Provides the preview of available results for character/equipment crafting.
 - Provides the Select All button to the Disassembly character/equipment screen.

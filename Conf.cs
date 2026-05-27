@@ -98,7 +98,6 @@ namespace Symphony {
 			public static ConfigEntry<bool> Use_CharacterDetail_NextPrev = config.Bind("SimpleUI", "Use_CharacterDetail_NextPrev", false, "Add next/prev character button to Character Detail screen");
 
 			public static ConfigEntry<bool> Use_Character_Favorite = config.Bind("SimpleUI", "Use_Character_Favorite", false, "Add favorite feature for Character");
-
 			public static ConfigEntry<string> ChracterFavorites_Raw = config.Bind("SimpleUI", "ChracterFavorites", "", "List of favorite for Character");
 			public static ObservableHashSet<ulong> ChracterFavorites = new(
 				ChracterFavorites_Raw.Value
@@ -114,6 +113,8 @@ namespace Symphony {
 					ChracterFavorites_Raw.Value = string.Join(",", Conf.SimpleUI.ChracterFavorites);
 				}
 			);
+
+			public static ConfigEntry<bool> Use_BetterPCEnchant = config.Bind("SimpleUI", "Use_BetterPCEnchant", false, "Allows unit stats to be decreased on the enchant screen without resetting stat points");
 			#endregion
 
 			#region Workbench
@@ -190,6 +191,7 @@ namespace Symphony {
 		/// </summary>
 		internal class Cache {
 			public static bool FavoriteOnly = false;
+			public static bool Workbench_Awaiting = false;
 		}
 
 		public static void Migrate() {
