@@ -473,7 +473,7 @@ namespace Symphony.Features {
 						noneDownloadList
 							// Lobby BG, Player/Enemy SD characters dependency
 							.Where(x => x.StartsWith("novelbgtexture_ui_") || x.StartsWith("char_"))
-							.Concat(["lastoneshader", "atlas", "sfx", "fxeffect", "bulleteffect", "novelcutimg"]) // Common assets
+							.Concat(["formationicon", "lastoneshader", "atlas", "sfx", "fxeffect", "bulleteffect", "novelcutimg"]) // Common assets
 					));
 					#endregion
 
