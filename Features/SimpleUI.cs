@@ -1917,8 +1917,11 @@ namespace Symphony.Features {
 		private static bool Patch_Workbench_HandlePacketPCEnchantReset(WebResponseState obj) {
 			if (!Conf.SimpleUI.Use_BetterPCEnchant.Value) return true;
 
-			Conf.Cache.Workbench_Awaiting = false;
-			return false;
+			if (Conf.Cache.Workbench_Awaiting) {
+				Conf.Cache.Workbench_Awaiting = false;
+				return false;
+			}
+			return true;
 		}
 
 		#endregion
