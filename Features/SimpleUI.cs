@@ -2743,9 +2743,9 @@ namespace Symphony.Features {
 			Conf.Cache.ExchangeCount = count;
 
 			IEnumerator fn() {
-				__instance.ShowWaitMessage(show: true);
-
 				while (Conf.Cache.ExchangeCount > 0) {
+					__instance.ShowWaitMessage(show: true);
+
 					var cnt = Math.Min(20, Conf.Cache.ExchangeCount);
 					Conf.Cache.ExchangeAwaiting = true;
 					C2WPacket.Send_C2W_EXSHOP_BUY(
