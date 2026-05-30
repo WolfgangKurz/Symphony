@@ -192,6 +192,9 @@ namespace Symphony {
 		internal class Cache {
 			public static bool FavoriteOnly = false;
 			public static bool Workbench_Awaiting = false;
+
+			public static int ExchangeCount = 0;
+			public static bool ExchangeAwaiting = false;
 		}
 
 		public static void Migrate() {

@@ -19,6 +19,7 @@ using System.Globalization;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Threading;
 
 using UnityEngine;
 
@@ -33,8 +34,6 @@ namespace Symphony.Features {
 		private static UIAtlas asset_masterAtlas = null;
 
 		public static Table_MapStage LastBattleMap_Target { get; private set; }
-
-		private static int ExchangeCount = 0;
 
 		public void Start() {
 			var harmony = new Harmony("Symphony.SimpleUI");
@@ -358,7 +357,7 @@ namespace Symphony.Features {
 			);
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_ExShop), "HandlePakcetExShopBuy"),
-				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_HandlePakcetExShopBuy))
+				prefix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_HandlePacketExShopBuy))
 			);
 			#endregion
 
@@ -2730,7 +2729,7 @@ namespace Symphony.Features {
 			var data = __instance.XGetFieldValue<Table_ExShop>("_exShopData");
 			var count = __instance.XGetFieldValue<int>("_buyCount");
 
-			SimpleUI.ExchangeCount = 0;
+			Conf.Cache.ExchangeCount = 0;
 			if (
 				!SingleTon<DataManager>.Instance.IsEqualShopVersion() ||
 				!__instance.XGetFieldValue<bool>("_isEnableBuy") ||
@@ -2741,34 +2740,38 @@ namespace Symphony.Features {
 				return true;
 
 			SingleTon<GameManager>.Instance.ExShopBuyCount = count; // for message
-			SimpleUI.ExchangeCount = count;
+			Conf.Cache.ExchangeCount = count;
 
 			IEnumerator fn() {
-				while (SimpleUI.ExchangeCount > 0) {
-					var cnt = SimpleUI.ExchangeCount;
+				__instance.ShowWaitMessage(show: true);
 
-					__instance.ShowWaitMessage(show: true);
+				while (Conf.Cache.ExchangeCount > 0) {
+					var cnt = Math.Min(20, Conf.Cache.ExchangeCount);
+					Conf.Cache.ExchangeAwaiting = true;
 					C2WPacket.Send_C2W_EXSHOP_BUY(
 						SingleTon<DataManager>.Instance.AccessToken,
 						SingleTon<DataManager>.Instance.WID,
 						data.Key,
-						Math.Min(20, SimpleUI.ExchangeCount),
+						cnt,
 						SingleTon<DataManager>.Instance.ClientShopVersion
 					);
 
-					yield return new WaitUntil(() => SimpleUI.ExchangeCount < cnt);
+					yield return new WaitUntil(() => Conf.Cache.ExchangeAwaiting == false);
 				}
 			}
-			__instance.StartCoroutine(fn());
+			// __instance will be destroyed after send buy packet
+			SingleTon<DataManager>.Instance.StartCoroutine(fn());
 			return false;
 		}
-		private static bool Patch_HandlePakcetExShopBuy(WebResponseState obj) {
+		private static bool Patch_HandlePacketExShopBuy(WebResponseState obj) {
 			if (!Conf.SimpleUI.Use_Exchange_NoMessyHand.Value) return true;
+			if (!Conf.Cache.ExchangeAwaiting) return true;
 
-			SimpleUI.ExchangeCount = Math.Max(0, SimpleUI.ExchangeCount - 20);
-			if (SimpleUI.ExchangeCount > 0) return false;
+			Conf.Cache.ExchangeCount = Math.Max(0, Conf.Cache.ExchangeCount - 20);
+			Conf.Cache.ExchangeAwaiting = false;
 
-			return true;
+			if (Conf.Cache.ExchangeCount == 0) return true; // target count reached
+			return false;
 		}
 		#endregion
 
