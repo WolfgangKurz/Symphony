@@ -2744,7 +2744,9 @@ namespace Symphony.Features {
 
 			IEnumerator fn() {
 				while (Conf.Cache.ExchangeCount > 0) {
-					__instance.ShowWaitMessage(show: true);
+					try {
+						GameObject.FindAnyObjectByType<Panel_ExShop>()?.ShowWaitMessage(show: true);
+					} catch { }
 
 					var cnt = Math.Min(20, Conf.Cache.ExchangeCount);
 					Conf.Cache.ExchangeAwaiting = true;
