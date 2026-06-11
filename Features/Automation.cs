@@ -21,6 +21,15 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Panel_LivingStation), nameof(Panel_LivingStation.OnCollectAllButton)),
 				prefix: new HarmonyMethod(typeof(Automation), nameof(Automation.Panel_LivingStation_OnCollectAllButton))
 			);
+
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_FacilityRewardResultAll), nameof(Panel_FacilityRewardResultAll.Init)),
+				prefix: new HarmonyMethod(typeof(Automation), nameof(Automation.Panel_FacilityRewardResultAll_Init))
+			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_FacilityRewardResultAll), "RewardView"),
+				prefix: new HarmonyMethod(typeof(Automation), nameof(Automation.Panel_FacilityRewardResultAll_RewardView))
+			);
 			#endregion
 
 			#region OfflineBattle Restart
@@ -42,6 +51,8 @@ namespace Symphony.Features {
 		private static bool Panel_LivingStation_OnCollectAllButton(Panel_LivingStation __instance) {
 			if (!Conf.Automation.Use_Base_CollectAll_Restart.Value) return true;
 
+			if (!Scene_LivingStation.Instance.kStation.ChkCollectAll()) return false;
+
 			IEnumerator Fn() {
 				var targetFacilities = FindObjectsByType<InstallationFacility>(FindObjectsSortMode.None)
 					.Where(x => x.mCurrentState == InstallationFacility.State.WorkComplete)
@@ -53,7 +64,6 @@ namespace Symphony.Features {
 
 				__instance.isCurrentCollectAllFlag = true;
 				try {
-
 					foreach (var fac in targetFacilities) {
 						if (fac.mCurrentState == InstallationFacility.State.Prepare) {
 							Scene_LivingStation.Instance.kStation.mCurrentFacility = fac;
@@ -86,11 +96,130 @@ namespace Symphony.Features {
 					__instance.isCurrentCollectAllFlag = false;
 				}
 
-				if(insufficientRes) {
+				if (insufficientRes) {
 					InstantPanel.MessageBox("자원이 부족해 일부 시설을 재시작할 수 없었습니다.");
 				}
 			}
 			__instance.StartCoroutine(Fn());
+
+			return false;
+		}
+
+		private static void Panel_FacilityRewardResultAll_Init(Panel_FacilityRewardResultAll __instance) {
+			if (!Conf.Automation.Use_Base_CollectAll_Restart.Value) return;
+
+			var rewardList = Scene_LivingStation.Instance.CollectAllRewardList;
+			var src = rewardList.ToArray();
+
+			rewardList.Clear();
+			rewardList.AddRange(src.Aggregate(
+				new List<(WebGiveRewardInfo rewardInfo, Table_Facility facilityTable, long Facility_uid)>(),
+				(p, c) => {
+					if (!(c is object[])) return p;
+
+					var o = c as object[];
+					if (!(
+						o.Length == 3 &&
+						o[0] is WebGiveRewardInfo && o[1] is Table_Facility && o[2] is long
+					)) return p;
+
+					var rewardInfo = o[0] as WebGiveRewardInfo;
+					var facilityTable = o[1] as Table_Facility;
+					var Facility_uid = (long)o[2];
+
+					if (rewardInfo.AddMetal > 0) {
+						var idx = p.FindIndex(x => x.rewardInfo.AddMetal > 0);
+						if (idx >= 0)
+							p[idx].rewardInfo.AddMetal += rewardInfo.AddMetal;
+						else
+							p.Add((new() { AddMetal = rewardInfo.AddMetal }, facilityTable, Facility_uid));
+					}
+					if (rewardInfo.AddNutrient > 0) {
+						var idx = p.FindIndex(x => x.rewardInfo.AddNutrient > 0);
+						if (idx >= 0)
+							p[idx].rewardInfo.AddNutrient += rewardInfo.AddNutrient;
+						else
+							p.Add((new() { AddNutrient = rewardInfo.AddNutrient }, facilityTable, Facility_uid));
+					}
+					if (rewardInfo.AddPower > 0) {
+						var idx = p.FindIndex(x => x.rewardInfo.AddPower > 0);
+						if (idx >= 0)
+							p[idx].rewardInfo.AddPower += rewardInfo.AddPower;
+						else
+							p.Add((new() { AddPower = rewardInfo.AddPower }, facilityTable, Facility_uid));
+					}
+
+					if (rewardInfo.PCRewardList != null && rewardInfo.PCRewardList.Count > 0)
+						// PCRewardList should be 1-lengthed list
+						p.Add((new() { PCRewardList = rewardInfo.PCRewardList }, facilityTable, Facility_uid));
+
+					if (rewardInfo.ItemRewardList != null && rewardInfo.ItemRewardList.Count > 0) {
+						foreach (var item in rewardInfo.ItemRewardList) {
+							if (item.Info.ItemType != 4) continue;
+
+							var idx = p.FindIndex(x =>
+								x.rewardInfo.ItemRewardList != null &&
+								x.rewardInfo.ItemRewardList[0].Info.ItemKeyString == item.Info.ItemKeyString
+							);
+
+							var item2 = SingleTon<DataManager>.Instance.GetItem(item.Info.ItemSN);
+							if (item2 == null) continue;
+
+							if (idx >= 0)
+								p[idx].rewardInfo.ItemRewardList[0].Info.StackCount += item2.StackCount - item2.BeforeStatckCount;
+							else
+								p.Add((new() {
+									ItemRewardList = new() {
+										new UpdateItemInfo {
+											UpdateType = item.UpdateType,
+											Info = new ItemInfo(
+												item.Info.ItemUID,
+												item.Info.ItemSN,
+												item.Info.ItemType,
+												item.Info.ItemKeyString,
+												item2.StackCount - item2.BeforeStatckCount,
+												item.Info.InvenCategory,
+												item.Info.EnchantLevel,
+												item.Info.IsLock,
+												item.Info.EnchantPoint,
+												item.Info.EquippedPCID,
+												item.Info.EquipSlot
+											)
+										}
+									}
+								}, facilityTable, Facility_uid));
+						}
+					}
+
+					return p;
+				}
+			).Select(x => new object[] { x.rewardInfo, x.facilityTable, x.Facility_uid }));
+		}
+		private static bool Panel_FacilityRewardResultAll_RewardView(
+			Panel_FacilityRewardResultAll __instance,
+			Slot_FacilityRewardResultAllReward slot_FacilityRewardResultAllReward,
+			WebGiveRewardInfo _webGiveReward,
+			Table_Facility _table,
+			long _facUID
+		) {
+			if (!Conf.Automation.Use_Base_CollectAll_Restart.Value) return true;
+			if (
+				(_webGiveReward.PCRewardList != null && _webGiveReward.PCRewardList.Count > 0) ||
+				(_webGiveReward.AddMetal != 0) ||
+				(_webGiveReward.AddNutrient != 0) ||
+				(_webGiveReward.AddPower != 0) ||
+				(_webGiveReward.AddCash != 0 || _webGiveReward.ItemRewardList == null)
+			) return true;
+
+			// No need to calculate StackCount, info.Info.StackCount already calculated
+			// and, list should be 1-lengthed (but don't care)
+			foreach (var info in _webGiveReward.ItemRewardList) {
+				var item = SingleTon<DataManager>.Instance.GetItem(info.Info.ItemSN);
+				if(item == null) continue;
+
+				slot_FacilityRewardResultAllReward.SetData(_table, _facUID);
+				slot_FacilityRewardResultAllReward.SetItem(item, info.Info.StackCount);
+			}
 
 			return false;
 		}
