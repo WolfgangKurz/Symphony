@@ -7,8 +7,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using System.Text;
+using System.Text.RegularExpressions;
 
 using UnityEngine;
+using UnityEngine.XR;
 
 namespace Symphony.Features {
 	[Feature("Automation")]
@@ -40,6 +43,13 @@ namespace Symphony.Features {
 			harmony.Patch(
 				AccessTools.Method(typeof(Panel_OfflineBattleResult), nameof(Panel_OfflineBattleResult.InitOfflineBattleResult)),
 				postfix: new HarmonyMethod(typeof(Automation), nameof(Automation.Patch_OfflineBattle_Restart))
+			);
+			#endregion
+
+			#region Character Share
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_CharacterDetails), nameof(Panel_CharacterDetails.Start)),
+				postfix: new HarmonyMethod(typeof(Automation), nameof(Automation.Patch_CharacterShare))
 			);
 			#endregion
 		}
@@ -407,6 +417,155 @@ namespace Symphony.Features {
 			else {
 				Btn_Restart.SetActive(false); // hide restart button
 			}
+		}
+		#endregion
+
+		#region Character Share
+		private const int CharShareCodeVersion = 1;
+		private static void Patch_CharacterShare(Panel_CharacterDetails __instance) {
+			if (!Conf.Automation.Use_CharacterShare.Value) return;
+
+			var pc = __instance.XGetFieldValue<ClientPcInfo>("_SelectPCInfo");
+			var _goFavorMarriageIcon = __instance.XGetFieldValue<GameObject>("_goFavorMarriageIcon");
+			if (pc == null || _goFavorMarriageIcon == null) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Cannot get client PC info or source button from scene");
+				return;
+			}
+
+			var parent = __instance.XGetFieldValue<GameObject>("_goMarriageHide").transform;
+			var hp_fill_box = parent.Find("hp_fill_box");
+			var DefSp = parent.Find("DefSp");
+
+			#region Export button
+			{
+				var go = GameObject.Instantiate(_goFavorMarriageIcon, parent, true);
+				go.name = "Share_Export";
+				Destroy(go.transform.Find("BtnMarriageVoice")?.gameObject);
+
+				go.SetActive(true);
+				go.transform.localPosition = new Vector3(
+					DefSp.localPosition.x + 40f,
+					hp_fill_box.localPosition.y + 20f,
+					0f
+				);
+
+				var loc = go.GetComponentInChildren<UILocalize>();
+				if (loc != null) {
+					loc.enabled = false;
+					Destroy(loc);
+				}
+
+				var lbl = go.GetComponentInChildren<UILabel>();
+				if (lbl != null) lbl.text = "내보내기";
+
+				if (!go.TryGetComponent<UISprite>(out var sp) || !go.TryGetComponent<UIButton>(out var btn)) {
+					Plugin.Logger.LogWarning("[Symphony::SimpleUI] Cannot get component, failed to add favorite feature on CharacterDetail");
+					Destroy(go);
+					return;
+				}
+
+				btn.GetComponent<UISprite>()?.atlas = Atlas.atlas;
+				btn.normalSprite = "UI_Export";
+				sp.spriteName = btn.normalSprite;
+
+				btn.hoverSprite = null;
+				btn.pressedSprite = null;
+
+				btn.onClick.Clear();
+				btn.onClick.Add(new EventDelegate(() => {
+					var sb = new StringBuilder();
+					sb.AppendFormat("Symphony:{0}:", CharShareCodeVersion);
+
+					sb.AppendFormat(
+						"{0}:{1}:{2}:{3}:{4}:",
+						new Regex(@"^Char_(.+)_N$").Replace(pc.Index, "$1"),
+						pc.Level,
+						pc.FavorPoint >= 20000 ? "Y" : "N",
+						pc.CoreLinkBonus_KeyString,
+						pc.GetTotalCoreValue() // CoreLink Suitability
+					);
+
+					// Stat levels
+					ACTOR_ATTR_TYPE[] attrs = [
+						ACTOR_ATTR_TYPE.HP,
+						ACTOR_ATTR_TYPE.ATK,
+						ACTOR_ATTR_TYPE.DEF,
+						ACTOR_ATTR_TYPE.APPLY,
+						ACTOR_ATTR_TYPE.EVADE,
+						ACTOR_ATTR_TYPE.CRI
+					];
+					sb.AppendFormat("{0}:",
+						string.Join(",", attrs.Select(
+							attr => pc.PCEnchantAttrInfoList
+								.FirstOrDefault(x => x.AttrType == (byte)attr)?.EnchantAfterCount ?? 0
+						))
+					);
+
+					// Equip key & levels
+					var equips = pc.XGetFieldValue<List<EquippedItemMok>>("equippedItemList");
+					if (equips == null)
+						sb.Append(":");
+					else
+						sb.AppendFormat("{0}:", string.Join(",", equips.Select(x => $"{x.Data.Key};{x.EnchantLevel}")));
+
+					// Priority skill
+					sb.AppendFormat("{0}:", pc.AIInfo.FirstSkillSlotType);
+
+					// Skill levels
+					sb.AppendFormat("{0}:", string.Join(",", pc.HaveSkillList.OrderBy(x => x.SkillKeyString).Select(x => $"{x.SkillLevel}")));
+
+					sb.Append("END");
+
+					var shareText = sb.ToString();
+					Plugin.Logger.LogMessage($"[Symphony::Automation] Export unit data '{shareText}'");
+					__instance.ShowMessage($"복사되었습니다.\n\n{shareText}");
+
+					// TODO: Copy to clipboard
+				}));
+			}
+			#endregion
+
+			#region Import button
+			{
+				var go = GameObject.Instantiate(_goFavorMarriageIcon, parent, true);
+				go.name = "Share_Import";
+				Destroy(go.transform.Find("BtnMarriageVoice")?.gameObject);
+
+				go.SetActive(true);
+				go.transform.localPosition = new Vector3(
+					DefSp.localPosition.x + 140f,
+					hp_fill_box.localPosition.y + 20f,
+					0f
+				);
+
+				var loc = go.GetComponentInChildren<UILocalize>();
+				if (loc != null) {
+					loc.enabled = false;
+					Destroy(loc);
+				}
+
+				var lbl = go.GetComponentInChildren<UILabel>();
+				if (lbl != null) lbl.text = "불러오기";
+
+				if (!go.TryGetComponent<UISprite>(out var sp) || !go.TryGetComponent<UIButton>(out var btn)) {
+					Plugin.Logger.LogWarning("[Symphony::SimpleUI] Cannot get component, failed to add favorite feature on CharacterDetail");
+					Destroy(go);
+					return;
+				}
+
+				btn.GetComponent<UISprite>()?.atlas = Atlas.atlas;
+				btn.normalSprite = "UI_Import";
+				sp.spriteName = btn.normalSprite;
+
+				btn.hoverSprite = null;
+				btn.pressedSprite = null;
+
+				btn.onClick.Clear();
+				btn.onClick.Add(new EventDelegate(() => {
+					// TODO
+				}));
+			}
+			#endregion
 		}
 		#endregion
 	}

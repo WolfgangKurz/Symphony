@@ -577,7 +577,20 @@ namespace Symphony.UI.Panels {
 							offset += 20;
 							DrawLabel(ref offset, "이 기능은 매크로 동작을 포함합니다.\n사용 시 운영 주체에 의해 이용 제한에 이를 수 있습니다.\n신중하게 사용해 주세요.", Color.yellow);
 
+							DrawToggle(ref offset, "'전투원 공유' 기능 사용하기", Conf.Automation.Use_CharacterShare);
+							DrawLabel(ref offset, """
+사용중인 전투원의 스탯, 장비, 풀링크 보너스 등을 포함한 공유 문자열로 내보내거나, 불러오는 기능입니다.
+전투원의 레벨과 스킬 레벨, 링크, 호감도 차이는 경고 메시지를 출력합니다.
+불러올 때 전투원의 스탯, 우선 스킬, 장비 장착이 자동으로 이루어집니다.
+장비 장착은 해제된 장비만 장착하며, 부족한 경우 장착중인 전투원을 표시합니다.
+""", Color_description, 12);
+
+							DrawSeparator(ref offset);
+
 							DrawToggle(ref offset, "기지 '일괄 수령' 재시작 사용하기", Conf.Automation.Use_Base_CollectAll_Restart);
+
+							DrawSeparator(ref offset);
+
 							DrawToggle(ref offset, "자율 전투 재시작 사용하기", Conf.Automation.Use_OfflineBattle_Restart);
 							#endregion
 							break;

@@ -169,6 +169,8 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_OfflineBattle_Restart = config.Bind("Automation", "Use_OfflineBattle_Restart", false, "Add Restart button to offline battle result screen");
 			public static readonly ConfigEntry<byte> OfflineBattle_Last_CharDiscomp = config.Bind("Automation", "OfflineBattle_Last_CharDiscomp", (byte)1);
 			public static readonly ConfigEntry<byte> OfflineBattle_Last_EquipDiscomp = config.Bind("Automation", "OfflineBattle_Last_EquipDiscomp", (byte)1);
+
+			public static readonly ConfigEntry<bool> Use_CharacterShare = config.Bind("Automation", "Use_CharacterShare", false, "Add 'Character Share' button and 'Load Shared Character' in Character Detail Screen");
 		}
 		internal class Experimental {
 			public static readonly ConfigEntry<bool> Fix_BattleFreezing = config.Bind("Experimental", "Fix_BattleFreezing", true, "Fix a Freezing issue in certain situations during Battle");

@@ -9,7 +9,7 @@ using UnityEngine;
 namespace Symphony {
 	internal class Atlas {
 		private const int DefaultAtlasPadding = 2;
-		private const int DefaultMaxAtlasSize = 4096;
+		private const int DefaultMaxAtlasSize = 2048;
 
 		public static NGUIAtlas atlas { get; private set; }
 
@@ -17,6 +17,8 @@ namespace Symphony {
 			Setup_Atlas(new Dictionary<string, byte[]>() {
 				{ "UI_SelectWorldBtn_MainStory_Small", Resource.UI_SelectWorldBtn_MainStory_Small },
 				{ "UI_SelectWorldBtn_MainStory_Small_Half", Resource.UI_SelectWorldBtn_MainStory_Small_Half },
+				{ "UI_Import", Resource.UI_Import },
+				{ "UI_Export", Resource.UI_Export },
 			});
 		}
 		private static void Setup_Atlas(

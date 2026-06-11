@@ -203,6 +203,26 @@ namespace Symphony {
         /// <summary>
         ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
         /// </summary>
+        internal static byte[] UI_Export {
+            get {
+                object obj = ResourceManager.GetObject("UI_Export", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
+        internal static byte[] UI_Import {
+            get {
+                object obj = ResourceManager.GetObject("UI_Import", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
+        /// </summary>
         internal static byte[] UI_SelectWorldBtn_MainStory_Small {
             get {
                 object obj = ResourceManager.GetObject("UI_SelectWorldBtn_MainStory_Small", resourceCulture);
