@@ -373,6 +373,9 @@ namespace Symphony.Features {
 						return;
 					}
 
+					__instance.XGetMethodVoid("UpdateCharacterInfo")?.Invoke();
+					__instance.XGetMethodVoid("UpdateConsumeItemInfo")?.Invoke();
+
 					try {
 						var enter = new OfflineBattleEnterClass();
 						enter.offlineBattleStage = stage;
