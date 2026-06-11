@@ -468,8 +468,6 @@ namespace Symphony.Features {
 		private static void LastBattleMap_Panel_GameModeMenu_Start(Panel_GameModeMenu __instance) {
 			if (!Conf.SimpleUI.Use_LastBattleMap.Value && !Conf.SimpleUI.Use_LastOfflineBattle.Value) return;
 
-			Atlas.Setup_Atlas();
-
 			var use_lastBattle = Conf.SimpleUI.Use_LastBattleMap.Value;
 			var use_lastOffline = Conf.SimpleUI.Use_LastOfflineBattle.Value;
 
