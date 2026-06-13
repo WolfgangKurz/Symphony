@@ -648,6 +648,14 @@ namespace Symphony.Features {
 
 						if (codeVer == 1 && parts.Length != 14) throw new FormatException("Invalid ShareText Format, length mismatch");
 
+						var MaxGrade = tpc.StartGrade;
+						while(true) {
+							var promo = dataManager.GetTablePCPromotion(chr.Char_Key, MaxGrade);
+							if (promo == null) break;
+
+							MaxGrade = promo.PromotionGrade;
+						}
+
 						var sb = new StringBuilder();
 						var sbWarn = new StringBuilder();
 						if (codeVer < CharShareCodeVersion) {
@@ -656,7 +664,7 @@ namespace Symphony.Features {
 						}
 
 						if (codeVer >= 1) {
-							if (!int.TryParse(parts[4], out var rarity) || rarity < tpc.StartGrade || rarity > tpc.MaxGrade)
+							if (!int.TryParse(parts[4], out var rarity) || rarity < tpc.StartGrade || rarity > MaxGrade)
 								throw new FormatException("Invalid Rarity");
 
 							if (!int.TryParse(parts[5], out var lv) || lv <= 0 || lv > 120)
@@ -849,13 +857,6 @@ namespace Symphony.Features {
 
 								#region Stats
 								if (pc.MaxEnchantCount >= attrs.Sum()) { // enough stat value?
-									var needReset = pc.PCEnchantAttrInfoList.Any(x => {
-										var idx = Array.FindIndex(ATTRS, y => (byte)y == x.AttrType);
-										if (idx < 0) return true;
-
-										return x.EnchantAfterCount > attrs[idx];
-									});
-
 									var pCEnchantInfo = new PCEnchantInfo();
 									pCEnchantInfo.HPValue = attrs[0];
 									pCEnchantInfo.AtkValue = attrs[1];
@@ -864,11 +865,10 @@ namespace Symphony.Features {
 									pCEnchantInfo.EvadeValue = attrs[4];
 									pCEnchantInfo.CriValue = attrs[5];
 
-									if (needReset) {
-										__instance.ShowWaitMessage(show: true);
-										C2WPacket.Send_C2W_PCENCHANT_RESET(dataManager.AccessToken, dataManager.WID, pc.PCId);
-										yield return new WaitUntil(() => !InstantPanel.IsWait());
-									}
+									// Always resets
+									__instance.ShowWaitMessage(show: true);
+									C2WPacket.Send_C2W_PCENCHANT_RESET(dataManager.AccessToken, dataManager.WID, pc.PCId);
+									yield return new WaitUntil(() => !InstantPanel.IsWait());
 
 									__instance.ShowWaitMessage(show: true);
 									C2WPacket.Send_C2W_PC_ENCHANT(dataManager.AccessToken, dataManager.WID, pc.PCId, pCEnchantInfo);
@@ -973,7 +973,8 @@ namespace Symphony.Features {
 										EQUIPPED_ITEMS.Add(eq);
 										EQUIPPING.Add(eq);
 									}
-									
+
+									yield return new WaitUntil(() => !InstantPanel.IsWait());
 									if (isPartial)
 										__instance.ShowMessage("일부 장비를 장착하지 못했습니다.");
 								}
@@ -1008,10 +1009,12 @@ namespace Symphony.Features {
 						label.width = 1500;
 						label.height = 500;
 						msg.subMsg = " ";
-					} catch(FormatException) {
-						__instance.ShowMessage($"올바르지 않은 공유 코드입니다");
+					} catch(FormatException ex) {
+						__instance.ShowMessage($"올바르지 않은 공유 코드입니다\n\n{ex.Message}");
+						Plugin.Logger.LogWarning(ex.ToString());
 					} catch(Exception ex) {
-						__instance.ShowMessage($"전투원을 불러오지 못했습니다\n\n{ex.Message}\n\n{ex.StackTrace}");
+						__instance.ShowMessage($"전투원을 불러오지 못했습니다\n\n{ex.Message}");
+						Plugin.Logger.LogWarning(ex.ToString());
 					}
 				}));
 			}
