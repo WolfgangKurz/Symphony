@@ -633,16 +633,17 @@ namespace Symphony.Features {
 						var GREY = Common.COLOR_GREY;
 						var END = Common.COLOR_END;
 
-						var parts = input.Split(':');
-						if (
-							parts[0] != "Symphony" ||
-							parts[1] != "Char" ||
-							!int.TryParse(parts[2], out var codeVer) || codeVer < 0 || codeVer > CharShareCodeVersion ||
-							parts[parts.Length - 1] != "END" ||
+						var parts = input.Trim().Split(':');
+						if (parts[0] != "Symphony") throw new FormatException($"Invalid header: '{parts[0]}'");
+						if (parts[1] != "Char") throw new FormatException($"Invalid category: '{parts[1]}'");
+						if(!int.TryParse(parts[2], out var codeVer) || codeVer < 0 || codeVer > CharShareCodeVersion) 
+							throw new FormatException($"Invalid version: '{parts[2]}'");
+						if (parts[parts.Length - 1] != "END") throw new FormatException($"Invalid finalizer: '{parts[parts.Length - 1]}'");
 
+						if(
 							!dataManager.GetTableCharCollection($"Char_{parts[3]}_N").Try(out var chr) ||
 							!dataManager.GetTablePC(chr.Char_Key).Try(out var tpc)
-						) throw new FormatException("Invalid ShareText Format, header or version or finalizer mismatch");
+						) throw new FormatException($"Invalid character, '{parts[3]}'");
 
 						if(tpc.Key != pc.PCTable.Key) {
 							__instance.ShowMessage(string.Format(
@@ -652,7 +653,7 @@ namespace Symphony.Features {
 							return;
 						}
 
-						if (codeVer == 1 && parts.Length != 14) throw new FormatException("Invalid ShareText Format, length mismatch");
+						if (codeVer == 1 && parts.Length != 14) throw new FormatException("Invalid parts length");
 
 						var MaxGrade = tpc.StartGrade;
 						while(true) {
