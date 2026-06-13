@@ -125,88 +125,94 @@ namespace Symphony.Features {
 			var src = rewardList.ToArray();
 
 			rewardList.Clear();
-			rewardList.AddRange(src.Aggregate(
-				new List<(WebGiveRewardInfo rewardInfo, Table_Facility facilityTable, long Facility_uid)>(),
-				(p, c) => {
-					if (!(c is object[])) return p;
+			try {
+				rewardList.AddRange(src.Aggregate(
+					new List<(WebGiveRewardInfo rewardInfo, Table_Facility facilityTable, long Facility_uid)>(),
+					(p, c) => {
+						if (!(c is object[])) return p;
 
-					var o = c as object[];
-					if (!(
-						o.Length == 3 &&
-						o[0] is WebGiveRewardInfo && o[1] is Table_Facility && o[2] is long
-					)) return p;
+						var o = c as object[];
+						if (!(
+							o.Length == 3 &&
+							o[0] is WebGiveRewardInfo && o[1] is Table_Facility && o[2] is long
+						)) return p;
 
-					var rewardInfo = o[0] as WebGiveRewardInfo;
-					var facilityTable = o[1] as Table_Facility;
-					var Facility_uid = (long)o[2];
+						var rewardInfo = o[0] as WebGiveRewardInfo;
+						var facilityTable = o[1] as Table_Facility;
+						var Facility_uid = (long)o[2];
 
-					if (rewardInfo.AddMetal > 0) {
-						var idx = p.FindIndex(x => x.rewardInfo.AddMetal > 0);
-						if (idx >= 0)
-							p[idx].rewardInfo.AddMetal += rewardInfo.AddMetal;
-						else
-							p.Add((new() { AddMetal = rewardInfo.AddMetal }, facilityTable, Facility_uid));
-					}
-					if (rewardInfo.AddNutrient > 0) {
-						var idx = p.FindIndex(x => x.rewardInfo.AddNutrient > 0);
-						if (idx >= 0)
-							p[idx].rewardInfo.AddNutrient += rewardInfo.AddNutrient;
-						else
-							p.Add((new() { AddNutrient = rewardInfo.AddNutrient }, facilityTable, Facility_uid));
-					}
-					if (rewardInfo.AddPower > 0) {
-						var idx = p.FindIndex(x => x.rewardInfo.AddPower > 0);
-						if (idx >= 0)
-							p[idx].rewardInfo.AddPower += rewardInfo.AddPower;
-						else
-							p.Add((new() { AddPower = rewardInfo.AddPower }, facilityTable, Facility_uid));
-					}
-
-					if (rewardInfo.PCRewardList != null && rewardInfo.PCRewardList.Count > 0)
-						// PCRewardList should be 1-lengthed list
-						p.Add((new() { PCRewardList = rewardInfo.PCRewardList }, facilityTable, Facility_uid));
-
-					if (rewardInfo.ItemRewardList != null && rewardInfo.ItemRewardList.Count > 0) {
-						foreach (var item in rewardInfo.ItemRewardList) {
-							if (item.Info.ItemType != 4) continue;
-
-							var idx = p.FindIndex(x =>
-								x.rewardInfo.ItemRewardList != null &&
-								x.rewardInfo.ItemRewardList[0].Info.ItemKeyString == item.Info.ItemKeyString
-							);
-
-							var item2 = SingleTon<DataManager>.Instance.GetItem(item.Info.ItemSN);
-							if (item2 == null) continue;
-
+						if (rewardInfo.AddMetal > 0) {
+							var idx = p.FindIndex(x => x.rewardInfo.AddMetal > 0);
 							if (idx >= 0)
-								p[idx].rewardInfo.ItemRewardList[0].Info.StackCount += item2.StackCount - item2.BeforeStatckCount;
+								p[idx].rewardInfo.AddMetal += rewardInfo.AddMetal;
 							else
-								p.Add((new() {
-									ItemRewardList = new() {
-										new UpdateItemInfo {
-											UpdateType = item.UpdateType,
-											Info = new ItemInfo(
-												item.Info.ItemUID,
-												item.Info.ItemSN,
-												item.Info.ItemType,
-												item.Info.ItemKeyString,
-												item2.StackCount - item2.BeforeStatckCount,
-												item.Info.InvenCategory,
-												item.Info.EnchantLevel,
-												item.Info.IsLock,
-												item.Info.EnchantPoint,
-												item.Info.EquippedPCID,
-												item.Info.EquipSlot
-											)
-										}
-									}
-								}, facilityTable, Facility_uid));
+								p.Add((new() { AddMetal = rewardInfo.AddMetal }, facilityTable, Facility_uid));
 						}
-					}
+						if (rewardInfo.AddNutrient > 0) {
+							var idx = p.FindIndex(x => x.rewardInfo.AddNutrient > 0);
+							if (idx >= 0)
+								p[idx].rewardInfo.AddNutrient += rewardInfo.AddNutrient;
+							else
+								p.Add((new() { AddNutrient = rewardInfo.AddNutrient }, facilityTable, Facility_uid));
+						}
+						if (rewardInfo.AddPower > 0) {
+							var idx = p.FindIndex(x => x.rewardInfo.AddPower > 0);
+							if (idx >= 0)
+								p[idx].rewardInfo.AddPower += rewardInfo.AddPower;
+							else
+								p.Add((new() { AddPower = rewardInfo.AddPower }, facilityTable, Facility_uid));
+						}
 
-					return p;
-				}
-			).Select(x => new object[] { x.rewardInfo, x.facilityTable, x.Facility_uid }));
+						if (rewardInfo.PCRewardList != null && rewardInfo.PCRewardList.Count > 0)
+							// PCRewardList should be 1-lengthed list
+							p.Add((new() { PCRewardList = rewardInfo.PCRewardList }, facilityTable, Facility_uid));
+
+						if (rewardInfo.ItemRewardList != null && rewardInfo.ItemRewardList.Count > 0) {
+							foreach (var item in rewardInfo.ItemRewardList) {
+								if (item.Info.ItemType != 4) continue;
+
+								var item2 = SingleTon<DataManager>.Instance.GetItem(item.Info.ItemSN);
+								if (item2 == null) continue;
+
+								var idx = p.FindIndex(x =>
+									x.rewardInfo.ItemRewardList?.Count > 0 &&
+									x.rewardInfo.ItemRewardList[0].Info.ItemKeyString == item.Info.ItemKeyString
+								);
+
+								if (idx >= 0)
+									p[idx].rewardInfo.ItemRewardList[0].Info.StackCount += item2.StackCount - item2.BeforeStatckCount;
+								else
+									p.Add((new() {
+										ItemRewardList = new() {
+											new UpdateItemInfo {
+												UpdateType = item.UpdateType,
+												Info = new ItemInfo(
+													item.Info.ItemUID,
+													item.Info.ItemSN,
+													item.Info.ItemType,
+													item.Info.ItemKeyString,
+													item2.StackCount - item2.BeforeStatckCount,
+													item.Info.InvenCategory,
+													item.Info.EnchantLevel,
+													item.Info.IsLock,
+													item.Info.EnchantPoint,
+													item.Info.EquippedPCID,
+													item.Info.EquipSlot
+												)
+											}
+										}
+									}, facilityTable, Facility_uid));
+							}
+						}
+
+						return p;
+					}
+				).Select(x => new object[] { x.rewardInfo, x.facilityTable, x.Facility_uid }));
+			} catch {
+				// restore original list
+				rewardList.Clear();
+				rewardList.AddRange(src);
+			}
 		}
 		private static bool Panel_FacilityRewardResultAll_RewardView(
 			Panel_FacilityRewardResultAll __instance,
