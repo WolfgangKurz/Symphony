@@ -474,6 +474,29 @@ namespace Symphony {
 					return true;
 			return false;
 		}
+
+		public static bool Try<T>(this T obj, out T result) where T : class => obj.Try(x => x != null, out result);
+		public static bool Try<T>(this T obj, Func<T, bool> predicate, out T result) {
+			if (predicate(obj)) {
+				result = obj;
+				return true;
+			}
+			else {
+				result = default;
+				return false;
+			}
+		}
+
+		public static bool Try<T, R>(this T obj, Func<T, bool> predicate, Func<T, R> map, out R result) {
+			if (predicate(obj)) {
+				result = map(obj);
+				return true;
+			}
+			else {
+				result = default;
+				return false;
+			}
+		}
 		#endregion
 
 		#region LastOrigin

@@ -1,4 +1,8 @@
-﻿using HarmonyLib;
+﻿using Colorful;
+
+using GlobalDefines;
+
+using HarmonyLib;
 
 using LO_ClientNetwork;
 
@@ -11,7 +15,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 using UnityEngine;
-using UnityEngine.XR;
 
 namespace Symphony.Features {
 	[Feature("Automation")]
@@ -425,10 +428,9 @@ namespace Symphony.Features {
 		private static void Patch_CharacterShare(Panel_CharacterDetails __instance) {
 			if (!Conf.Automation.Use_CharacterShare.Value) return;
 
-			var pc = __instance.XGetFieldValue<ClientPcInfo>("_SelectPCInfo");
 			var _goFavorMarriageIcon = __instance.XGetFieldValue<GameObject>("_goFavorMarriageIcon");
-			if (pc == null || _goFavorMarriageIcon == null) {
-				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Cannot get client PC info or source button from scene");
+			if (_goFavorMarriageIcon == null) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Cannot get source button from scene");
 				return;
 			}
 
@@ -473,54 +475,70 @@ namespace Symphony.Features {
 
 				btn.onClick.Clear();
 				btn.onClick.Add(new EventDelegate(() => {
-					var sb = new StringBuilder();
-					sb.AppendFormat("Symphony:{0}:", CharShareCodeVersion);
+					__instance.ShowMessageChoice(
+						"클립보드로 복사하시겠습니까?",
+						"전투원 공유하기",
+						"예",
+						"아니오",
+						GlobalDefines.MessageType.YESNO_CHOICE,
+						() => {
+							var pc = __instance.XGetFieldValue<ClientPcInfo>("_SelectPCInfo");
 
-					sb.AppendFormat(
-						"{0}:{1}:{2}:{3}:{4}:",
-						new Regex(@"^Char_(.+)_N$").Replace(pc.Index, "$1"),
-						pc.Level,
-						pc.FavorPoint >= 20000 ? "Y" : "N",
-						pc.CoreLinkBonus_KeyString,
-						pc.GetTotalCoreValue() // CoreLink Suitability
+							var sb = new StringBuilder();
+							sb.AppendFormat("Symphony:Char:{0}:", CharShareCodeVersion);
+
+							sb.AppendFormat(
+								"{0}:{1}:{2}:{3}:{4}:{5}:",
+								new Regex(@"^Char_(.+)_N$").Replace(pc.Index, "$1"),
+								pc.Grade,
+								pc.Level,
+								pc.FavorPoint >= 20000 ? "Y" : "N",
+								pc.CoreLinkBonus_KeyString,
+								pc.GetTotalCoreValue() // CoreLink Suitability
+							);
+
+							// Stat levels
+							ACTOR_ATTR_TYPE[] attrs = [
+								ACTOR_ATTR_TYPE.HP,
+								ACTOR_ATTR_TYPE.ATK,
+								ACTOR_ATTR_TYPE.DEF,
+								ACTOR_ATTR_TYPE.APPLY,
+								ACTOR_ATTR_TYPE.EVADE,
+								ACTOR_ATTR_TYPE.CRI
+							];
+							sb.AppendFormat("{0}:",
+								string.Join(",", attrs.Select(
+									attr => pc.PCEnchantAttrInfoList
+										.FirstOrDefault(x => x.AttrType == (byte)attr)?.EnchantAfterCount ?? 0
+								))
+							);
+
+							// Equip key & levels
+							var equips = pc.XGetFieldValue<List<EquippedItemMok>>("equippedItemList");
+							if (equips == null)
+								sb.Append(":");
+							else
+								sb.AppendFormat("{0}:", string.Join(",", equips.Select(x => $"{x.Data.Key};{x.EnchantLevel}")));
+
+							// Priority skill
+							sb.AppendFormat("{0}:", pc.AIInfo.FirstSkillSlotType);
+
+							// Skill levels
+							sb.AppendFormat("{0}:", string.Join(",", pc.HaveSkillList.OrderBy(x => x.SkillKeyString).Select(x => $"{x.SkillLevel}")));
+
+							sb.Append("END");
+
+							var shareText = sb.ToString();
+							Plugin.Logger.LogMessage($"[Symphony::Automation] Export unit data '{shareText}'");
+
+							try {
+								GUIUtility.systemCopyBuffer = shareText;
+								__instance.ShowMessage($"복사되었습니다");
+							} catch {
+								__instance.ShowMessage($"복사에 실패했습니다");
+							}
+						}
 					);
-
-					// Stat levels
-					ACTOR_ATTR_TYPE[] attrs = [
-						ACTOR_ATTR_TYPE.HP,
-						ACTOR_ATTR_TYPE.ATK,
-						ACTOR_ATTR_TYPE.DEF,
-						ACTOR_ATTR_TYPE.APPLY,
-						ACTOR_ATTR_TYPE.EVADE,
-						ACTOR_ATTR_TYPE.CRI
-					];
-					sb.AppendFormat("{0}:",
-						string.Join(",", attrs.Select(
-							attr => pc.PCEnchantAttrInfoList
-								.FirstOrDefault(x => x.AttrType == (byte)attr)?.EnchantAfterCount ?? 0
-						))
-					);
-
-					// Equip key & levels
-					var equips = pc.XGetFieldValue<List<EquippedItemMok>>("equippedItemList");
-					if (equips == null)
-						sb.Append(":");
-					else
-						sb.AppendFormat("{0}:", string.Join(",", equips.Select(x => $"{x.Data.Key};{x.EnchantLevel}")));
-
-					// Priority skill
-					sb.AppendFormat("{0}:", pc.AIInfo.FirstSkillSlotType);
-
-					// Skill levels
-					sb.AppendFormat("{0}:", string.Join(",", pc.HaveSkillList.OrderBy(x => x.SkillKeyString).Select(x => $"{x.SkillLevel}")));
-
-					sb.Append("END");
-
-					var shareText = sb.ToString();
-					Plugin.Logger.LogMessage($"[Symphony::Automation] Export unit data '{shareText}'");
-					__instance.ShowMessage($"복사되었습니다.\n\n{shareText}");
-
-					// TODO: Copy to clipboard
 				}));
 			}
 			#endregion
@@ -562,7 +580,439 @@ namespace Symphony.Features {
 
 				btn.onClick.Clear();
 				btn.onClick.Add(new EventDelegate(() => {
-					// TODO
+					try {
+						var input = GUIUtility.systemCopyBuffer;
+
+						var dataManager = SingleTon<DataManager>.Instance;
+						var pc = __instance.XGetFieldValue<ClientPcInfo>("_SelectPCInfo");
+
+						string[] RARITIES = ["Ｂ", "Ａ", "Ｓ", "SS", "SSS"]; // use full-width to avoid BBCode
+						string getRarity(int r) {
+						var sb = new StringBuilder();
+							sb.Append("[");
+							if (r < 2 || r >= RARITIES.Length + 2)
+								sb.Append("？");
+							else
+								sb.Append(RARITIES[r - 2]);
+							sb.Append("]");
+							return sb.ToString();
+						}
+
+						var SKILLS = pc.HaveSkillList.OrderBy(x => x.SkillKeyString).ToArray();
+						SkillInfo getSkill(int i) => i < 0 || i >= SKILLS.Length ? null : SKILLS[i];
+
+						ACTOR_ATTR_TYPE[] ATTRS = [
+							ACTOR_ATTR_TYPE.HP,
+							ACTOR_ATTR_TYPE.ATK,
+							ACTOR_ATTR_TYPE.DEF,
+							ACTOR_ATTR_TYPE.APPLY,
+							ACTOR_ATTR_TYPE.EVADE,
+							ACTOR_ATTR_TYPE.CRI
+						];
+
+						var ALL_EQUIPS = dataManager.GetAllEquipItem();
+						var FREE_ITEMS = ALL_EQUIPS.Where(x => x.EquippedPCID == 0).ToList();
+						var EQUIPPED_ITEMS = ALL_EQUIPS.Where(x => x.EquippedPCID != 0).ToList();
+						var EQUIPPING = pc.XGetFieldValue<List<ClientItemInfo>>("equipClientItemInfo");
+
+						var loaders = new List<Func<IEnumerator>>();
+
+						var RED = Common.COLOR_RED;
+						var GREEN = Common.COLOR_GREEN;
+						var YELLOW = Common.COLOR_YELLOW;
+						var CYAN = Common.COLOR_BLUE;
+						var ORANGE = Common.COLOR_EXPANDLEVEL_MAX;
+						var DEEP_YELLOW = Common.COLOR_DIALOG_CHOICE;
+						var DARK_GREY = "[c][5e5e61]"; // Common.COLOR_GREY;
+						var GREY = Common.COLOR_GREY;
+						var END = Common.COLOR_END;
+
+						var parts = input.Split(':');
+						if (
+							parts[0] != "Symphony" ||
+							parts[1] != "Char" ||
+							!int.TryParse(parts[2], out var codeVer) || codeVer < 0 || codeVer > CharShareCodeVersion ||
+							parts[parts.Length - 1] != "END" ||
+
+							!dataManager.GetTableCharCollection($"Char_{parts[3]}_N").Try(out var chr) ||
+							!dataManager.GetTablePC(chr.Char_Key).Try(out var tpc)
+						) throw new FormatException("Invalid ShareText Format, header or version or finalizer mismatch");
+
+						if(tpc.Key != pc.PCTable.Key) {
+							__instance.ShowMessage(string.Format(
+								"복사된 공유 코드는 {0} 대상입니다",
+								ORANGE + tpc.Name.Localize() + END
+							));
+							return;
+						}
+
+						if (codeVer == 1 && parts.Length != 14) throw new FormatException("Invalid ShareText Format, length mismatch");
+
+						var sb = new StringBuilder();
+						var sbWarn = new StringBuilder();
+						if (codeVer < CharShareCodeVersion) {
+							sb.AppendLine(YELLOW + "이전 버전에서 생성된 공유 코드입니다." + END);
+							sb.AppendLine();
+						}
+
+						if (codeVer >= 1) {
+							if (!int.TryParse(parts[4], out var rarity) || rarity < tpc.StartGrade || rarity > tpc.MaxGrade)
+								throw new FormatException("Invalid Rarity");
+
+							if (!int.TryParse(parts[5], out var lv) || lv <= 0 || lv > 120)
+								throw new FormatException("Invalid Level");
+
+							if (!parts[6].Try((x => x == "Y" || x == "N"), (x => x == "Y"), out var favor200))
+								throw new FormatException("Invalid Favor");
+
+							if (!dataManager.GetTableCoreLinkBonus(parts[7]).Try(x => parts[7].Length == 0 || x != null, out var fullLink))
+								throw new FormatException("Invalid FullLinkBonus");
+
+							if (!float.TryParse(parts[8], out var coreBonus) || coreBonus < 0 || coreBonus > 500)
+								throw new FormatException("Invalid CoreLinkBonus");
+
+							if (
+								!parts[9].Split(',').Try(out var attrs_raw) || attrs_raw.Length != 6 ||
+								!attrs_raw
+									.Select(x => {
+										if (!int.TryParse(x, out var attr)) return -1;
+										if (attr < 0 || attr > lv * 3) return -1;
+										return attr;
+									})
+									.Where(x => x >= 0)
+									.ToArray()
+									.Try(x => x.Length == 6, out var attrs)
+							) throw new FormatException("Invalid Attrs");
+
+							if (
+								!parts[10].Split(',').Try(out var equips_raw) || equips_raw.Length > 4 ||
+								!equips_raw
+									.Select(x => {
+										var p = x.Split(';');
+										if (p.Length != 2 || !int.TryParse(p[1], out var elv)) return (null, 0);
+
+										var eq = dataManager.GetTableItemEquip(p[0]);
+										if (eq == null) return (null, 0);
+
+										return (equip: eq, lv: elv);
+									})
+									.Where(x => x.equip != null)
+									.ToArray()
+									.Try(out var equips) ||
+								equips.Count(x => (ITEM_TYPE)x.equip.ItemType == ITEM_TYPE.CHIP) > 2 ||
+								equips.Count(x => (ITEM_TYPE)x.equip.ItemType == ITEM_TYPE.SPCHIP) > 1 || // OS
+								equips.Count(x => (ITEM_TYPE)x.equip.ItemType == ITEM_TYPE.SUBEQ) > 1 // Gear
+							) throw new FormatException("Invalid Equips");
+
+							if (!int.TryParse(parts[11], out var prioSkill) || prioSkill < 0 || prioSkill > 1)
+								throw new FormatException("Invalid PrioSkill");
+
+							if (
+								!parts[12].Split(',').Try(out var skills_raw) ||
+								!skills_raw
+									.Select(x => {
+										if (!int.TryParse(x, out var slv)) return 0;
+										if (slv < 0 || slv > 10) return 0;
+										return slv;
+									})
+									.Where(x => x >= 0)
+									.ToArray()
+									.Try(out var skills) || skills.Length != rarity
+							) throw new FormatException("Invalid Skill");
+
+
+							sb.AppendLine(string.Format(
+								"{0} {1} {2} {3}",
+								(pc.Grade == rarity ? YELLOW : RED) + getRarity(rarity) + END,
+								(pc.Level >= lv ? ORANGE : RED) + $"Lv.{lv}" + END,
+								chr.Char_Name.Localize(),
+								favor200
+									? pc.FavorPoint < 20000
+										? RED + "[호감도 200]" + END
+										: ORANGE + "[호감도 200]" + END
+									: DARK_GREY + "[호감도 200]" + END
+							));
+							sb.AppendLine(string.Format(
+								"{0} {1} {2} {3}",
+								GREY + "코어링크 :" + END,
+								(pc.GetTotalCoreValue() >= coreBonus ? CYAN : END) + $"{coreBonus}%" + END,
+								DARK_GREY + "/" + END,
+								fullLink == null
+									? DARK_GREY + "없음" + END
+									: CYAN + StringHelper.GetFullLinkBonusMsg(fullLink.Key) + END
+							));
+
+							sb.AppendLine(string.Format(
+								"{0}    {1}    {2}    {3}    {4}    {5}",
+								GREY + "HP " + END + CYAN + $"+{attrs[0]}" + END,
+								GREY + "공격력 " + END + CYAN + $"+{attrs[1]}" + END,
+								GREY + "방어력 " + END + CYAN + $"+{attrs[2]}" + END,
+								GREY + "적중률 " + END + CYAN + $"+{attrs[3]}" + END,
+								GREY + "회피율 " + END + CYAN + $"+{attrs[4]}" + END,
+								GREY + "치명타 " + END + CYAN + $"+{attrs[5]}" + END
+							));
+
+							sb.AppendLine(string.Format(
+								"{0}{1}",
+								GREY + "스킬 : " + END,
+								string.Join(
+									DARK_GREY + " / " + END,
+									skills.Select((x, i) => {
+										var y = getSkill(i)?.SkillLevel >= x
+											? x.ToString()
+											: RED + x + END;
+										if (i == prioSkill)
+											return GREEN + "<" + y + ">" + END;
+										return y;
+									})
+								)
+							));
+
+							var eqi = 0;
+							foreach (var eq in equips) {
+								if (eqi > 0) {
+									if (eqi % 2 == 0)
+										sb.AppendLine();
+									else
+										sb.Append("    ");
+								}
+								sb.Append(string.Format(
+									"{0} {1} {2}",
+									YELLOW + getRarity(eq.equip.ItemGrade) + END,
+									eq.equip.ItemName.Localize(),
+									DEEP_YELLOW + $"+{eq.lv}" + END
+								));
+
+								eqi++;
+							}
+							sb.AppendLine();
+
+
+							if (pc.Grade != rarity) sbWarn.AppendLine(ORANGE + "※ 등급이 일치하지 않습니다" + END);
+							if (pc.Level < lv) sbWarn.AppendLine(ORANGE + "※ 레벨이 부족합니다" + END);
+							if (favor200 && pc.FavorPoint < 20000) sbWarn.AppendLine(ORANGE + "※ 호감도 보너스가 부족합니다" + END);
+							if (pc.GetTotalCoreValue() < coreBonus) sbWarn.AppendLine(ORANGE + "※ 코어링크 적합률이 부족합니다" + END);
+							if (SKILLS.Any((x, i) => x.SkillLevel < (i >= skills.Length ? 0 : skills[i])))
+								sbWarn.AppendLine(ORANGE + "※ 스킬 레벨이 부족합니다" + END);
+
+							var groupedEquips = equips.Aggregate(
+								new List<(Table_ItemEquip equip, int lv, int count)>(),
+								(p, c) => {
+									var idx = p.FindIndex(x => x.equip.Key == c.equip.Key && x.lv == c.lv);
+									if (idx >= 0) {
+										var v = p[idx];
+										v.count++;
+										p[idx] = v;
+									}
+									else
+										p.Add((c.equip, c.lv, 1));
+
+									return p;
+								}
+							);
+							foreach (var geq in groupedEquips) {
+								var FreeCount = FREE_ITEMS.Count(x => x.ItemKeyString == geq.equip.Key && x.EnchantLevel == geq.lv);
+								var MatchCount = EQUIPPING.Count(x => x.ItemKeyString == geq.equip.Key && x.EnchantLevel == geq.lv);
+								if (FreeCount < geq.count - MatchCount) {
+									var EquipCount = EQUIPPED_ITEMS.Count(x => x.ItemKeyString == geq.equip.Key && x.EnchantLevel == geq.lv) - MatchCount;
+									sbWarn.AppendLine(string.Format(
+										"{0}{1}{2}  {3}{4}{5}",
+										ORANGE + "※ 장착중이지 않은 " + END,
+										string.Format(
+											"{0} {1} {2}",
+											YELLOW + getRarity(geq.equip.ItemGrade) + END,
+											geq.equip.ItemName.Localize(),
+											DEEP_YELLOW + $"+{geq.lv}" + END
+										),
+										ORANGE + " 이(가) 부족합니다" + END,
+										DARK_GREY + "(" + END,
+										CYAN + EquipCount + END,
+										GREY + "개 장착중" + END + GREY + ")" + END
+									));
+								}
+							}
+
+							IEnumerator loader() {
+								#region FullLinkBonus
+								// Set when only char have enough corelink suitability
+								if (pc.GetTotalCoreValue() == (float)Const.MAX_TOTAL_CORE_VALUE) {
+									var key = fullLink?.Key ??
+										dataManager.GetFullLinkBonusKey(pc.Index).FirstOrDefault(x => x.StartsWith("Core_Bonus_Cost_"));
+
+									if (pc.CoreLinkBonus_KeyString != key) {
+										__instance.ShowWaitMessage(show: true);
+										C2WPacket.Send_C2W_SET_COREBONUS(dataManager.AccessToken, dataManager.WID, pc.PCId, key);
+										yield return new WaitUntil(() => !InstantPanel.IsWait());
+									}
+								}
+								#endregion
+
+								#region Stats
+								if (pc.MaxEnchantCount >= attrs.Sum()) { // enough stat value?
+									var needReset = pc.PCEnchantAttrInfoList.Any(x => {
+										var idx = Array.FindIndex(ATTRS, y => (byte)y == x.AttrType);
+										if (idx < 0) return true;
+
+										return x.EnchantAfterCount > attrs[idx];
+									});
+
+									var pCEnchantInfo = new PCEnchantInfo();
+									pCEnchantInfo.HPValue = attrs[0];
+									pCEnchantInfo.AtkValue = attrs[1];
+									pCEnchantInfo.DefValue = attrs[2];
+									pCEnchantInfo.AccValue = attrs[3];
+									pCEnchantInfo.EvadeValue = attrs[4];
+									pCEnchantInfo.CriValue = attrs[5];
+
+									if (needReset) {
+										__instance.ShowWaitMessage(show: true);
+										C2WPacket.Send_C2W_PCENCHANT_RESET(dataManager.AccessToken, dataManager.WID, pc.PCId);
+										yield return new WaitUntil(() => !InstantPanel.IsWait());
+									}
+
+									__instance.ShowWaitMessage(show: true);
+									C2WPacket.Send_C2W_PC_ENCHANT(dataManager.AccessToken, dataManager.WID, pc.PCId, pCEnchantInfo);
+									yield return new WaitUntil(() => !InstantPanel.IsWait());
+								}
+								#endregion
+
+								#region PrioSkill
+								if (pc.AIInfo.FirstSkillSlotType != prioSkill) {
+									var pCAIInfo = UtilityEx.DeepCopy(pc.AIInfo) as PCAIInfo;
+									pCAIInfo.FirstSkillSlotType = (byte)prioSkill;
+
+									__instance.ShowWaitMessage(show: true);
+									C2WPacket.Send_C2W_PCAI_CHANGE(dataManager.AccessToken, dataManager.WID, pCAIInfo);
+									yield return new WaitUntil(() => !InstantPanel.IsWait());
+								}
+								#endregion
+
+								#region Equips
+								{
+									var slots = dataManager.GetTablePcEquipSlot(pc.PCId).GetPcEquipSlot()
+										.Where(x => x != ITEM_TYPE.PCITEM)
+										.ToArray();
+									var occupiedSlots = pc.PCEquipSlotList
+										.Where(x => x.EquippedItemInfo.ItemType != (byte)ITEM_TYPE.PCITEM)
+										.Select(x => x.SlotNo)
+										.ToHashSet();
+
+									var equipCache = new HashSet<ulong>();
+									var equips_to_equip = equips
+										.Where(x => {
+											var e = EQUIPPING.FirstOrDefault(y =>
+												y.ItemKeyString == x.equip.Key &&
+												y.EnchantLevel == x.lv &&
+												!equipCache.Contains(y.ItemUID)
+											);
+											if (e != null) {
+												equipCache.Add(e.ItemUID);
+												return false;
+											}
+											return true;
+										})
+										.ToList();
+									
+									// Unequip not-matched
+									foreach (var eq in EQUIPPING.Where(x => !equipCache.Contains(x.ItemUID)).ToList()) {
+										__instance.ShowWaitMessage(show: true);
+										C2WPacket.Send_C2W_UNSET_EQUIPITEM(
+											dataManager.AccessToken, dataManager.WID,
+											eq.EquippedPCID,
+											eq.ItemSN
+										);
+										yield return new WaitUntil(() => !InstantPanel.IsWait());
+
+										occupiedSlots.Remove(eq.EquipSlot);
+
+										EQUIPPING.Remove(eq);
+										EQUIPPED_ITEMS.Remove(eq);
+										FREE_ITEMS.Add(eq);
+									}
+
+									var isPartial = false;
+									foreach (var teq in equips_to_equip) {
+										var eq = FREE_ITEMS.FirstOrDefault(x =>
+											x.ItemKeyString == teq.equip.Key &&
+											x.EnchantLevel == teq.lv
+										);
+										if(eq == null) {
+											isPartial = true;
+											continue;
+										}
+
+										var slot = -1;
+										for (var i = 0; i < slots.Length; i++) {
+											if (slots[i] != (ITEM_TYPE)eq.ItemType) continue;
+
+											var slotNo = (byte)(1 + i * 2);
+											if (occupiedSlots.Contains(slotNo)) continue;
+
+											slot = slotNo;
+											occupiedSlots.Add(slotNo);
+											break;
+										}
+										if(slot == -1) {
+											isPartial = true;
+											continue;
+										}
+
+										__instance.ShowWaitMessage(show: true);
+										C2WPacket.Send_C2W_SET_EQUIPITEM(
+											dataManager.AccessToken, dataManager.WID,
+											eq.ItemSN,
+											eq.InvenCategory,
+											eq.ItemKeyString,
+											pc.PCId,
+											pc.Index,
+											(byte)slot
+										);
+										yield return new WaitUntil(() => !InstantPanel.IsWait());
+
+										FREE_ITEMS.Remove(eq);
+										EQUIPPED_ITEMS.Add(eq);
+										EQUIPPING.Add(eq);
+									}
+									
+									if (isPartial)
+										__instance.ShowMessage("일부 장비를 장착하지 못했습니다.");
+								}
+								#endregion
+							}
+							loaders.Add(loader);
+						}
+
+						sb.AppendLine();
+						sb.AppendLine(sbWarn.ToString());
+
+						sb.AppendLine("이대로 불러오시겠습니까?");
+
+						var msg = __instance.ShowMessageChoice(
+							sb.ToString(),
+							"전투원 불러오기",
+							"예",
+							"아니오",
+							GlobalDefines.MessageType.YESNO_CHOICE,
+							() => {
+								IEnumerator fn() {
+									foreach (var loader in loaders)
+										yield return loader();
+								}
+								__instance.StartCoroutine(fn());
+							}
+						);
+
+						var label = msg.XGetFieldValue<UILabel>("labelMessage");
+						label.overflowMethod = UILabel.Overflow.ShrinkContent;
+						label.spacingY = 5;
+						label.width = 1500;
+						label.height = 500;
+						msg.subMsg = " ";
+					} catch(FormatException) {
+						__instance.ShowMessage($"올바르지 않은 공유 코드입니다");
+					} catch(Exception ex) {
+						__instance.ShowMessage($"전투원을 불러오지 못했습니다\n\n{ex.Message}\n\n{ex.StackTrace}");
+					}
 				}));
 			}
 			#endregion

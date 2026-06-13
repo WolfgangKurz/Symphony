@@ -579,10 +579,11 @@ namespace Symphony.UI.Panels {
 
 							DrawToggle(ref offset, "'전투원 공유' 기능 사용하기", Conf.Automation.Use_CharacterShare);
 							DrawLabel(ref offset, """
+※ 아직 실험중인 기능입니다.
 사용중인 전투원의 스탯, 장비, 풀링크 보너스 등을 포함한 공유 문자열로 내보내거나, 불러오는 기능입니다.
 전투원의 레벨과 스킬 레벨, 링크, 호감도 차이는 경고 메시지를 출력합니다.
 불러올 때 전투원의 스탯, 우선 스킬, 장비 장착이 자동으로 이루어집니다.
-장비 장착은 해제된 장비만 장착하며, 부족한 경우 장착중인 전투원을 표시합니다.
+강화 레벨이 일치하고 해제된 장비만 장착합니다.
 """, Color_description, 12);
 
 							DrawSeparator(ref offset);
