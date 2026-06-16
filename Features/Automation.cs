@@ -823,7 +823,7 @@ namespace Symphony.Features {
 								sb.AppendLine(string.Format(
 									"{0} {1} {2} {3}",
 									GREY + "코어링크 :" + END,
-									(pc.GetTotalCoreValue() >= coreBonus ? CYAN : END) + $"{coreBonus}%" + END,
+									(pc.GetTotalCoreValue() >= coreBonus ? CYAN : RED) + $"{coreBonus}%" + END,
 									DARK_GREY + "/" + END,
 									fullLink == null
 										? DARK_GREY + "없음" + END
@@ -845,14 +845,21 @@ namespace Symphony.Features {
 									GREY + "스킬 : " + END,
 									string.Join(
 										DARK_GREY + " / " + END,
-										skills.Select((x, i) => {
-											var y = getSkill(i)?.SkillLevel >= x
-												? x.ToString()
-												: RED + x + END;
-											if (i == prioSkill)
-												return GREEN + "<" + y + ">" + END;
-											return y;
-										})
+										skills
+											.Concat(Enumerable.Repeat<int>(-1, SKILLS.Length))
+											.Take(Math.Max(skills.Length, SKILLS.Length))
+											.Select((targetSkillLv, i) => {
+												var pcSkillLevel = getSkill(i)?.SkillLevel;
+												if (targetSkillLv == -1) // data to load is lesser
+													return $"{GREY}{pcSkillLevel}{END}";
+
+												var y = pcSkillLevel >= targetSkillLv
+													? targetSkillLv.ToString()
+													: $"{RED}{targetSkillLv}{END}";
+												if (i == prioSkill)
+													return $"{GREEN}<{END}{y}{GREEN}>{END}";
+												return y;
+											})
 									)
 								));
 
@@ -1369,7 +1376,8 @@ namespace Symphony.Features {
 						var GREY = Common.COLOR_GREY;
 						var END = Common.COLOR_END;
 
-						var load_pcList = new List<(int slotId, ClientPcInfo pc, string message, Func<IEnumerator>[] loaders)[]>();
+						var idsToRefresh = new List<ulong>();
+						var load_pcList = new List<IEnumerable<(int slotId, ClientPcInfo pc, string message, Func<IEnumerator>[] loaders)>>();
 						try {
 							var curSquadPCs = curSquad?.GetSquadClientPcsInfo();
 							ClientPcInfo[] FindBestPc(string key, int rarity, int lv, bool favor200, float coreBonus, Table_CoreLinkBonus fullLink) {
@@ -1482,6 +1490,12 @@ namespace Symphony.Features {
 									yield break;
 								}
 
+								idsToRefresh.AddRange(
+									pcs
+										.Where(x => x.HaveSkillList.Count == 0 || x.HaveSkillList[0] == null)
+										.Select(x => x.PCId)
+								);
+
 								int[] attrs = [];
 								(Table_ItemEquip equip, int lv)[] equips = [];
 								int prioSkill = 0;
@@ -1541,7 +1555,6 @@ namespace Symphony.Features {
 									.Select(pc => {
 										var loaders = new List<Func<IEnumerator>>();
 										var SKILLS = pc.HaveSkillList.OrderBy(x => x.SkillKeyString).ToArray();
-										SkillInfo getSkill(int i) => i < 0 || i >= SKILLS.Length ? null : SKILLS[i];
 										var EQUIPPING = pc.XGetFieldValue<List<ClientItemInfo>>("equipClientItemInfo");
 
 										var sb = new StringBuilder();
@@ -1554,8 +1567,8 @@ namespace Symphony.Features {
 										if (codeVer >= 1) {
 											sb.AppendLine(string.Format(
 												"{0} {1} {2} {3}",
-												(pc.Grade == rarity ? YELLOW : RED) + getRarity(rarity) + END,
-												(pc.Level >= lv ? ORANGE : RED) + $"Lv.{lv}" + END,
+												(pc.Grade == rarity ? YELLOW : RED) + getRarity(pc.Grade) + END,
+												(pc.Level >= lv ? ORANGE : RED) + $"Lv.{pc.Level}" + END,
 												chr.Char_Name.Localize(),
 												favor200
 													? pc.FavorPoint < 20000
@@ -1566,7 +1579,7 @@ namespace Symphony.Features {
 											sb.AppendLine(string.Format(
 												"{0} {1} {2} {3}",
 												GREY + "코어링크 :" + END,
-												(pc.GetTotalCoreValue() >= coreBonus ? CYAN : END) + $"{coreBonus}%" + END,
+												(pc.GetTotalCoreValue() >= coreBonus ? CYAN : RED) + $"{pc.GetTotalCoreValue()}%" + END,
 												DARK_GREY + "/" + END,
 												fullLink == null
 													? DARK_GREY + "없음" + END
@@ -1588,14 +1601,28 @@ namespace Symphony.Features {
 												GREY + "스킬 : " + END,
 												string.Join(
 													DARK_GREY + " / " + END,
-													skills.Select((x, i) => {
-														var y = getSkill(i)?.SkillLevel >= x
-															? x.ToString()
-															: RED + x + END;
-														if (i == prioSkill)
-															return GREEN + "<" + y + ">" + END;
-														return y;
-													})
+													SKILLS
+														.Concat(Enumerable.Repeat<SkillInfo>(default, skills.Length))
+														.Take(Math.Max(skills.Length, SKILLS.Length))
+														.Select((x, i) => {
+															if (x == null) // data to load has more skills
+																return $"{RED}x{END}";
+
+															else {
+																var pcSkillLv = x.SkillLevel;
+																if (i >= skills.Length) // pc has more skills
+																	return $"{GREEN}<{END}{pcSkillLv}{GREEN}>{END}";
+
+																var targetSkillLv = skills[i];
+																var y = pcSkillLv >= targetSkillLv
+																	? pcSkillLv.ToString()
+																	: $"{RED}{pcSkillLv}{END}";
+
+																if (i == prioSkill)
+																	return $"{GREEN}<{END}{y}{GREEN}>{END}";
+																return y;
+															}
+														})
 												)
 											));
 
@@ -1818,8 +1845,7 @@ namespace Symphony.Features {
 
 										sb.AppendLine("위 전투원을 불러오시겠습니까?");
 										return (slotId, pc, sb.ToString().Trim(), loaders.ToArray());
-									})
-									.ToArray();
+									});
 
 								load_pcList.Add(pcList);
 							}
@@ -1833,8 +1859,23 @@ namespace Symphony.Features {
 							yield break;
 						}
 
+						if (idsToRefresh.Count > 0) {
+							var pcsRefreshDone = false;
+							void after(WebResponseState _) {
+								EventManager.StopListening(__instance, 205u, after);
+								pcsRefreshDone = true;
+							}
+							EventManager.StartListening(__instance, 205u, after);
+							dataManager.RefreshPcInfoList(idsToRefresh, () => after(null));
+							yield return new WaitUntil(() => pcsRefreshDone);
+
+							InstantPanel.Wait(false);
+						}
+
 						var load_targets = new List<(int slotId, ClientPcInfo pc, Func<IEnumerator>[] loaders)>();
-						foreach (var pcs in load_pcList) {
+						foreach (var pcs_raw in load_pcList) {
+							var pcs = pcs_raw.ToArray();
+
 							var cursor = 0;
 							var lastCursor = -1;
 							var responseType = 0;
@@ -1872,13 +1913,18 @@ namespace Symphony.Features {
 
 							yield return new WaitForSecondsRealtime(0.2f);
 							yield return new WaitUntil(() => {
-								if (msg.CurAmount != lastCursor) {
-									lastCursor = msg.CurAmount;
-									cursor = lastCursor - 1;
+								if (msg && msg.CurAmount != lastCursor) {
+									lastCursor = msg.CurAmount; // 1 based
+									cursor = msg.CurAmount - 1; // zero based
 									label.text = pcs[cursor].message;
 								}
 
-								return responseType != 0;
+								if (responseType != 0) return true;
+								if (!msg) {
+									responseType = 2;
+									return true;
+								}
+								return false;
 							});
 
 							if (responseType == 2) {
@@ -1972,31 +2018,31 @@ namespace Symphony.Features {
 									.Where(x => x.PCId != 0)
 									.ToArray();
 
+								// target is already in squad and placed to same slot
 								var exists = cur_list.FirstOrDefault(x => x.PCId == target.pc.PCId);
-								if (exists.PCId != 0) { // target is already in squad
-									if (exists.slot == target.slotId) // and placed to same slot
-										continue;
+								var skipPCSet = exists.PCId != 0 && exists.slot == target.slotId;
+
+								if (!skipPCSet) {
+									var prevCount = curSquad.SquadSlotList.Count(x => x.PCId != 0);
+
+									Action<string, ulong, ulong, uint, byte, byte> fnSet = squadType == SQUAD_TYPE.NORMAL
+										? C2WPacket.Send_C2W_SET_PC_TO_SQUAD
+										: C2WPacket.Send_C2W_INFINITEWAR_SET_PC_TO_SQUAD;
+
+									var wait = MonoSingleton<SceneBase>.Instance.ShowWaitMessage(true);
+									fnSet(
+										dataManager.AccessToken,
+										dataManager.WID,
+										target.pc.PCId,
+										curSquad.SquadIndex,
+										(byte)target.slotId,
+										0
+									);
+									yield return new WaitUntil(() => !wait);
+
+									if (exists.PCId == 0)
+										yield return new WaitUntil(() => prevCount < curSquad.SquadSlotList.Count(x => x.PCId != 0));
 								}
-
-								var prevCount = curSquad.SquadSlotList.Count(x => x.PCId != 0);
-
-								Action<string, ulong, ulong, uint, byte, byte> fnSet = squadType == SQUAD_TYPE.NORMAL
-									? C2WPacket.Send_C2W_SET_PC_TO_SQUAD
-									: C2WPacket.Send_C2W_INFINITEWAR_SET_PC_TO_SQUAD;
-
-								var wait = MonoSingleton<SceneBase>.Instance.ShowWaitMessage(true);
-								fnSet(
-									dataManager.AccessToken,
-									dataManager.WID,
-									target.pc.PCId,
-									curSquad.SquadIndex,
-									(byte)target.slotId,
-									0
-								);
-								yield return new WaitUntil(() => !wait);
-
-								if (exists.PCId == 0)
-									yield return new WaitUntil(() => prevCount < curSquad.SquadSlotList.Count(x => x.PCId != 0));
 
 								foreach (var loader in target.loaders)
 									yield return loader();
@@ -2006,14 +2052,20 @@ namespace Symphony.Features {
 							EventManager.StopListening(__instance, 32u, HandlePacket); // PCENCHANT_RESET
 						}
 
-						var done = false;
-						dataManager.RefreshPcInfoList(squadType, () => {
-							__instance.XGetMethodVoid("Success_ResponsePcInfoList").Invoke();
-							done = true;
-						});
-						yield return new WaitUntil(() => done);
+						{
+							var pcsRefreshDone = false;
+							void after(WebResponseState _) {
+								EventManager.StopListening(__instance, 205u, after);
 
-						__instance.ShowWaitMessage(false);
+								__instance.XGetMethodVoid("Success_ResponsePcInfoList").Invoke();
+								pcsRefreshDone = true;
+							}
+							EventManager.StartListening(__instance, 205u, after);
+							dataManager.RefreshPcInfoList(squadType, () => after(null));
+							yield return new WaitUntil(() => pcsRefreshDone);
+
+							__instance.ShowWaitMessage(false);
+						}
 					}
 
 					__instance.StartCoroutine(Fn());
