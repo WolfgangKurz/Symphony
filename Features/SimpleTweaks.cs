@@ -19,9 +19,7 @@ namespace Symphony.Features {
 			public static IEnumerable<CodeInstruction> Patch_PanelBase_Update(MethodBase original, IEnumerable<CodeInstruction> instructions) {
 				Plugin.Logger.LogInfo("[Symphony::SimpleTweaks] Start to patch Panel_Base.Update to patch auto-next");
 
-				var Input_GetKey_KeyCode = AccessTools.Method(typeof(Input), "GetKey", [typeof(KeyCode)]);
-				var Input_GetKeyUp_KeyCode = AccessTools.Method(typeof(Input), "GetKeyUp", [typeof(KeyCode)]);
-				var Panel_Base_IsHolding = AccessTools.Field(typeof(Panel_Base), "isHolding");
+				var Input_GetKeyDown_KeyCode = AccessTools.Method(typeof(Input), "GetKeyDown", [typeof(KeyCode)]);
 
 				var new_inst = new CodeInstruction(
 					OpCodes.Call,
@@ -30,18 +28,13 @@ namespace Symphony.Features {
 
 				var ret = instructions;
 
-				#region Press patch
+				#region Press + Up patch
 				{
 					var matcher = new CodeMatcher(ret);
 					matcher.MatchForward(false,
-						/* if (this.isHolding && Input.GetKey(KeyCode.Space) &&  ... */
-
-						new CodeMatch(OpCodes.Ldarg_0), // this.
-						new CodeMatch(OpCodes.Ldfld, Panel_Base_IsHolding), // isHolding
-						new CodeMatch(OpCodes.Brfalse), // == false -> goto OPERAND
-
+						/* if (Input.GetKey(KeyCode.Space)) */
 						new CodeMatch(OpCodes.Ldc_I4_S, (sbyte)32), // 0x20, Space keycode
-						new CodeMatch(OpCodes.Call, Input_GetKey_KeyCode), // Input.GetKey(KeyCode)
+						new CodeMatch(OpCodes.Call, Input_GetKeyDown_KeyCode), // Input.GetKeyDown(KeyCode)
 						new CodeMatch(OpCodes.Brfalse) // == false -> goto OPERAND
 					);
 
@@ -50,32 +43,8 @@ namespace Symphony.Features {
 						return instructions;
 					}
 
-					matcher.Advance(3); // move to Space keycode
-					new_inst.labels = matcher.Instruction.labels;
-					matcher.RemoveInstruction(); // remove Space keycode
-					matcher.Insert(new_inst); // insert calling
-					ret = matcher.InstructionEnumeration();
-				}
-				#endregion
-
-				#region Up patch
-				{
-					var matcher = new CodeMatcher(ret);
-					matcher.MatchForward(false,
-						/* if (this.isHolding && Input.GetKey(KeyCode.Space) &&  ... */
-						new CodeMatch(OpCodes.Ldc_I4_S, (sbyte)32), // 0x20, Space keycode
-						new CodeMatch(OpCodes.Call, Input_GetKeyUp_KeyCode), // Input.GetKey(KeyCode)
-						new CodeMatch(OpCodes.Brfalse) // == false -> goto OPERAND
-					);
-
-					if (matcher.IsInvalid) {
-						Plugin.Logger.LogWarning("[Symphony::SimpleTweaks] Failed to patch Panel_Base.Update, target instructions not found");
-						return instructions;
-					}
-
-					new_inst.labels = matcher.Instruction.labels;
-					matcher.RemoveInstruction(); // remove Space keycode
-					matcher.Insert(new_inst); // insert calling
+					matcher.Instruction.MoveLabelsTo(new_inst);
+					matcher.Insert(new_inst); // insert calling before original code
 					ret = matcher.InstructionEnumeration();
 				}
 				#endregion
@@ -484,14 +453,22 @@ namespace Symphony.Features {
 			SimpleTweaks_Patch.lastBGMTime = audio.time;
 		}
 
-		public static int StoryViewerPatchKey() {
-			if (Conf.SimpleTweaks.UsePatchStorySkip.Value) {
-				if (Conf.SimpleTweaks.PatchStorySkipKey.Value != "" &&
-					Helper.KeyCodeParse(Conf.SimpleTweaks.PatchStorySkipKey.Value, out var kc)
-				) // Key valid?
-					return (int)kc;
+		public static void StoryViewerPatchKey() {
+			if (
+				!Conf.SimpleTweaks.UsePatchStorySkip.Value ||
+				Conf.SimpleTweaks.PatchStorySkipKey.Value == "" ||
+				!Helper.KeyCodeParse(Conf.SimpleTweaks.PatchStorySkipKey.Value, out var kc)
+			) return;
+
+			var panel = Object.FindFirstObjectByType<Panel_DialogNovel>();
+			if (panel != null) {
+				var isFast = panel.XGetFieldValue<bool>("_bIsFast");
+				if (
+					(!isFast && Input.GetKeyDown(kc)) ||
+					(isFast && Input.GetKeyUp(kc))
+				)
+					panel.OnBtnFast(); // Toggle fast mode
 			}
-			return (int)KeyCode.Space;
 		}
 
 		public static bool IsFullScreenKeyDowned() {

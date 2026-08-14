@@ -49,10 +49,22 @@ namespace Symphony {
 		}
 		#endregion
 
-		public static bool KeyCodeParse(string name, out KeyCode keyCode) => Enum.TryParse<KeyCode>(name, out keyCode);
-		public static bool IsReservedKey(KeyCode k) => new KeyCode[] {
-			KeyCode.Escape, KeyCode.F1
-		}.Contains(k);
+		private static Dictionary<string, KeyCode> KeyCodeTable { get; }
+		public static bool KeyCodeParse(string name, out KeyCode keyCode) => KeyCodeTable.TryGetValue(name, out keyCode);
+
+		public static bool IsReservedKey(KeyCode k)
+			=> k == KeyCode.Escape || k == KeyCode.F1;
+
+		static Helper() {
+			#region KeyCodeTable
+			{
+				var names = Enum.GetNames(typeof(KeyCode));
+				var tb = new Dictionary<string, KeyCode>();
+				foreach (var name in names) tb.Add(name, Enum.Parse<KeyCode>(name));
+				KeyCodeTable = tb;
+			}
+			#endregion
+		}
 
 		public static LogLevel ToLogLevel(this LogType t) {
 			switch (t) {
