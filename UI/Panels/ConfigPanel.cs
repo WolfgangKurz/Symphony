@@ -217,10 +217,10 @@ namespace Symphony.UI.Panels {
 			ref float offset, string text, ConfigEntry<string> config,
 			VoidDelegate onChange = null, float leftMargin = 0f, float rightMargin = 0f) {
 
-			var uuid = Guid.NewGuid().ToString();
+			var controlName = $"DrawKeyBinder:{config.Definition.Section}:{config.Definition.Key}";
 			GUIX.Label(new Rect(leftMargin, offset, HALF_FILL - leftMargin, 20), text);
 			GUIX.KeyBinder(
-				$"DrawKeyBinder:{uuid}",
+				controlName,
 				new Rect(HALF_FILL, offset, HALF_FILL - rightMargin, 20),
 				config.Value,
 				KeyCode => {
