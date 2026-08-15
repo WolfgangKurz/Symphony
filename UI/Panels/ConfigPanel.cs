@@ -545,7 +545,7 @@ namespace Symphony.UI.Panels {
 										Directory.CreateDirectory(Statistics.StatisticsDir);
 
 									if (!File.Exists(path))
-										File.WriteAllBytes(path, Resource.StatisticsViewerHtml);
+										Notification.ExtractViewer();
 
 									Application.OpenURL(path);
 								} catch { } // Ignore

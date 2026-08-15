@@ -119,6 +119,38 @@
     <Message Importance="High" Text="[EmbedNuGetDependencies] Embedding dependency [%(_EmbedCandidate.DependencyPriority)]: %(_EmbedCandidate.Filename)%(_EmbedCandidate.Extension)" Condition="'@(_EmbedCandidate)' != ''" />
   </Target>
 
+  <Target Name="BuildAndEmbedResources"
+          AfterTargets="ResolveReferences"
+          BeforeTargets="CreateManifestResourceNames"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(OS)' == 'Windows_NT'">
+    <MSBuild Projects="$(MSBuildProjectDirectory)\Symphony.Notification\Symphony.Notification.csproj"
+             Targets="Build"
+             Properties="Configuration=Release;Platform=AnyCPU;NuGetRuntimeIdentifier=">
+      <Output TaskParameter="TargetOutputs" ItemName="_SymphonyNotificationOutput" />
+    </MSBuild>
+
+    <ItemGroup>
+      <_SymphonyNotificationBinary Include="@(_SymphonyNotificationOutput)" Condition="'%(Extension)' == '.exe'" />
+      <_SymphonyStatisticsViewerHtml Include="$(MSBuildProjectDirectory)\Symphony.Statistics.Viewer\index.html" />
+
+      <EmbeddedResource Include="@(_SymphonyNotificationBinary)">
+        <LogicalName>Symphony.Resources/NotiBinary</LogicalName>
+      </EmbeddedResource>
+      <EmbeddedResource Include="@(_SymphonyStatisticsViewerHtml)">
+        <LogicalName>Symphony.Resources/StatisticsViewerHtml</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+
+    <Error Condition="'@(_SymphonyNotificationBinary)' == ''"
+           Text="Symphony.Notification.exe was not produced for Release|AnyCPU." />
+    <Error Condition="!Exists('@(_SymphonyStatisticsViewerHtml)')"
+           Text="Symphony.Statistics.Viewer/index.html was not found." />
+
+    <Message Importance="High" Text="[BuildAndEmbedResources] Embedding notification binary: %(_SymphonyNotificationBinary.FullPath)" />
+    <Message Importance="High" Text="[BuildAndEmbedResources] Embedding statistics viewer: %(_SymphonyStatisticsViewerHtml.FullPath)" />
+  </Target>
+
+
   <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(OS)' == 'Windows_NT'">
     <Exec Command="COPY /Y &quot;$(TargetDir)Symphony.dll&quot; &quot;G:\VFUN\LastOrigin\BepInEx\plugins\Symphony.dll&quot;" />
   </Target>

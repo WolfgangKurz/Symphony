@@ -70,14 +70,26 @@ namespace Symphony.Features {
 			}
 		}
 
-		public void Start() {
-			// Extract Notification Tool
+		public static bool ExtractViewer() {
 			try {
-				File.WriteAllBytes(NotiToolPath, Resource.NotiBinary);
-			} catch(Exception e) {
+				using var stream = Assembly.GetExecutingAssembly()
+					.GetManifestResourceStream("Symphony.Resources/NotiBinary");
+
+				using var memory = new MemoryStream();
+				stream.CopyTo(memory);
+
+				File.WriteAllBytes(NotiToolPath, memory.ToArray());
+				return true;
+			} catch (Exception e) {
 				Plugin.Logger.LogWarning("[Symphony::Notification] Failed to extract NotificationTool");
 				Plugin.Logger.LogWarning(e.ToString());
+				return false;
 			}
+		}
+
+		public void Start() {
+			// Extract Notification Tool
+			Notification.ExtractViewer();
 
 			EventManager.StartListening(this, 20U, new Action<WebResponseState>(this.HandlePakcetExplorationIngInfo));
 			EventManager.StartListening(this, 19U, new Action<WebResponseState>(this.HandlePakcetExplorationEnter));

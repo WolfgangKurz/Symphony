@@ -11,6 +11,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 
 using UnityEngine;
@@ -66,7 +67,14 @@ namespace Symphony.Features {
 				if (!Directory.Exists(StatisticsDir))
 					Directory.CreateDirectory(StatisticsDir);
 
-				File.WriteAllBytes(StatisticsViewerPath, Resource.StatisticsViewerHtml);
+
+				using var stream = Assembly.GetExecutingAssembly()
+					.GetManifestResourceStream("Symphony.Resources/StatisticsViewerHtml");
+
+				using var memory = new MemoryStream();
+				stream.CopyTo(memory);
+
+				File.WriteAllBytes(StatisticsViewerPath, memory.ToArray());
 
 				SQLitePCL.Batteries_V2.Init();
 			} catch (Exception e) {

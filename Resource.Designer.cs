@@ -183,26 +183,6 @@ namespace Symphony {
         /// <summary>
         ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
         /// </summary>
-        internal static byte[] NotiBinary {
-            get {
-                object obj = ResourceManager.GetObject("NotiBinary", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
-        /// </summary>
-        internal static byte[] StatisticsViewerHtml {
-            get {
-                object obj = ResourceManager.GetObject("StatisticsViewerHtml", resourceCulture);
-                return ((byte[])(obj));
-            }
-        }
-        
-        /// <summary>
-        ///   System.Byte[] 형식의 지역화된 리소스를 찾습니다.
-        /// </summary>
         internal static byte[] UI_Export {
             get {
                 object obj = ResourceManager.GetObject("UI_Export", resourceCulture);
