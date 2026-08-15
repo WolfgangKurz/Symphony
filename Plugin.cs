@@ -10,8 +10,10 @@ using Symphony.UI.Panels;
 
 using System;
 using System.Collections;
+using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 using UnityEngine;
 using UnityEngine.Networking;
@@ -48,6 +50,37 @@ namespace Symphony {
 			Conf.Migrate();
 
 			StartCoroutine(this.InitUI());
+
+			// Native Dependencies
+			{
+				const string prefix = "Symphony.Native/";
+
+				var asm = Assembly.GetExecutingAssembly();
+				var res = asm.GetManifestResourceNames()
+					.Where(x => x.StartsWith(prefix, StringComparison.Ordinal));
+
+				foreach (var name in res) {
+					try {
+						using var stream = asm.GetManifestResourceStream(name);
+						using var memory = new MemoryStream();
+						stream.CopyTo(memory);
+
+						var path = Path.Combine(
+							Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location),
+							name.Substring(prefix.Length)
+						);
+						File.WriteAllBytes(path, memory.ToArray());
+						
+						var hd = Helper.LoadLibraryW(path);
+						if (hd == IntPtr.Zero) {
+							var error = Marshal.GetLastWin32Error();
+							throw new Exception($"Failed to load native library: {path}, errorCode: {error}");
+						}
+					} catch (Exception e) {
+						Logger.LogError(e.ToString());
+					}
+				}
+			}
 
 			// Dependencies
 			{

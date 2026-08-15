@@ -4,3 +4,6 @@ obj/
 ref/
 _*.cs
 *.xsd
+
+x86/
+x64/

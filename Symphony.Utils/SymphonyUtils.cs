@@ -13,9 +13,15 @@ namespace Symphony.Utils {
 			if (loader == null) throw new ArgumentNullException(nameof(loader));
 
 			var asm = typeof(SymphonyUtils).Assembly;
-			var res = asm.GetManifestResourceNames()
-				.Where(x => x.StartsWith("Symphony.Utils.Dependencies/", StringComparison.Ordinal));
-			foreach (var name in res) loader(asm, name);
+
+			// Load Symphony.Utils.Dependencies
+			{
+				var res = asm.GetManifestResourceNames()
+					.Where(x => x.StartsWith("Symphony.Utils.Dependencies/", StringComparison.Ordinal));
+
+				foreach (var name in res)
+					loader(asm, name);
+			}
 		}
 	}
 }

@@ -5,7 +5,7 @@
     <AssemblyName>Symphony</AssemblyName>
     <Product>Symphony</Product>
     <Description>Symphony is LastOrigin PC client BepInEx plugin for QoL</Description>
-    <Version>0.47.5</Version>
+    <Version>0.48.0</Version>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <LangVersion>preview</LangVersion>
     <RestoreAdditionalProjectSources>
@@ -150,6 +150,30 @@
     <Message Importance="High" Text="[BuildAndEmbedResources] Embedding statistics viewer: %(_SymphonyStatisticsViewerHtml.FullPath)" />
   </Target>
 
+  <Target Name="BuildAndEmbedNative"
+          AfterTargets="ResolveReferences"
+          BeforeTargets="CreateManifestResourceNames"
+          Condition="'$(DesignTimeBuild)' != 'true' and '$(OS)' == 'Windows_NT'">
+    <MSBuild Projects="$(MSBuildProjectDirectory)\Symphony.Native\Symphony.Native.vcxproj"
+             Targets="Build"
+             Properties="Configuration=$(Configuration);Platform=x64" />
+    <MSBuild Projects="$(MSBuildProjectDirectory)\Symphony.Native\Symphony.Native.vcxproj"
+             Targets="GetTargetPath"
+             Properties="Configuration=$(Configuration);Platform=x64">
+      <Output TaskParameter="TargetOutputs" ItemName="_SymphonyNativeOutput" />
+    </MSBuild>
+
+    <ItemGroup>
+      <_SymphonyNativeBinary Include="@(_SymphonyNativeOutput)" Condition="'%(Extension)' == '.dll'" />
+      <EmbeddedResource Include="@(_SymphonyNativeBinary)">
+        <LogicalName>Symphony.Native/Symphony.Native.dll</LogicalName>
+      </EmbeddedResource>
+    </ItemGroup>
+
+    <Error Condition="'@(_SymphonyNativeBinary)' == ''"
+           Text="Symphony.Native.dll was not produced for $(Configuration)|x64." />
+    <Message Importance="High" Text="[BuildAndEmbedNative] Embedding native binary: %(_SymphonyNativeBinary.FullPath)" />
+  </Target>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(OS)' == 'Windows_NT'">
     <Exec Command="COPY /Y &quot;$(TargetDir)Symphony.dll&quot; &quot;G:\VFUN\LastOrigin\BepInEx\plugins\Symphony.dll&quot;" />

@@ -380,6 +380,15 @@ namespace Symphony {
 			}
 		}
 		public static void ChangeCursor(CursorType type) => CursorHelper.ChangeCursor(type);
+
+		[DllImport(
+			"kernel32.dll",
+			EntryPoint = "LoadLibraryW",
+			CharSet = CharSet.Unicode,
+			ExactSpelling = true,
+			SetLastError = true
+		)]
+		internal static extern IntPtr LoadLibraryW(string lpFileName);
 		#endregion
 
 		#region Rect
