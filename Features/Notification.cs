@@ -1,18 +1,15 @@
-﻿using GlobalDefines;
-
-using LO_ClientNetwork;
+﻿using LO_ClientNetwork;
 
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 
 using UnityEngine;
-
-using static Skill;
 
 namespace Symphony.Features {
 	[Feature("Notification")]
@@ -22,53 +19,56 @@ namespace Symphony.Features {
 			"Symphony.Notification.exe"
 		);
 
-		private static void ScheduleNotification(DateTime displayTime, string Tag, string Title, string Message) {
+		private static readonly object notificationLock = new();
+		private static Task notificationTask = Task.CompletedTask;
+		private static void RunNotification(params string[] args) {
 			// Notification Tool not exists
 			if (!File.Exists(NotiToolPath)) return;
 
+			try {
+				var pi = new ProcessStartInfo {
+					FileName = NotiToolPath,
+					Arguments = string.Join(" ", args.Select(x => $"\"{x.Replace("\"", "\\\"")}\"")),
+					UseShellExecute = true,
+				};
+				using var p = Process.Start(pi);
+				if (p != null && !p.WaitForExit(3000)) {
+					p.Kill();
+					p.WaitForExit();
+
+					Plugin.Logger.LogWarning("[Symphony::Notification] NotificationTool timeout");
+				}
+			} catch (Exception e) {
+				Plugin.Logger.LogWarning("[Symphony::Notification] Failed to call NotificationTool");
+				Plugin.Logger.LogWarning(e.ToString());
+			}
+		}
+		private static void EnqueueNotification(params string[] args) {
+			lock (notificationLock) {
+				notificationTask = notificationTask.ContinueWith(
+					_ => RunNotification(args),
+					CancellationToken.None,
+					TaskContinuationOptions.None,
+					TaskScheduler.Default
+				);
+			}
+		}
+
+		private static void ScheduleNotification(DateTime displayTime, string Tag, string Title, string Message) {
 			if (!Conf.Notification.Handle_Notification.Value) {
 				CancelNotification(Tag); // Cancel previous scheduled notification
 				return;
 			}
 
-			try {
-				var pi = new ProcessStartInfo {
-					FileName = NotiToolPath,
-					Arguments = string.Join(" ", new string[] {
-					"-Schedule",
-					"-Tag:" + Tag,
-					"-Title:" + Title,
-					"-Message:" + Message,
-					"-Time:" + displayTime.ToString(),
-				}.Select(x => $"\"{x.Replace("\"", "\\\"")}\"")),
-					UseShellExecute = true,
-				};
-				Process.Start(pi).WaitForExit();
-			} catch (Exception e) {
-				Plugin.Logger.LogWarning("[Symphony::Notification] Failed to call NotificationTool");
-				Plugin.Logger.LogWarning(e.ToString());
-			}
+			EnqueueNotification(
+				"-Schedule",
+				"-Tag:" + Tag,
+				"-Title:" + Title,
+				"-Message:" + Message,
+				"-Time:" + displayTime.ToString()
+			);
 		}
-		private static void CancelNotification(string Tag) {
-			// Notification Tool not exists
-			if (!File.Exists(NotiToolPath)) return;
-
-
-			try {
-				var pi = new ProcessStartInfo {
-					FileName = NotiToolPath,
-					Arguments = string.Join(" ", new string[] {
-					"-Cancel",
-					"-Tag:" + Tag,
-				}.Select(x => $"\"{x.Replace("\"", "\\\"")}\"")),
-					UseShellExecute = true,
-				};
-				Process.Start(pi).WaitForExit();
-			} catch (Exception e) {
-				Plugin.Logger.LogWarning("[Symphony::Notification] Failed to call NotificationTool");
-				Plugin.Logger.LogWarning(e.ToString());
-			}
-		}
+		private static void CancelNotification(string Tag) => EnqueueNotification("-Cancel", "-Tag:" + Tag);
 
 		public static bool ExtractViewer() {
 			try {

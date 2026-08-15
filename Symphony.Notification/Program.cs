@@ -2,6 +2,7 @@
 
 using System;
 using System.Linq;
+using System.Runtime.CompilerServices;
 
 using Windows.UI.Notifications;
 
@@ -9,6 +10,14 @@ namespace Symphony.Notification {
 	internal static class Program {
 		[STAThread]
 		static void Main(string[] args) {
+			EmbeddedDependencyLoader.Initialize();
+			NotificationApplication.Run(args);
+		}
+	}
+
+	internal static class NotificationApplication {
+		[MethodImpl(MethodImplOptions.NoInlining)]
+		internal static void Run(string[] args) {
 			if (args.Contains("-Schedule")) {
 				var tag = args.FirstOrDefault(x => x.StartsWith("-Tag:"))?.Substring(5);
 				if (tag == null) {
