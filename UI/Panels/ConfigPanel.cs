@@ -625,6 +625,21 @@ namespace Symphony.UI.Panels {
 
 							DrawToggle(ref offset, "빠른 로딩 사용하기", Conf.Experimental.Use_FastLoading);
 							DrawLabel(ref offset, "로딩 시, 구동에 불필요한 에셋을 건너뛰어 시작을 빠르게 합니다.\n사용 시, 게임 플레이에 문제가 생길 수 있습니다.", Color_description, 12);
+
+							DrawSeparator(ref offset);
+
+							DrawToggle(ref offset, "더 나은 텍스쳐 필터 사용하기", Conf.Experimental.Use_BetterTextureFilter);
+							DrawLabel(ref offset, " * 작은 게임 창에서 더 보기 좋은 화면을 만듭니다.", Color_description, 12);
+							DrawLabel(ref offset, " * 텍스쳐를 불러올 때 게임이 잠시 버벅일 수 있습니다.", Color_description, 12);
+
+							if (Conf.Experimental.Use_BetterTextureFilter.Value) {
+								DrawLabel(ref offset, "텍스쳐 필터 유형", leftMargin: 12);
+								offset -= 4;
+								DrawRadio(ref offset, new() {
+									{ "simple",  "Built-in" },
+									{ "lanczos", "Lanczos + Sharpen" },
+								}, Conf.Experimental.Use_BetterTextureFilter_Patcher, leftMargin: 12);
+							}
 							#endregion
 							break;
 

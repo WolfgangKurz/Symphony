@@ -55,6 +55,14 @@
       <HintPath>ref\Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="spine-csharp">
+      <HintPath>ref\spine-csharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="spine-unity">
+      <HintPath>ref\spine-unity.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
   </ItemGroup>
 
   <ItemGroup>

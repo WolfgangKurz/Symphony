@@ -331,6 +331,10 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Panel_CharacterBookDetail), "RefreshSkinAndWound"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.ScrapbookMBF_Skin_BGOnLoad))
 			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_CharacterBookDetail), "Start"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.ScrapbookMBF_Start))
+			);
 			#endregion
 
 			#region Exchange: No messy hand
@@ -2630,6 +2634,14 @@ namespace Symphony.Features {
 				ScrapbookMBF_Skin_BGOnLoad(__instance);
 			}
 			__result = Fn();
+		}
+		private static void ScrapbookMBF_Start(Panel_CharacterBookDetail __instance) {
+			if (!Conf.SimpleUI.Use_ScrapbookMustBeFancy.Value) return;
+
+			var tex = __instance.XGetFieldValue<UITexture>("_texPc");
+			if (tex == null) return;
+
+			tex.fixedAspect = true;
 		}
 		#endregion
 

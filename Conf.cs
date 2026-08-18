@@ -176,6 +176,9 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Fix_BattleFreezing = config.Bind("Experimental", "Fix_BattleFreezing", true, "Fix a Freezing issue in certain situations during Battle");
 
 			public static readonly ConfigEntry<bool> Use_FastLoading = config.Bind("Experimental", "Use_FastLoading", false, "Skips loading unnecessary files on startup");
+
+			public static readonly ConfigEntry<bool> Use_BetterTextureFilter = config.Bind("Experimental", "Use_BetterTextureFilter", false, "Use better mipmap and filter for textures");
+			public static readonly ConfigEntry<string> Use_BetterTextureFilter_Patcher = config.Bind("Experimental", "Use_BetterTextureFilter_Patcher", "simple", "Patcher key for BetterTextureFilter");
 		}
 		internal class KeyMapping {
 			public static readonly ConfigEntry<bool> Use_KeyMapping = config.Bind("KeyMapping", "Use_KeyMapping", false, "Use KeyMapping feature");

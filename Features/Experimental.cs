@@ -19,9 +19,7 @@ using UnityEngine.Networking;
 
 namespace Symphony.Features {
 	[Feature("Experimental")]
-	internal class Experimental : MonoBehaviour {
-		private static bool FastLoaded = false;
-
+	internal partial class Experimental : MonoBehaviour {
 		public void Start() {
 			var harmony = new Harmony("Symphony.Experimental");
 
@@ -59,6 +57,8 @@ namespace Symphony.Features {
 				prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_AssetBundleManager_DictTryGet))
 			);
 			#endregion
+
+			BetterTextureFilter.Patch(this, harmony);
 		}
 
 		#region Freezing fixers
@@ -267,6 +267,8 @@ namespace Symphony.Features {
 		#endregion
 
 		#region FastLoading
+		private static bool FastLoaded = false;
+
 		private static bool Patch_ResourceManager_CoLoadAssetBundles(ResourceManager __instance, ref IEnumerator __result) {
 			if (!Conf.Experimental.Use_FastLoading.Value) return true;
 
@@ -697,7 +699,7 @@ namespace Symphony.Features {
 				var asyncOperation = uwr.SendWebRequest();
 
 				while (!asyncOperation.isDone)
-					Thread.Sleep(0);
+					Thread.Sleep(1);
 
 				if (uwr.result == UnityWebRequest.Result.Success) {
 					var ret = new LoadedAssetBundle(DownloadHandlerAssetBundle.GetContent(uwr));

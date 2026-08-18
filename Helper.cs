@@ -477,6 +477,19 @@ namespace Symphony {
 		}
 		public static void XSetPropertyValue<T>(this object obj, string name, T value) => XSetPropertyValue<T>(obj.GetType(), obj, name, value);
 
+		private static T XGetPropertyValue<T>(Type type, object obj, string name) {
+			var f = type.GetProperty(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+			if (f == null) {
+				if (type.BaseType == null) return default;
+				return XGetPropertyValue<T>(type.BaseType, obj, name);
+			}
+
+			var v = f.GetValue(obj);
+			if (v is T r) return r;
+			return default;
+		}
+		public static T XGetPropertyValue<T>(this object obj, string name) => XGetPropertyValue<T>(obj.GetType(), obj, name);
+
 		public static Action XGetMethodVoid(Type type, object obj, string name) {
 			var mi = type.GetMethod(name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
 			if (mi == null) {
@@ -517,6 +530,53 @@ namespace Symphony {
 				result = default;
 				return false;
 			}
+		}
+		#endregion
+
+		#region NGUI
+		public static void MarkAsChanged(this UIAtlas target, bool includeInactives) {
+			if (!includeInactives) {
+				target.MarkAsChanged();
+				return;
+			}
+
+			target.replacement?.MarkAsChanged();
+
+			void Fn<T>(T[] array, Action<T, INGUIAtlas> cb) where T: UnityEngine.Object {
+				for (int num = array.Length, i = 0; i < num; i++) {
+					T elem = array[i];
+					var atlas = elem.XGetPropertyValue<INGUIAtlas>("atlas");
+
+					if (atlas != null && NGUITools.CheckIfRelated(target, atlas)) {
+						if (cb != null) {
+							cb.Invoke(elem, atlas);
+						}
+						else {
+							elem.XSetPropertyValue<INGUIAtlas>("atlas", null);
+							elem.XSetPropertyValue("atlas", atlas);
+						}
+					}
+				}
+			}
+			void MarkObject<T>(Action<T, INGUIAtlas> cb = null) where T : UnityEngine.Object 
+				=> Fn(
+					UnityEngine.Object.FindObjectsByType<T>(FindObjectsInactive.Include, FindObjectsSortMode.None),
+					cb
+				);
+			void MarkRes<T>(Action<T, INGUIAtlas> cb = null) where T : UnityEngine.Object
+				=> Fn(
+					Resources.FindObjectsOfTypeAll<T>(),
+					cb
+				);
+
+			MarkObject<UISprite>();
+			MarkRes<NGUIFont>();
+			MarkRes<UIFont>();
+			MarkObject<UILabel>((el, _) => {
+				var bitmapFont = el.XGetPropertyValue<INGUIFont>("bitmapFont");
+				el.XSetPropertyValue<INGUIFont>("bitmapFont", null);
+				el.XSetPropertyValue("bitmapFont", bitmapFont);
+			});
 		}
 		#endregion
 
