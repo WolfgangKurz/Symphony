@@ -9,17 +9,13 @@ namespace Symphony.Utils {
 	}
 
 	public static class LZ4 {
-		public static int MaximumOutputSize(int sourceLength) =>
-			LZ4Codec.MaximumOutputSize(sourceLength);
+		public static int MaximumOutputSize(int sourceLength) => LZ4Codec.MaximumOutputSize(sourceLength);
 
-		public static int Encode(
-			ReadOnlySpan<byte> source,
-			Span<byte> destination,
-			LZ4CompressionLevel level
-		) => LZ4Codec.Encode(source, destination, GetLevel(level));
+		public static int Encode(ReadOnlySpan<byte> source, Span<byte> destination, LZ4CompressionLevel level)
+			=> LZ4Codec.Encode(source, destination, GetLevel(level));
 
-		public static int Decode(ReadOnlySpan<byte> source, Span<byte> destination) =>
-			LZ4Codec.Decode(source, destination);
+		public static int Decode(ReadOnlySpan<byte> source, Span<byte> destination)
+			=> LZ4Codec.Decode(source, destination);
 
 		private static LZ4Level GetLevel(LZ4CompressionLevel level) => level switch {
 			LZ4CompressionLevel.Fast => LZ4Level.L00_FAST,
