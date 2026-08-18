@@ -37,6 +37,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 				var mipCount = target.mipmapCount;
 				var textureWidth = target.width;
 				var textureHeight = target.height;
+				var textureFormat = target.format;
 
 				while (Volatile.Read(ref taskCount) >= MAX_TASK_COUNT)
 					yield return endOfFrame;
@@ -54,7 +55,8 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 					task = Task.Run(() => {
 						try {
 							CreateMipChain(workerPixels, mips, textureWidth, textureHeight, mipCount, pma);
-							return Bc3TextureData.Encode(
+							return TexturePayloadData.Encode(
+								textureFormat,
 								workerPixels,
 								mips,
 								textureWidth,
@@ -71,7 +73,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 								}
 							} finally {
 								try {
-									encodingLease.Dispose();
+									encodingLease?.Dispose();
 								} finally {
 									Interlocked.Decrement(ref taskCount);
 									Cache.ExitBackgroundOperation();
@@ -107,7 +109,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 				}
 
 				try {
-					Bc3TextureData.Load(target, encodedData);
+					TexturePayloadData.Load(target, encodedData);
 					encodedData = null;
 				} catch (Exception exception) {
 					Plugin.Logger.LogError(exception.ToString());
@@ -154,7 +156,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 							DisposePixels(pixels);
 						}
 					} finally {
-						encodingLease.Dispose();
+						encodingLease?.Dispose();
 					}
 				}
 				if (taskSlotAcquired)
@@ -178,6 +180,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 				var mipCount = target.mipmapCount;
 				var textureWidth = target.width;
 				var textureHeight = target.height;
+				var textureFormat = target.format;
 
 				while (Volatile.Read(ref taskCount) >= MAX_TASK_COUNT)
 					Thread.Sleep(1);
@@ -189,7 +192,8 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 				var mips = new Dictionary<int, NativeArray<Color32>>();
 				try {
 					CreateMipChain(pixels, mips, textureWidth, textureHeight, mipCount, pma);
-					encodedData = Bc3TextureData.Encode(
+					encodedData = TexturePayloadData.Encode(
+						textureFormat,
 						pixels,
 						mips,
 						textureWidth,
@@ -201,7 +205,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 					DisposeMipChain(mips);
 				}
 
-				Bc3TextureData.Load(target, encodedData);
+				TexturePayloadData.Load(target, encodedData);
 				encodedData = null;
 				Cache.WriteTextureSync(cacheKey, Mode, target);
 				target.Apply(updateMipmaps: false, makeNoLongerReadable: true);

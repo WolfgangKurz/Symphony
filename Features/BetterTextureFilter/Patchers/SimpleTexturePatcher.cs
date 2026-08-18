@@ -25,6 +25,40 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 			Task<byte[]> encodingTask = null;
 
 			try {
+				if (target.format == TexturePayloadData.Rgba32Format) {
+					try {
+						target.SetPixelData(pixels, 0);
+						target.Apply(updateMipmaps: true, makeNoLongerReadable: false);
+						pixels.Dispose();
+						pixels = default;
+					} catch (Exception exception) {
+						Plugin.Logger.LogError(exception.ToString());
+						onFault?.Invoke();
+						yield break;
+					}
+
+					yield return Cache.WriteTextureAsync(
+						cacheKey,
+						Mode,
+						target,
+						() => {
+							try {
+								target.Apply(updateMipmaps: false, makeNoLongerReadable: true);
+								onComplete(target);
+								handedOff = true;
+							} catch (Exception exception) {
+								Plugin.Logger.LogError(exception.ToString());
+								onFault?.Invoke();
+							}
+						},
+						exception => {
+							Plugin.Logger.LogError(exception.ToString());
+							onFault?.Invoke();
+						}
+					);
+					yield break;
+				}
+
 				if (!Cache.TryEnterBackgroundOperation()) {
 					onFault?.Invoke();
 					yield break;
@@ -51,7 +85,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 									workerPixels.Dispose();
 							} finally {
 								try {
-									encodingLease.Dispose();
+									encodingLease?.Dispose();
 								} finally {
 									Cache.ExitBackgroundOperation();
 								}
@@ -130,7 +164,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 						if (pixels.IsCreated)
 							pixels.Dispose();
 					} finally {
-						encodingLease.Dispose();
+						encodingLease?.Dispose();
 					}
 				}
 				if (!handedOff && target && !Cache.OwnsTaskTarget(target))
@@ -146,6 +180,14 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 			Bc3TextureData.EncodingLease encodingLease
 		) {
 			try {
+				if (target.format == TexturePayloadData.Rgba32Format) {
+					target.SetPixelData(pixels, 0);
+					target.Apply(updateMipmaps: true, makeNoLongerReadable: false);
+					Cache.WriteTextureSync(cacheKey, Mode, target);
+					target.Apply(updateMipmaps: false, makeNoLongerReadable: true);
+					return target;
+				}
+
 				var encodedData = Bc3TextureData.EncodeGeneratedMipChain(
 					pixels,
 					target.width,

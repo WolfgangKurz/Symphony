@@ -11,7 +11,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 
 using UnityEngine;
@@ -197,12 +196,13 @@ namespace Symphony.Features.BetterTextureFilter {
 				var width = target.width;
 				var height = target.height;
 				var mipCount = target.mipmapCount;
-				var payloadLength = GetPayloadLength(width, height, mipCount);
+				var format = target.format;
+				var payloadLength = GetPayloadLength(format, width, height, mipCount);
 				var destination = GetTextureBuffer(target, payloadLength, out var destinationLength);
 
 				ReadCache(
 					cachePath, mode,
-					width, height, mipCount,
+					width, height, mipCount, format,
 					payloadLength,
 					destination, destinationLength,
 					out cacheGeneration
@@ -241,7 +241,8 @@ namespace Symphony.Features.BetterTextureFilter {
 				var width = target.width;
 				var height = target.height;
 				var mipCount = target.mipmapCount;
-				var payloadLength = GetPayloadLength(width, height, mipCount);
+				var format = target.format;
+				var payloadLength = GetPayloadLength(format, width, height, mipCount);
 
 				guard = new TextureCacheTaskGuard(target);
 				var destination = GetTextureBuffer(target, payloadLength, out var destinationLength);
@@ -249,7 +250,7 @@ namespace Symphony.Features.BetterTextureFilter {
 					try {
 						ReadCache(
 							cachePath, mode,
-							width, height, mipCount,
+							width, height, mipCount, format,
 							payloadLength,
 							destination, destinationLength,
 							out cacheGeneration
@@ -319,10 +320,11 @@ namespace Symphony.Features.BetterTextureFilter {
 			var width = target.width;
 			var height = target.height;
 			var mipCount = target.mipmapCount;
-			var payloadLength = GetPayloadLength(width, height, mipCount);
+			var format = target.format;
+			var payloadLength = GetPayloadLength(format, width, height, mipCount);
 			var payload = GetTextureBuffer(target, payloadLength, out var payloadLengthInt);
 
-			TryWriteCache(cachePath, mode, width, height, mipCount, stream => WritePointer(stream, payload, payloadLengthInt));
+			TryWriteCache(cachePath, mode, width, height, mipCount, format, stream => WritePointer(stream, payload, payloadLengthInt));
 		}
 
 		internal static IEnumerator WriteTextureAsync(
@@ -354,13 +356,14 @@ namespace Symphony.Features.BetterTextureFilter {
 				var width = target.width;
 				var height = target.height;
 				var mipCount = target.mipmapCount;
-				var payloadLength = GetPayloadLength(width, height, mipCount);
+				var format = target.format;
+				var payloadLength = GetPayloadLength(format, width, height, mipCount);
 
 				guard = new TextureCacheTaskGuard(target);
 				var payload = GetTextureBuffer(target, payloadLength, out var payloadLengthInt);
 				task = Task.Run(() => {
 					try {
-						TryWriteCache(cachePath, mode, width, height, mipCount, stream => WritePointer(stream, payload, payloadLengthInt));
+						TryWriteCache(cachePath, mode, width, height, mipCount, format, stream => WritePointer(stream, payload, payloadLengthInt));
 					} finally {
 						GC.KeepAlive(guard);
 					}
@@ -630,13 +633,20 @@ namespace Symphony.Features.BetterTextureFilter {
 			return false;
 		}
 
-		private static long GetPayloadLength(int width, int height, int mipCount) {
-			return Bc3TextureData.GetPayloadLength(width, height, mipCount);
+		private static long GetPayloadLength(
+			TextureFormat format,
+			int width,
+			int height,
+			int mipCount
+		) {
+			return TexturePayloadData.GetPayloadLength(format, width, height, mipCount);
 		}
 
 		private static unsafe IntPtr GetTextureBuffer(Texture2D target, long expectedPayloadLength, out int bufferLength) {
-			if (target.format != Bc3TextureData.Format)
-				throw new InvalidDataException("Texture cache target is not BC3/DXT5.");
+			if (
+				target.format != Bc3TextureData.Format &&
+				target.format != TexturePayloadData.Rgba32Format
+			) throw new InvalidDataException("Texture cache target is not BC3/DXT5 or RGBA32.");
 
 			var buffer = target.GetRawTextureData<byte>();
 
@@ -653,6 +663,7 @@ namespace Symphony.Features.BetterTextureFilter {
 			int expectedWidth,
 			int expectedHeight,
 			int expectedMipCount,
+			TextureFormat expectedFormat,
 			long expectedPayloadLength,
 			IntPtr destinationPointer,
 			int destinationLength,
@@ -674,7 +685,7 @@ namespace Symphony.Features.BetterTextureFilter {
 					throw new InvalidDataException("Texture cache dimensions do not match.");
 				if (reader.ReadInt32() != expectedMipCount)
 					throw new InvalidDataException("Texture cache mip count does not match.");
-				if (reader.ReadInt32() != (int)Bc3TextureData.Format)
+				if (reader.ReadInt32() != (int)expectedFormat)
 					throw new InvalidDataException("Texture cache format does not match.");
 
 				var payloadLength = reader.ReadInt64();
@@ -708,6 +719,7 @@ namespace Symphony.Features.BetterTextureFilter {
 			int width,
 			int height,
 			int mipCount,
+			TextureFormat format,
 			Action<Stream> writePayload
 		) {
 			if (string.IsNullOrEmpty(cachePath) || File.Exists(cachePath)) return;
@@ -717,7 +729,7 @@ namespace Symphony.Features.BetterTextureFilter {
 			Compress.BeginCacheActivity();
 			try {
 				Directory.CreateDirectory(Path.GetDirectoryName(cachePath));
-				var payloadLength = GetPayloadLength(width, height, mipCount);
+				var payloadLength = GetPayloadLength(format, width, height, mipCount);
 				long payloadOffset;
 				using (var stream = new FileStream(
 					temporaryPath,
@@ -734,7 +746,7 @@ namespace Symphony.Features.BetterTextureFilter {
 					writer.Write(width);
 					writer.Write(height);
 					writer.Write(mipCount);
-					writer.Write((int)Bc3TextureData.Format);
+					writer.Write((int)format);
 					writer.Write(payloadLength);
 					writer.Flush();
 

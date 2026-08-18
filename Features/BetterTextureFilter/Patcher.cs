@@ -285,6 +285,118 @@ namespace Symphony.Features.BetterTextureFilter {
 		private static int GetDefaultWorkerCount() => Math.Max(1, Environment.ProcessorCount / 2);
 	}
 
+	internal static class TexturePayloadData {
+		internal const TextureFormat Rgba32Format = TextureFormat.RGBA32;
+
+		internal static long GetPayloadLength(
+			TextureFormat format,
+			int width,
+			int height,
+			int mipCount
+		) => format switch {
+			Bc3TextureData.Format => Bc3TextureData.GetPayloadLength(width, height, mipCount),
+			Rgba32Format => GetRgba32PayloadLength(width, height, mipCount),
+			_ => throw new NotSupportedException($"Unsupported texture payload format: {format}")
+		};
+
+		internal static byte[] Encode(
+			TextureFormat format,
+			NativeArray<Color32> mip0,
+			Dictionary<int, NativeArray<Color32>> mips,
+			int width,
+			int height,
+			int mipCount,
+			Bc3TextureData.EncodingLease encodingLease
+		) => format switch {
+			Bc3TextureData.Format => Bc3TextureData.Encode(
+				mip0,
+				mips,
+				width,
+				height,
+				mipCount,
+				encodingLease
+			),
+			Rgba32Format => EncodeRgba32(mip0, mips, width, height, mipCount),
+			_ => throw new NotSupportedException($"Unsupported texture payload format: {format}")
+		};
+
+		internal static void Load(Texture2D target, byte[] data) {
+			if (!target) throw new ArgumentNullException(nameof(target));
+
+			if (target.format == Bc3TextureData.Format) {
+				Bc3TextureData.Load(target, data);
+				return;
+			}
+			if (target.format != Rgba32Format)
+				throw new InvalidOperationException("Texture data can only be loaded into a BC3 or RGBA32 texture.");
+			if (data == null)
+				throw new ArgumentNullException(nameof(data));
+
+			var expectedLength = GetPayloadLength(
+				target.format,
+				target.width,
+				target.height,
+				target.mipmapCount
+			);
+			if (data.LongLength != expectedLength)
+				throw new ArgumentException("RGBA32 mip chain length does not match the target texture.", nameof(data));
+
+			target.LoadRawTextureData(data);
+		}
+
+		private static long GetRgba32PayloadLength(int width, int height, int mipCount) {
+			if (width <= 0) throw new ArgumentOutOfRangeException(nameof(width));
+			if (height <= 0) throw new ArgumentOutOfRangeException(nameof(height));
+			if (mipCount <= 0) throw new ArgumentOutOfRangeException(nameof(mipCount));
+
+			long length = 0;
+			for (var mipLevel = 0; mipLevel < mipCount; mipLevel++) {
+				var mipWidth = Math.Max(1, width >> mipLevel);
+				var mipHeight = Math.Max(1, height >> mipLevel);
+				length = checked(length + (long)mipWidth * mipHeight * UnsafeUtility.SizeOf<Color32>());
+			}
+
+			return length;
+		}
+
+		private static unsafe byte[] EncodeRgba32(
+			NativeArray<Color32> mip0,
+			Dictionary<int, NativeArray<Color32>> mips,
+			int width,
+			int height,
+			int mipCount
+		) {
+			var payloadLength = GetRgba32PayloadLength(width, height, mipCount);
+			var output = new byte[checked((int)payloadLength)];
+
+			fixed (byte* destination = output) {
+				var destinationOffset = 0;
+				for (var mipLevel = 0; mipLevel < mipCount; mipLevel++) {
+					var mipWidth = Math.Max(1, width >> mipLevel);
+					var mipHeight = Math.Max(1, height >> mipLevel);
+					var mip = mipLevel == 0
+						? mip0
+						: mips.TryGetValue(mipLevel, out var value)
+							? value
+							: throw new ArgumentException($"Missing mip level {mipLevel}.", nameof(mips));
+					var pixelCount = checked(mipWidth * mipHeight);
+					if (!mip.IsCreated || mip.Length != pixelCount)
+						throw new ArgumentException($"RGBA32 mip level {mipLevel} has an invalid length.", nameof(mips));
+
+					var mipLength = checked(pixelCount * UnsafeUtility.SizeOf<Color32>());
+					UnsafeUtility.MemCpy(
+						destination + destinationOffset,
+						NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(mip),
+						mipLength
+					);
+					destinationOffset = checked(destinationOffset + mipLength);
+				}
+			}
+
+			return output;
+		}
+	}
+
 	internal abstract class TexturePatcherBase : ITexturePatcher {
 		internal const string TextureFilterName = " $BetterTextureFilter";
 
@@ -344,8 +456,10 @@ namespace Symphony.Features.BetterTextureFilter {
 					target.hideFlags = targetHideFlags | HideFlags.DontUnloadUnusedAsset;
 				}
 
-				while (!Bc3TextureData.TryAcquireAsyncEncoding(out encodingLease))
-					yield return null;
+				if (target.format == Bc3TextureData.Format) {
+					while (!Bc3TextureData.TryAcquireAsyncEncoding(out encodingLease))
+						yield return null;
+				}
 
 				yield return GetGPUPixelsAsync(
 					texture,
@@ -426,7 +540,9 @@ namespace Symphony.Features.BetterTextureFilter {
 				}
 
 				var pixels = GetGPUPixelsSync(texture);
-				using var encodingLease = Bc3TextureData.AcquireSynchronousEncoding();
+				using var encodingLease = target.format == Bc3TextureData.Format
+					? Bc3TextureData.AcquireSynchronousEncoding()
+					: null;
 				var result = CreateTextureFromPixelsSync(cacheKey, pixels, target, pma, encodingLease);
 				completed = true;
 				return result;
@@ -465,13 +581,16 @@ namespace Symphony.Features.BetterTextureFilter {
 		);
 
 		protected static Texture2D CreateTargetTexture(Texture2D source) {
-			if (!SystemInfo.SupportsTextureFormat(Bc3TextureData.Format))
-				throw new NotSupportedException("BC3/DXT5 textures are not supported by this graphics device.");
+			var format = TexturePatchService.CanEncode(source)
+				? Bc3TextureData.Format
+				: TexturePayloadData.Rgba32Format;
+			if (!SystemInfo.SupportsTextureFormat(format))
+				throw new NotSupportedException($"{format} textures are not supported by this graphics device.");
 
 			var result = new Texture2D(
 				source.width,
 				source.height,
-				Bc3TextureData.Format,
+				format,
 				mipChain: true,
 				linear: false
 			) {
@@ -885,8 +1004,13 @@ namespace Symphony.Features.BetterTextureFilter {
 			_ => throw new ArgumentOutOfRangeException("Use_BetterTextureFilter_Patcher")
 		};
 
+		internal static bool CanEncode(Texture2D texture) =>
+			texture && texture.width % 4 == 0 && texture.height % 4 == 0;
+
 		internal static bool CanPatch(Texture2D texture) =>
-			texture && SystemInfo.SupportsTextureFormat(Bc3TextureData.Format) &&
+			texture && SystemInfo.SupportsTextureFormat(
+				CanEncode(texture) ? Bc3TextureData.Format : TexturePayloadData.Rgba32Format
+			) &&
 			texture.mipmapCount <= 1 &&
 			!(texture.name ?? "").EndsWith(TexturePatcherBase.TextureFilterName, StringComparison.Ordinal);
 
