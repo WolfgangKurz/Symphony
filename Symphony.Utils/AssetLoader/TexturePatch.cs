@@ -3,16 +3,11 @@ using AssetRipper.TextureDecoder.Atc;
 using AssetRipper.TextureDecoder.Etc;
 using AssetRipper.TextureDecoder.Pvrtc;
 
-using BCnEncoder.Encoder;
-
 using System;
-using System.Linq;
 
 namespace Symphony.Utils {
 	internal static class TextureTranscoder {
 		internal const int Dxt5TextureFormat = 12;
-
-		private static readonly BcEncoder Encoder = CreateEncoder();
 
 		internal readonly struct TextureTranscodeRequest {
 			public TextureTranscodeRequest(int width, int height, int textureFormat, int mipCount, byte[] data) {
@@ -96,7 +91,14 @@ namespace Symphony.Utils {
 					return false;
 				}
 
-				var encoded = EncodeDxt5(request.Width, request.Height, rgba, request.MipCount > 1, out var mipCount);
+				var encoded = EncodeDxt5(
+					request.Width,
+					request.Height,
+					rgba,
+					request.MipCount > 1,
+					Math.Max(1, Environment.ProcessorCount / 2),
+					out var mipCount
+				);
 				result = new TextureTranscodeResult(encoded, mipCount);
 				return true;
 			} catch (Exception ex) {
@@ -169,20 +171,61 @@ namespace Symphony.Utils {
 			return output;
 		}
 
-		private static byte[] EncodeDxt5(int width, int height, byte[] rgbaBytes, bool generateMipMaps, out int mipCount) {
-			Encoder.OutputOptions.GenerateMipMaps = generateMipMaps;
-			var mipChain = Encoder.EncodeToRawBytes(rgbaBytes, width, height, PixelFormat.Rgba32);
-			mipCount = mipChain.Length;
+		private static unsafe byte[] EncodeDxt5(
+			int width,
+			int height,
+			byte[] rgbaBytes,
+			bool generateMipMaps,
+			int threadCount,
+			out int mipCount
+		) {
+			var outputLength = GetDxt5DataLength(width, height, generateMipMaps, out mipCount);
+			var encoded = new byte[outputLength];
 
-			var totalLength = mipChain.Sum(x => x.Length);
-			var encoded = new byte[totalLength];
-			var offset = 0;
-			foreach (var mip in mipChain) {
-				Buffer.BlockCopy(mip, 0, encoded, offset, mip.Length);
-				offset += mip.Length;
+			fixed (byte* source = rgbaBytes)
+			fixed (byte* output = encoded) {
+				var error = TextureFilter.Bc3(
+					source,
+					new UIntPtr((ulong)rgbaBytes.Length),
+					width,
+					height,
+					output,
+					new UIntPtr((ulong)encoded.Length),
+					generateMipMaps ? (byte)1 : (byte)0,
+					threadCount
+				);
+				if (error != 0)
+					throw new InvalidOperationException($"Native BC3 encoding failed with error code {error}");
 			}
 
 			return encoded;
+		}
+
+		private static int GetDxt5DataLength(
+			int width,
+			int height,
+			bool generateMipMaps,
+			out int mipCount
+		) {
+			var totalLength = 0L;
+			var mipWidth = width;
+			var mipHeight = height;
+			mipCount = 0;
+
+			while (true) {
+				var blockWidth = ((long)mipWidth + 3) / 4;
+				var blockHeight = ((long)mipHeight + 3) / 4;
+				totalLength = checked(totalLength + blockWidth * blockHeight * 16);
+				mipCount++;
+
+				if (!generateMipMaps || mipWidth == 1 && mipHeight == 1)
+					break;
+
+				mipWidth = Math.Max(1, mipWidth / 2);
+				mipHeight = Math.Max(1, mipHeight / 2);
+			}
+
+			return checked((int)totalLength);
 		}
 
 		private static void SwapRedBlue(byte[] data) {
@@ -191,13 +234,6 @@ namespace Symphony.Utils {
 				data[i] = data[i + 2];
 				data[i + 2] = temp;
 			}
-		}
-
-		private static BcEncoder CreateEncoder() {
-			var encoder = new BcEncoder(BCnEncoder.Shared.CompressionFormat.Bc3);
-			encoder.OutputOptions.GenerateMipMaps = false;
-			encoder.OutputOptions.Quality = CompressionQuality.Fast;
-			return encoder;
 		}
 
 		private enum UnityTextureFormat {

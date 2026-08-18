@@ -3,6 +3,10 @@
 
 #define LANCZOS_RADIUS (2.0f)
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 __declspec(dllexport)
 int32_t lanczos2(
     const uint8_t* source,
@@ -18,3 +22,7 @@ int32_t lanczos2(
     uint8_t pma,
     float filter_tightness
 );
+
+#ifdef __cplusplus
+}
+#endif
