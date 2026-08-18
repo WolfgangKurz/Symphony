@@ -811,10 +811,7 @@ namespace AssetRipper.TextureDecoder.Etc
 			int mul = data1 >> 4;
 			if (mul == 0)
 			{
-				for (int i = 0; i < 16; i++)
-				{
-					DecodeEac11Block(MemoryMarshal.Cast<uint, byte>(output).Slice(3), @base);
-				}
+				DecodeEac11Block(MemoryMarshal.Cast<uint, byte>(output).Slice(3), @base);
 			}
 			else
 			{
