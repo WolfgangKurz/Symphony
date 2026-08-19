@@ -111,6 +111,20 @@ namespace Symphony.Features {
 					postfix: new HarmonyMethod(typeof(BetterTextureFilter), nameof(Patch_GetBundlePrefab))
 				);
 
+				#region Lobby background
+				harmony.Patch(
+					AccessTools.Method(
+						typeof(ResourceManager),
+						nameof(ResourceManager.LoadLobbyBg),
+						[typeof(string), typeof(Transform), typeof(bool)]
+					),
+					postfix: new HarmonyMethod(
+						typeof(BetterTextureFilter),
+						nameof(Patch_LoadLobbyBackground)
+					)
+				);
+				#endregion
+
 				#region Facility
 				var facilityAwakePostfix = new HarmonyMethod(
 					typeof(BetterTextureFilter),
@@ -347,6 +361,26 @@ namespace Symphony.Features {
 				BTF.TexturePatchService.PatchUIPrefabTextures(coroutineRunner, bundleName, name, __result);
 			}
 
+			private static void Patch_LoadLobbyBackground(GameObject __result, string assetname) {
+				if (
+					!Conf.Experimental.Use_BetterTextureFilter.Value || !coroutineRunner ||
+					!__result || string.IsNullOrEmpty(assetname)
+				) return;
+
+				try {
+					coroutineRunner.StartCoroutine(
+						BTF.TexturePatchService.PatchRendererTexturesAsync(
+							"lobbybgmodel",
+							assetname,
+							__result,
+							__result.GetComponentsInChildren<Renderer>(true)
+						)
+					);
+				} catch (Exception exception) {
+					Plugin.Logger.LogWarning($"[Symphony::Experimental] Failed to start lobby background texture patch for '{assetname}': {exception}");
+				}
+			}
+
 			private static void Patch_FacilityAwake(FacilityModel __instance) {
 				if (
 					!Conf.Experimental.Use_BetterTextureFilter.Value || !coroutineRunner ||
@@ -362,9 +396,7 @@ namespace Symphony.Features {
 				try {
 					coroutineRunner.StartCoroutine(PatchFacilityAsync(facility, assetName));
 				} catch (Exception exception) {
-					Plugin.Logger.LogWarning(
-						$"[Symphony::Experimental] Failed to start facility texture patch for '{assetName}': {exception}"
-					);
+					Plugin.Logger.LogWarning($"[Symphony::Experimental] Failed to start facility texture patch for '{assetName}': {exception}");
 				}
 			}
 
