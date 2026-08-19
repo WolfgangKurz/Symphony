@@ -49,8 +49,8 @@ namespace Symphony.Features.BetterTextureFilter {
 	internal interface ITexturePatcher {
 		TexturePatchMode Mode { get; }
 
-		Texture2D CreateTextureSync(TextureCacheKey cacheKey, Texture2D texture, byte pma = 0);
-		IEnumerator CreateTextureAsync(TextureCacheKey cacheKey, Texture2D texture, Action<Texture2D> onComplete, Action onFault = null, byte pma = 0);
+		Texture2D CreateTextureSync(TextureCacheKey cacheKey, Texture2D texture, byte pma = 0, bool useBc3 = true);
+		IEnumerator CreateTextureAsync(TextureCacheKey cacheKey, Texture2D texture, Action<Texture2D> onComplete, Action onFault = null, byte pma = 0, bool useBc3 = true);
 	}
 
 	internal static class Bc3TextureData {
@@ -407,7 +407,8 @@ namespace Symphony.Features.BetterTextureFilter {
 			Texture2D texture,
 			Action<Texture2D> onComplete,
 			Action onFault = null,
-			byte pma = 0
+			byte pma = 0,
+			bool useBc3 = true
 		) {
 			if (onComplete == null)
 				throw new ArgumentNullException(nameof(onComplete));
@@ -416,7 +417,7 @@ namespace Symphony.Features.BetterTextureFilter {
 				yield break;
 			}
 
-			var target = CreateTargetTexture(texture);
+			var target = CreateTargetTexture(texture, useBc3);
 			var targetHideFlags = target.hideFlags;
 			target.hideFlags = targetHideFlags | HideFlags.DontUnloadUnusedAsset;
 			var handedOff = false;
@@ -451,7 +452,7 @@ namespace Symphony.Features.BetterTextureFilter {
 
 				if (cacheReadResult == CacheReadResult.Invalid) {
 					if (target) UnityEngine.Object.Destroy(target);
-					target = CreateTargetTexture(texture);
+					target = CreateTargetTexture(texture, useBc3);
 					targetHideFlags = target.hideFlags;
 					target.hideFlags = targetHideFlags | HideFlags.DontUnloadUnusedAsset;
 				}
@@ -514,11 +515,12 @@ namespace Symphony.Features.BetterTextureFilter {
 		public Texture2D CreateTextureSync(
 			TextureCacheKey cacheKey,
 			Texture2D texture,
-			byte pma = 0
+			byte pma = 0,
+			bool useBc3 = true
 		) {
 			if (!texture) throw new ArgumentNullException(nameof(texture));
 
-			var target = CreateTargetTexture(texture);
+			var target = CreateTargetTexture(texture, useBc3);
 			var targetHideFlags = target.hideFlags;
 			target.hideFlags = targetHideFlags | HideFlags.DontUnloadUnusedAsset;
 			var completed = false;
@@ -534,7 +536,7 @@ namespace Symphony.Features.BetterTextureFilter {
 
 				if (cacheReadResult == CacheReadResult.Invalid) {
 					if (target) UnityEngine.Object.Destroy(target);
-					target = CreateTargetTexture(texture);
+					target = CreateTargetTexture(texture, useBc3);
 					targetHideFlags = target.hideFlags;
 					target.hideFlags = targetHideFlags | HideFlags.DontUnloadUnusedAsset;
 				}
@@ -543,7 +545,13 @@ namespace Symphony.Features.BetterTextureFilter {
 				using var encodingLease = target.format == Bc3TextureData.Format
 					? Bc3TextureData.AcquireSynchronousEncoding()
 					: null;
-				var result = CreateTextureFromPixelsSync(cacheKey, pixels, target, pma, encodingLease);
+				var result = CreateTextureFromPixelsSync(
+					cacheKey,
+					pixels,
+					target,
+					pma,
+					encodingLease
+				);
 				completed = true;
 				return result;
 			} finally {
@@ -580,8 +588,8 @@ namespace Symphony.Features.BetterTextureFilter {
 			Bc3TextureData.EncodingLease encodingLease
 		);
 
-		protected static Texture2D CreateTargetTexture(Texture2D source) {
-			var format = TexturePatchService.CanEncode(source)
+		protected static Texture2D CreateTargetTexture(Texture2D source, bool useBc3) {
+			var format = useBc3 && TexturePatchService.CanEncode(source)
 				? Bc3TextureData.Format
 				: TexturePayloadData.Rgba32Format;
 			if (!SystemInfo.SupportsTextureFormat(format))
@@ -1004,8 +1012,7 @@ namespace Symphony.Features.BetterTextureFilter {
 			_ => throw new ArgumentOutOfRangeException("Use_BetterTextureFilter_Patcher")
 		};
 
-		internal static bool CanEncode(Texture2D texture) =>
-			texture && texture.width % 4 == 0 && texture.height % 4 == 0;
+		internal static bool CanEncode(Texture2D texture) => texture && texture.width % 4 == 0 && texture.height % 4 == 0;
 
 		internal static bool CanPatch(Texture2D texture) =>
 			texture && SystemInfo.SupportsTextureFormat(
@@ -1022,34 +1029,52 @@ namespace Symphony.Features.BetterTextureFilter {
 		internal static Texture2D CreateTextureSync(
 			TextureCacheKey cacheKey,
 			Texture2D texture,
-			byte pma = 0
-		) => CurrentPatcher.CreateTextureSync(cacheKey, texture, pma);
+			byte pma = 0,
+			bool useBc3 = true
+		) => CurrentPatcher.CreateTextureSync(cacheKey, texture, pma, useBc3);
 		internal static Texture2D CreateTextureSync(
 			string bundleName,
 			string assetName,
 			Texture2D texture,
-			byte pma = 0
-		) => CreateTextureSync(CreateCacheKey(bundleName, assetName, texture), texture, pma);
+			byte pma = 0,
+			bool useBc3 = true
+		) => CreateTextureSync(
+			CreateCacheKey(bundleName, assetName, texture),
+			texture,
+			pma,
+			useBc3
+		);
+
 		internal static IEnumerator CreateTextureAsync(
 			TextureCacheKey cacheKey,
 			Texture2D texture,
 			Action<Texture2D> onComplete,
 			Action onFault = null,
-			byte pma = 0
-		) => CurrentPatcher.CreateTextureAsync(cacheKey, texture, onComplete, onFault, pma);
+			byte pma = 0,
+			bool useBc3 = true
+		) => CurrentPatcher.CreateTextureAsync(
+			cacheKey,
+			texture,
+			onComplete,
+			onFault,
+			pma,
+			useBc3
+		);
 		internal static IEnumerator CreateTextureAsync(
 			string bundleName,
 			string assetName,
 			Texture2D texture,
 			Action<Texture2D> onComplete,
 			Action onFault = null,
-			byte pma = 0
+			byte pma = 0,
+			bool useBc3 = true
 		) => CreateTextureAsync(
 			CreateCacheKey(bundleName, assetName, texture),
 			texture,
 			onComplete,
 			onFault,
-			pma
+			pma,
+			useBc3
 		);
 
 		internal static Sprite CloneSpriteWithNewTexture(Sprite original, Texture2D newTexture) =>

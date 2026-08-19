@@ -1,5 +1,7 @@
 using Spine.Unity;
 
+using Symphony.Features.BetterTextureFilter.Patchers;
+
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -9,6 +11,8 @@ using UnityEngine;
 namespace Symphony.Features.BetterTextureFilter {
 	[DisallowMultipleComponent]
 	internal sealed class SpinePatcher : MonoBehaviour {
+		private static readonly SimpleTexturePatcher TexturePatcher = new();
+
 		private enum SourceStatus {
 			Waiting,
 			Pending,
@@ -429,11 +433,7 @@ namespace Symphony.Features.BetterTextureFilter {
 			);
 		}
 
-		private void RegisterMaterial(
-			RendererState renderer,
-			Material original,
-			string discriminator
-		) {
+		private void RegisterMaterial(RendererState renderer, Material original, string discriminator) {
 			if (!original) return;
 			if (renderer.bindings.TryGetValue(original, out var existing)) {
 				existing.source.RegisterDiscriminator(discriminator);
@@ -466,23 +466,18 @@ namespace Symphony.Features.BetterTextureFilter {
 					? work.replacement
 					: sourceTexture;
 
-				binding = new MaterialBinding(
-					renderer,
-					original,
-					previousOverride,
-					hadPreviousOverride,
-					clone,
-					work,
-					discriminator
-				);
-
+				binding = new MaterialBinding(renderer, original, previousOverride, hadPreviousOverride, clone, work, discriminator);
 				renderer.overrides[original] = clone;
+
 				overrideInstalled = true;
 				renderer.bindings.Add(original, binding);
+
 				bindingAdded = true;
 				work.bindings.Add(binding);
+
 				workBindingAdded = true;
 				ownedMaterials.Add(clone);
+
 				ownedMaterialAdded = true;
 				ownedMaterialIdAdded = ownedMaterialIds.Add(clone.GetInstanceID());
 				registered = true;
@@ -511,10 +506,7 @@ namespace Symphony.Features.BetterTextureFilter {
 				StartSourceWork(work, retryFailed: true);
 		}
 
-		private void UnregisterMaterial(
-			MaterialBinding binding,
-			bool restorePreviousOverride
-		) {
+		private void UnregisterMaterial(MaterialBinding binding, bool restorePreviousOverride) {
 			if (restorePreviousOverride) {
 				if (binding.hadPreviousOverride)
 					binding.renderer.overrides[binding.original] = binding.previousOverride;
@@ -577,7 +569,7 @@ namespace Symphony.Features.BetterTextureFilter {
 				);
 				var cacheKey = new TextureCacheKey(bundleName, assetName, bundleVersion, cacheName);
 
-				yield return TexturePatchService.CreateTextureAsync(
+				yield return TexturePatcher.CreateTextureAsync(
 					cacheKey,
 					work.source,
 					texture => {
@@ -589,7 +581,8 @@ namespace Symphony.Features.BetterTextureFilter {
 						if (work.status == SourceStatus.Pending)
 							work.status = SourceStatus.Failed;
 					},
-					pma: 0
+					pma: 0,
+					useBc3: false
 				);
 			} finally {
 				if (!completed && work.status == SourceStatus.Pending)

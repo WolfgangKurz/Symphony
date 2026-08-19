@@ -71,12 +71,8 @@ namespace Symphony.Features {
 				);
 
 				harmony.Patch(
-					AccessTools.Method(typeof(Panel_CharacterDetails), "Start"),
-					postfix: new HarmonyMethod(typeof(BetterTextureFilter), nameof(Patch_DetailPanel_CharacterDetails))
-				);
-				harmony.Patch(
-					AccessTools.Method(typeof(Panel_CharacterBookDetail), "Start"),
-					postfix: new HarmonyMethod(typeof(BetterTextureFilter), nameof(Patch_DetailPanel_CharacterBookDetail))
+					AccessTools.Method(typeof(CommonUtils), nameof(CommonUtils.GetRenderTexture)),
+					prefix: new HarmonyMethod(typeof(BetterTextureFilter), nameof(Patch_CommonUtils_GetRenderTexture))
 				);
 				#endregion
 
@@ -217,27 +213,16 @@ namespace Symphony.Features {
 				);
 			}
 
-			private static void Patch_SpawnGameSkinObject(
-				Transform __result,
-				string prefabName
-			) {
+			private static void Patch_SpawnGameSkinObject(Transform __result, string prefabName) {
 				if (
 					!Conf.Experimental.Use_BetterTextureFilter.Value || !__result ||
 					string.IsNullOrEmpty(prefabName)
 				) return;
 
-				BTF.SpinePatcher.AttachAll(
-					prefabName.ToLowerInvariant(),
-					prefabName,
-					__result.gameObject
-				);
+				BTF.SpinePatcher.AttachAll(prefabName.ToLowerInvariant(), prefabName, __result.gameObject);
 			}
 
-			private static void Patch_NGUIAddChild(
-				GameObject __result,
-				GameObject parent,
-				string name
-			) {
+			private static void Patch_NGUIAddChild(GameObject __result, GameObject parent, string name) {
 				if (
 					!Conf.Experimental.Use_BetterTextureFilter.Value || !__result || !parent ||
 					string.IsNullOrEmpty(name)
@@ -324,19 +309,20 @@ namespace Symphony.Features {
 				BTF.TexturePatchService.PatchUIPrefabTextures(coroutineRunner, "mainui", name, __result);
 			}
 
-			private static void Patch_DetailPanel_CharacterDetails(Panel_CharacterDetails __instance) => Patch_DetailPanel_Base(__instance);
-			private static void Patch_DetailPanel_CharacterBookDetail(Panel_CharacterBookDetail __instance) => Patch_DetailPanel_Base(__instance);
-			private static void Patch_DetailPanel_Base(object instance) {
-				if (!Conf.Experimental.Use_BetterTextureFilter.Value) return;
+			private static bool Patch_CommonUtils_GetRenderTexture(
+				int width, int height,
+				int depthBuffer,
+				RenderTextureFormat format,
+				ref RenderTexture __result
+			) {
+				if (!Conf.Experimental.Use_BetterTextureFilter.Value) return true;
 
-				var oldRenderTexture = instance.XGetFieldValue<RenderTexture>("_renderTexture");
-				var modelCamera = instance.XGetFieldValue<Camera>("_cameraModel");
-				var modelTexture = instance.XGetFieldValue<UITexture>("_texPc");
-				if (!modelCamera || modelTexture == null) return;
+				var res = (Application.platform == RuntimePlatform.IPhonePlayer) ? 2048 : 4096;
+				var r = Mathf.Min(1f, res / (float)Mathf.Max(width, height));
+				width = Mathf.Max(128, Mathf.RoundToInt(width * r));
+				height = Mathf.Max(128, Mathf.RoundToInt(height * r));
 
-				const int width = 4096;
-				const int height = 4096;
-				var descriptor = new RenderTextureDescriptor(width, height, RenderTextureFormat.ARGB32, 0) {
+				var descriptor = new RenderTextureDescriptor(width, height, format, depthBuffer) {
 					useMipMap = true,
 					autoGenerateMips = true,
 					msaaSamples = 1
@@ -345,11 +331,8 @@ namespace Symphony.Features {
 				renderTexture.filterMode = FilterMode.Trilinear;
 				renderTexture.mipMapBias = -0.25f;
 
-				instance.XSetFieldValue("_renderTexture", renderTexture);
-				modelCamera.targetTexture = renderTexture;
-				modelTexture.mainTexture = renderTexture;
-
-				if (oldRenderTexture) RenderTexture.ReleaseTemporary(oldRenderTexture);
+				__result = renderTexture;
+				return false;
 			}
 		}
 

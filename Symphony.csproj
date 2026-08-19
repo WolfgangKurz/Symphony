@@ -41,6 +41,7 @@
     <PackageReference Include="SQLitePCLRaw.core" Version="2.1.6" />
     <PackageReference Include="SQLitePCLRaw.bundle_winsqlite3" Version="2.1.6" />
     <PackageReference Include="UnityEngine.Modules" Version="6000.0.58" PrivateAssets="all" />
+    <PackageReference Include="System.Runtime.CompilerServices.Unsafe" Version="6.0.0" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup Condition="'$(TargetFramework.TrimEnd(`0123456789`))' == 'net'">

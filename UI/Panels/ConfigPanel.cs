@@ -631,6 +631,7 @@ namespace Symphony.UI.Panels {
 							DrawToggle(ref offset, "더 나은 텍스쳐 필터 사용하기", Conf.Experimental.Use_BetterTextureFilter);
 							DrawLabel(ref offset, " * 작은 게임 창에서 더 보기 좋은 화면을 만듭니다.", Color_description, 12);
 							DrawLabel(ref offset, " * 텍스쳐를 불러올 때 게임이 잠시 버벅일 수 있습니다.", Color_description, 12);
+							DrawLabel(ref offset, " * Spine 모델은 항상 Built-in 필터를 사용합니다.", Color_description, 12);
 
 							if (Conf.Experimental.Use_BetterTextureFilter.Value) {
 								DrawLabel(ref offset, "텍스쳐 필터 유형", leftMargin: 12);
