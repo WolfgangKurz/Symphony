@@ -572,6 +572,7 @@ namespace Symphony.Features.BetterTextureFilter {
 				yield return TexturePatcher.CreateTextureAsync(
 					cacheKey,
 					work.source,
+					TextureFormatMode.RGBA32,
 					texture => {
 						completed = true;
 						CompleteSourceWork(work, texture);
@@ -580,9 +581,7 @@ namespace Symphony.Features.BetterTextureFilter {
 						completed = true;
 						if (work.status == SourceStatus.Pending)
 							work.status = SourceStatus.Failed;
-					},
-					pma: 0,
-					useBc3: false
+					}
 				);
 			} finally {
 				if (!completed && work.status == SourceStatus.Pending)

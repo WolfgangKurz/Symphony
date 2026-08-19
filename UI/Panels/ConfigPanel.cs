@@ -629,9 +629,7 @@ namespace Symphony.UI.Panels {
 							DrawSeparator(ref offset);
 
 							DrawToggle(ref offset, "더 나은 텍스쳐 필터 사용하기", Conf.Experimental.Use_BetterTextureFilter);
-							DrawLabel(ref offset, " * 작은 게임 창에서 더 보기 좋은 화면을 만듭니다.", Color_description, 12);
-							DrawLabel(ref offset, " * 텍스쳐를 불러올 때 게임이 잠시 버벅일 수 있습니다.", Color_description, 12);
-							DrawLabel(ref offset, " * Spine 모델은 항상 Built-in 필터를 사용합니다.", Color_description, 12);
+							DrawLabel(ref offset, " * 작은 게임 창에서 더 보기 좋은 화면을 만듭니다.\n * 텍스쳐를 불러올 때 게임이 잠시 버벅일 수 있습니다.\n * Spine 모델은 항상 Built-in 필터 + RGBA32 포맷을 사용합니다.\n * RGBA32 포맷은 품질 저하가 없지만 메모리 사용량과 캐시 크기가 크며, BC7 포맷은 BC3 보다 품질은 좋지만 처리 시간이 더 소요됩니다.", Color_description, 12);
 
 							if (Conf.Experimental.Use_BetterTextureFilter.Value) {
 								DrawLabel(ref offset, "텍스쳐 필터 유형", leftMargin: 12);
@@ -640,6 +638,14 @@ namespace Symphony.UI.Panels {
 									{ "simple",  "Built-in" },
 									{ "lanczos", "Lanczos + Sharpen" },
 								}, Conf.Experimental.Use_BetterTextureFilter_Patcher, leftMargin: 12);
+
+								DrawLabel(ref offset, "텍스쳐 포맷", leftMargin: 12);
+								offset -= 4;
+								DrawRadio(ref offset, new() {
+									{ "RGBA32",  "RGBA32" },
+									{ "BC3",  "BC3/DXT5" },
+									{ "BC7", "BC7" },
+								}, Conf.Experimental.Use_BetterTextureFilter_Format, leftMargin: 12);
 							}
 							#endregion
 							break;

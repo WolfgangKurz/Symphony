@@ -184,7 +184,7 @@ namespace Symphony.Utils {
 
 			fixed (byte* source = rgbaBytes)
 			fixed (byte* output = encoded) {
-				var error = TextureFilter.Bc3(
+				var error = TextureFilter.BC7(
 					source,
 					new UIntPtr((ulong)rgbaBytes.Length),
 					width,
@@ -195,7 +195,7 @@ namespace Symphony.Utils {
 					threadCount
 				);
 				if (error != 0)
-					throw new InvalidOperationException($"Native BC3 encoding failed with error code {error}");
+					throw new InvalidOperationException($"Native BC7 encoding failed with error code {error}");
 			}
 
 			return encoded;

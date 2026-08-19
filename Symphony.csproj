@@ -128,13 +128,8 @@
     <Message Importance="High" Text="[EmbedNuGetDependencies] Embedding dependency [%(_EmbedCandidate.DependencyPriority)]: %(_EmbedCandidate.Filename)%(_EmbedCandidate.Extension)" Condition="'@(_EmbedCandidate)' != ''" />
   </Target>
 
-  <Target Name="BuildAndEmbedResources"
-          AfterTargets="ResolveReferences"
-          BeforeTargets="CreateManifestResourceNames"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(OS)' == 'Windows_NT'">
-    <MSBuild Projects="$(MSBuildProjectDirectory)\Symphony.Notification\Symphony.Notification.csproj"
-             Targets="Build"
-             Properties="Configuration=Release;Platform=AnyCPU;NuGetRuntimeIdentifier=">
+  <Target Name="BuildAndEmbedResources" AfterTargets="ResolveReferences" BeforeTargets="CreateManifestResourceNames" Condition="'$(DesignTimeBuild)' != 'true' and '$(OS)' == 'Windows_NT'">
+    <MSBuild Projects="$(MSBuildProjectDirectory)\Symphony.Notification\Symphony.Notification.csproj" Targets="Build" Properties="Configuration=Release;Platform=AnyCPU;NuGetRuntimeIdentifier=">
       <Output TaskParameter="TargetOutputs" ItemName="_SymphonyNotificationOutput" />
     </MSBuild>
 
@@ -150,25 +145,16 @@
       </EmbeddedResource>
     </ItemGroup>
 
-    <Error Condition="'@(_SymphonyNotificationBinary)' == ''"
-           Text="Symphony.Notification.exe was not produced for Release|AnyCPU." />
-    <Error Condition="!Exists('@(_SymphonyStatisticsViewerHtml)')"
-           Text="Symphony.Statistics.Viewer/index.html was not found." />
+    <Error Condition="'@(_SymphonyNotificationBinary)' == ''" Text="Symphony.Notification.exe was not produced for Release|AnyCPU." />
+    <Error Condition="!Exists('@(_SymphonyStatisticsViewerHtml)')" Text="Symphony.Statistics.Viewer/index.html was not found." />
 
     <Message Importance="High" Text="[BuildAndEmbedResources] Embedding notification binary: %(_SymphonyNotificationBinary.FullPath)" />
     <Message Importance="High" Text="[BuildAndEmbedResources] Embedding statistics viewer: %(_SymphonyStatisticsViewerHtml.FullPath)" />
   </Target>
 
-  <Target Name="BuildAndEmbedNative"
-          AfterTargets="ResolveReferences"
-          BeforeTargets="CreateManifestResourceNames"
-          Condition="'$(DesignTimeBuild)' != 'true' and '$(OS)' == 'Windows_NT'">
-    <MSBuild Projects="$(MSBuildProjectDirectory)\Symphony.Native\Symphony.Native.vcxproj"
-             Targets="Build"
-             Properties="Configuration=$(Configuration);Platform=x64" />
-    <MSBuild Projects="$(MSBuildProjectDirectory)\Symphony.Native\Symphony.Native.vcxproj"
-             Targets="GetTargetPath"
-             Properties="Configuration=$(Configuration);Platform=x64">
+  <Target Name="BuildAndEmbedNative" AfterTargets="ResolveReferences" BeforeTargets="CreateManifestResourceNames" Condition="'$(DesignTimeBuild)' != 'true' and '$(OS)' == 'Windows_NT'">
+    <MSBuild Projects="$(MSBuildProjectDirectory)\Symphony.Native\Symphony.Native.vcxproj" Targets="Build" Properties="Configuration=$(Configuration);Platform=x64" />
+    <MSBuild Projects="$(MSBuildProjectDirectory)\Symphony.Native\Symphony.Native.vcxproj" Targets="GetTargetPath" Properties="Configuration=$(Configuration);Platform=x64">
       <Output TaskParameter="TargetOutputs" ItemName="_SymphonyNativeOutput" />
     </MSBuild>
 
@@ -179,8 +165,7 @@
       </EmbeddedResource>
     </ItemGroup>
 
-    <Error Condition="'@(_SymphonyNativeBinary)' == ''"
-           Text="Symphony.Native.dll was not produced for $(Configuration)|x64." />
+    <Error Condition="'@(_SymphonyNativeBinary)' == ''" Text="Symphony.Native.dll was not produced for $(Configuration)|x64." />
     <Message Importance="High" Text="[BuildAndEmbedNative] Embedding native binary: %(_SymphonyNativeBinary.FullPath)" />
   </Target>
 

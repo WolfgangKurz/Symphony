@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Symphony.Features.BetterTextureFilter.Formats;
 using Symphony.Utils;
 
 using Unity.Collections;
@@ -21,8 +22,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 			TextureCacheKey cacheKey,
 			NativeArray<Color32> pixels,
 			Texture2D target,
-			byte pma,
-			Bc3TextureData.EncodingLease encodingLease,
+			BCTextureData.EncodingLease encodingLease,
 			Action<Texture2D> onComplete,
 			Action onFault
 		) {
@@ -54,7 +54,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 					var workerPixels = pixels;
 					task = Task.Run(() => {
 						try {
-							CreateMipChain(workerPixels, mips, textureWidth, textureHeight, mipCount, pma);
+							CreateMipChain(workerPixels, mips, textureWidth, textureHeight, mipCount);
 							return TexturePayloadData.Encode(
 								textureFormat,
 								workerPixels,
@@ -172,8 +172,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 			TextureCacheKey cacheKey,
 			NativeArray<Color32> pixels,
 			Texture2D target,
-			byte pma,
-			Bc3TextureData.EncodingLease encodingLease
+			BCTextureData.EncodingLease encodingLease
 		) {
 			var taskSlotAcquired = false;
 			try {
@@ -191,7 +190,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 				byte[] encodedData;
 				var mips = new Dictionary<int, NativeArray<Color32>>();
 				try {
-					CreateMipChain(pixels, mips, textureWidth, textureHeight, mipCount, pma);
+					CreateMipChain(pixels, mips, textureWidth, textureHeight, mipCount);
 					encodedData = TexturePayloadData.Encode(
 						textureFormat,
 						pixels,
@@ -223,8 +222,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 			Dictionary<int, NativeArray<Color32>> mips,
 			int textureWidth,
 			int textureHeight,
-			int mipCount,
-			byte pma
+			int mipCount
 		) {
 			for (var mipLevel = 1; mipLevel < mipCount; mipLevel++) {
 				var mipWidth = Math.Max(1, textureWidth >> mipLevel);
@@ -246,7 +244,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 							new UIntPtr((ulong)mip.Length * (ulong)UnsafeUtility.SizeOf<Color32>()),
 							mipWidth,
 							mipHeight,
-							pma: pma,
+							pma: 0,
 							filterTightness: 1.35f
 						);
 						if (error != 0) {

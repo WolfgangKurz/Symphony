@@ -1,5 +1,7 @@
 using AssetBundles;
 
+using Symphony.Features.BetterTextureFilter.Formats;
+
 using System;
 using System.Collections;
 using System.Collections.Concurrent;
@@ -19,6 +21,7 @@ namespace Symphony.Features.BetterTextureFilter {
 	internal static class Cache {
 		private const uint CACHE_MAGIC = 0x43465442; // BTFC
 		private const int CACHE_VERSION = 3;
+		private const int CACHE_HEADER_LENGTH = sizeof(uint) + sizeof(int) * 6 + sizeof(long);
 
 		private static readonly object TASK_LOCK = new();
 		private static readonly object FILE_LOCK = new();
@@ -462,7 +465,11 @@ namespace Symphony.Features.BetterTextureFilter {
 			if (Volatile.Read(ref shuttingDown) != 0) yield break;
 
 			Dictionary<string, string> currentBundleVersions;
+			TexturePatchMode currentPatchMode;
+			TextureFormatMode currentFormatMode;
 			try {
+				currentPatchMode = TexturePatchService.CurrentPatchMode;
+				currentFormatMode = TexturePatchService.CurrentFormatMode;
 				var manifest = AssetBundleManager.AssetBundleManifestObject;
 				currentBundleVersions = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 				foreach (var name in manifest.GetAllAssetBundles()) {
@@ -476,7 +483,7 @@ namespace Symphony.Features.BetterTextureFilter {
 					currentBundleVersions[bundleId] = version;
 				}
 			} catch (Exception e) {
-				Plugin.Logger.LogWarning($"[Symphony::Experimental] Failed to read current AssetBundle versions: {e}");
+				Plugin.Logger.LogWarning($"[Symphony::Experimental] Failed to read current cache settings or AssetBundle versions: {e}");
 				yield break;
 			}
 
@@ -493,16 +500,24 @@ namespace Symphony.Features.BetterTextureFilter {
 			var removedCount = 0;
 			for (var i = 0; i < cachePaths.Length; i++) {
 				var cachePath = cachePaths[i];
-				if (!IsCurrentCache(cachePath, currentBundleVersions)) {
-					try {
-						lock (FILE_LOCK) {
+				try {
+					var removed = false;
+					lock (FILE_LOCK) {
+						if (!IsCurrentCache(
+							cachePath,
+							currentBundleVersions,
+							currentPatchMode,
+							currentFormatMode
+						)) {
 							File.Delete(cachePath);
 							AdvanceCacheFileGenerationUnsafe(cachePath);
+							removed = true;
 						}
-						removedCount++;
-					} catch (Exception e) {
-						Plugin.Logger.LogWarning($"[Symphony::Experimental] Failed to remove outdated texture cache '{cachePath}': {e}");
 					}
+					if (removed)
+						removedCount++;
+				} catch (Exception e) {
+					Plugin.Logger.LogWarning($"[Symphony::Experimental] Failed to remove outdated texture cache '{cachePath}': {e}");
 				}
 
 				if ((i + 1) % 32 == 0)
@@ -545,7 +560,9 @@ namespace Symphony.Features.BetterTextureFilter {
 
 		private static bool IsCurrentCache(
 			string cachePath,
-			Dictionary<string, string> currentBundleVersions
+			Dictionary<string, string> currentBundleVersions,
+			TexturePatchMode currentPatchMode,
+			TextureFormatMode currentFormatMode
 		) {
 			var stem = Path.GetFileNameWithoutExtension(cachePath);
 			var parts = stem.Split('.');
@@ -554,7 +571,8 @@ namespace Symphony.Features.BetterTextureFilter {
 				parts[0].Length != 32 || !parts[0].All(Uri.IsHexDigit) ||
 				parts[1].Length != 32 || !parts[1].All(Uri.IsHexDigit) ||
 				parts[3].Length != 32 || !parts[3].All(Uri.IsHexDigit) ||
-				!TryParseModeName(parts[2], out var mode)
+				!TryParseModeName(parts[2], out var mode) ||
+				mode != currentPatchMode
 			) return false;
 
 			if (
@@ -569,13 +587,28 @@ namespace Symphony.Features.BetterTextureFilter {
 					FileAccess.Read,
 					FileShare.ReadWrite | FileShare.Delete
 				);
-				if (stream.Length < sizeof(uint) + sizeof(int) * 2) return false;
+				if (stream.Length < CACHE_HEADER_LENGTH) return false;
 
 				using var reader = new BinaryReader(stream);
-				return
-					reader.ReadUInt32() == CACHE_MAGIC &&
-					reader.ReadInt32() == CACHE_VERSION &&
-					reader.ReadInt32() == (int)mode;
+				if (
+					reader.ReadUInt32() != CACHE_MAGIC ||
+					reader.ReadInt32() != CACHE_VERSION ||
+					reader.ReadInt32() != (int)currentPatchMode
+				) return false;
+
+				var width = reader.ReadInt32();
+				var height = reader.ReadInt32();
+				var mipCount = reader.ReadInt32();
+				var format = (TextureFormat)reader.ReadInt32();
+				var payloadLength = reader.ReadInt64();
+				if (width <= 0 || height <= 0 || mipCount <= 0 || payloadLength <= 0)
+					return false;
+
+				var expectedFormat = TexturePayloadData.ResolveFormat(
+					currentFormatMode,
+					TexturePatchService.CanEncode(width, height)
+				);
+				return format == expectedFormat;
 			} catch (Exception e) {
 				// 사용중일 수 있음, 다음 시작 때 알아서 정리되도록 무시
 				Plugin.Logger.LogDebug($"[Symphony::Experimental] Deferred cache validation for '{cachePath}': {e.Message}");
@@ -643,10 +676,8 @@ namespace Symphony.Features.BetterTextureFilter {
 		}
 
 		private static unsafe IntPtr GetTextureBuffer(Texture2D target, long expectedPayloadLength, out int bufferLength) {
-			if (
-				target.format != Bc3TextureData.Format &&
-				target.format != TexturePayloadData.Rgba32Format
-			) throw new InvalidDataException("Texture cache target is not BC3/DXT5 or RGBA32.");
+			if (!TexturePayloadData.IsSupportedFormat(target.format))
+				throw new InvalidDataException("Texture cache target is not BC3/DXT5 or BC7 or RGBA32.");
 
 			var buffer = target.GetRawTextureData<byte>();
 

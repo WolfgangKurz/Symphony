@@ -1,5 +1,5 @@
 using Symphony.Features.BetterTextureFilter.Patchers;
-using Symphony.Utils;
+using Symphony.Features.BetterTextureFilter.Formats;
 
 using System;
 using System.Collections;
@@ -35,8 +35,14 @@ namespace Symphony.Features.BetterTextureFilter {
 	}
 
 	internal enum TexturePatchMode {
-		Simple = 1,
-		Lanczos = 2
+		Simple,
+		Lanczos,
+	}
+	internal enum TextureFormatMode {
+		RGBA32,
+		BC3,
+		DXT5 = BC3,
+		BC7,
 	}
 
 	internal enum CacheReadResult {
@@ -49,255 +55,80 @@ namespace Symphony.Features.BetterTextureFilter {
 	internal interface ITexturePatcher {
 		TexturePatchMode Mode { get; }
 
-		Texture2D CreateTextureSync(TextureCacheKey cacheKey, Texture2D texture, byte pma = 0, bool useBc3 = true);
-		IEnumerator CreateTextureAsync(TextureCacheKey cacheKey, Texture2D texture, Action<Texture2D> onComplete, Action onFault = null, byte pma = 0, bool useBc3 = true);
-	}
-
-	internal static class Bc3TextureData {
-		internal const TextureFormat Format = TextureFormat.DXT5;
-
-		private const int BLOCK_SIZE = 4;
-		private const int BYTES_PER_BLOCK = 16;
-		private const int RGBA32_BYTES_PER_PIXEL = 4;
-		private const int MIN_BLOCKS_PER_THREAD = 1024;
-		private static readonly SemaphoreSlim ASYNC_ENCODING_GATE = new(1, 1);
-
-		internal sealed class EncodingLease : IDisposable {
-			private int releasesGate;
-
-			internal int MaximumWorkerCount { get; }
-
-			internal EncodingLease(int maximumWorkerCount, bool releasesGate) {
-				MaximumWorkerCount = maximumWorkerCount;
-				this.releasesGate = releasesGate ? 1 : 0;
-			}
-
-			public void Dispose() {
-				if (Interlocked.Exchange(ref releasesGate, 0) != 0)
-					ASYNC_ENCODING_GATE.Release();
-			}
-		}
-
-		internal static bool TryAcquireAsyncEncoding(out EncodingLease lease) {
-			if (!ASYNC_ENCODING_GATE.Wait(0)) {
-				lease = null;
-				return false;
-			}
-
-			lease = new EncodingLease(GetDefaultWorkerCount(), releasesGate: true);
-			return true;
-		}
-
-		internal static EncodingLease AcquireSynchronousEncoding() {
-			if (ASYNC_ENCODING_GATE.Wait(0))
-				return new EncodingLease(GetDefaultWorkerCount(), releasesGate: true);
-
-			// A synchronous Harmony path must not wait for an unrelated async texture.
-			// One native worker can safely run beside the half-core async encoder.
-			return new EncodingLease(maximumWorkerCount: 1, releasesGate: false);
-		}
-
-		internal static long GetPayloadLength(int width, int height, int mipCount) {
-			ValidateDimensions(width, height, mipCount);
-
-			long length = 0;
-			for (var mipLevel = 0; mipLevel < mipCount; mipLevel++) {
-				var mipWidth = Math.Max(1, width >> mipLevel);
-				var mipHeight = Math.Max(1, height >> mipLevel);
-				length = checked(length + GetMipLength(mipWidth, mipHeight));
-			}
-
-			return length;
-		}
-
-		internal static unsafe byte[] EncodeGeneratedMipChain(
-			NativeArray<Color32> mip0,
-			int width,
-			int height,
-			int mipCount,
-			EncodingLease encodingLease
-		) {
-			if (encodingLease == null) throw new ArgumentNullException(nameof(encodingLease));
-			ValidateDimensions(width, height, mipCount);
-			if (!mip0.IsCreated || mip0.Length != checked(width * height))
-				throw new ArgumentException("Base RGBA mip length does not match its dimensions.", nameof(mip0));
-			if (mipCount != GetFullMipCount(width, height))
-				throw new ArgumentException("BC3 mip generation requires a complete mip chain.", nameof(mipCount));
-
-			var output = new byte[checked((int)GetPayloadLength(width, height, mipCount))];
-			fixed (byte* destination = output) {
-				EncodeNative(
-					(byte*)NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(mip0),
-					checked(mip0.Length * RGBA32_BYTES_PER_PIXEL),
-					width,
-					height,
-					destination,
-					output.Length,
-					generateMipMaps: true,
-					blockCount: output.Length / BYTES_PER_BLOCK,
-					encodingLease
-				);
-			}
-
-			return output;
-		}
-
-		internal static unsafe byte[] Encode(
-			NativeArray<Color32> mip0,
-			Dictionary<int, NativeArray<Color32>> mips,
-			int width,
-			int height,
-			int mipCount,
-			EncodingLease encodingLease
-		) {
-			if (encodingLease == null) throw new ArgumentNullException(nameof(encodingLease));
-			if (!mip0.IsCreated)
-				throw new ArgumentException("Base mip is not allocated.", nameof(mip0));
-			if (mips == null)
-				throw new ArgumentNullException(nameof(mips));
-
-			var output = new byte[checked((int)GetPayloadLength(width, height, mipCount))];
-			fixed (byte* destination = output) {
-				var destinationOffset = 0;
-				for (var mipLevel = 0; mipLevel < mipCount; mipLevel++) {
-					var mipWidth = Math.Max(1, width >> mipLevel);
-					var mipHeight = Math.Max(1, height >> mipLevel);
-					var mip = mipLevel == 0
-						? mip0
-						: mips.TryGetValue(mipLevel, out var value)
-							? value
-							: throw new InvalidOperationException($"Missing RGBA mip level {mipLevel}.");
-					var expectedPixelCount = checked(mipWidth * mipHeight);
-					if (!mip.IsCreated || mip.Length != expectedPixelCount)
-						throw new InvalidOperationException($"RGBA mip level {mipLevel} has an invalid length.");
-
-					var sourceLength = checked(expectedPixelCount * RGBA32_BYTES_PER_PIXEL);
-					var destinationLength = checked((int)GetMipLength(mipWidth, mipHeight));
-					EncodeLevel(
-						(byte*)NativeArrayUnsafeUtility.GetUnsafeReadOnlyPtr(mip),
-						sourceLength,
-						mipWidth,
-						mipHeight,
-						destination + destinationOffset,
-						destinationLength,
-						encodingLease
-					);
-					destinationOffset = checked(destinationOffset + destinationLength);
-				}
-			}
-
-			return output;
-		}
-
-		internal static void Load(Texture2D target, byte[] data) {
-			if (!target) throw new ArgumentNullException(nameof(target));
-			if (target.format != Format)
-				throw new InvalidOperationException("BC3 data can only be loaded into a DXT5 texture.");
-			if (data == null)
-				throw new ArgumentNullException(nameof(data));
-
-			var expectedLength = GetPayloadLength(target.width, target.height, target.mipmapCount);
-			if (data.LongLength != expectedLength)
-				throw new ArgumentException("BC3 mip chain length does not match the target texture.", nameof(data));
-
-			target.LoadRawTextureData(data);
-		}
-
-		private static unsafe void EncodeLevel(
-			byte* source,
-			int sourceLength,
-			int width,
-			int height,
-			byte* destination,
-			int destinationLength,
-			EncodingLease encodingLease
-		) {
-			var blockCount = checked(
-				((width + BLOCK_SIZE - 1) / BLOCK_SIZE) *
-				((height + BLOCK_SIZE - 1) / BLOCK_SIZE)
-			);
-			EncodeNative(
-				source,
-				sourceLength,
-				width,
-				height,
-				destination,
-				destinationLength,
-				generateMipMaps: false,
-				blockCount,
-				encodingLease
-			);
-		}
-
-		private static unsafe void EncodeNative(
-			byte* source,
-			int sourceLength,
-			int width,
-			int height,
-			byte* destination,
-			int destinationLength,
-			bool generateMipMaps,
-			int blockCount,
-			EncodingLease encodingLease
-		) {
-			var workerCount = Math.Min(
-				encodingLease.MaximumWorkerCount,
-				Math.Max(1, (blockCount + MIN_BLOCKS_PER_THREAD - 1) / MIN_BLOCKS_PER_THREAD)
-			);
-
-			var error = TextureFilter.Bc3(
-				source,
-				new UIntPtr((uint)sourceLength),
-				width,
-				height,
-				destination,
-				new UIntPtr((uint)destinationLength),
-				generateMipMaps: generateMipMaps ? (byte)1 : (byte)0,
-				threadCount: workerCount
-			);
-			if (error != 0)
-				throw new InvalidOperationException($"BC3 encoding failed with error {error}.");
-		}
-
-		private static long GetMipLength(int width, int height) {
-			var blocksX = ((long)width + BLOCK_SIZE - 1) / BLOCK_SIZE;
-			var blocksY = ((long)height + BLOCK_SIZE - 1) / BLOCK_SIZE;
-			return checked(blocksX * blocksY * BYTES_PER_BLOCK);
-		}
-
-		private static int GetFullMipCount(int width, int height) {
-			var mipCount = 1;
-			while (width > 1 || height > 1) {
-				width = Math.Max(1, width / 2);
-				height = Math.Max(1, height / 2);
-				mipCount++;
-			}
-
-			return mipCount;
-		}
-
-		private static void ValidateDimensions(int width, int height, int mipCount) {
-			if (width <= 0) throw new ArgumentOutOfRangeException(nameof(width));
-			if (height <= 0) throw new ArgumentOutOfRangeException(nameof(height));
-			if (mipCount <= 0) throw new ArgumentOutOfRangeException(nameof(mipCount));
-		}
-
-		private static int GetDefaultWorkerCount() => Math.Max(1, Environment.ProcessorCount / 2);
+		Texture2D CreateTextureSync(TextureCacheKey cacheKey, Texture2D texture, TextureFormatMode format);
+		IEnumerator CreateTextureAsync(TextureCacheKey cacheKey, Texture2D texture, TextureFormatMode format, Action<Texture2D> onComplete, Action onFault = null);
 	}
 
 	internal static class TexturePayloadData {
 		internal const TextureFormat Rgba32Format = TextureFormat.RGBA32;
+		private static readonly BCTextureData BC3 = new(BCTextureFormat.BC3);
+		private static readonly BCTextureData BC7 = new(BCTextureFormat.BC7);
+
+		internal static TextureFormat ResolveFormat(TextureFormatMode format, bool canEncode) {
+			if (!canEncode || format == TextureFormatMode.RGBA32)
+				return Rgba32Format;
+
+			return format switch {
+				TextureFormatMode.BC3 => BC3.Format,
+				TextureFormatMode.BC7 => BC7.Format,
+				_ => throw new ArgumentOutOfRangeException(nameof(format))
+			};
+		}
+
+		internal static bool IsSupportedFormat(TextureFormat format) =>
+			format == Rgba32Format || GetBCTextureData(format) != null;
 
 		internal static long GetPayloadLength(
 			TextureFormat format,
 			int width,
 			int height,
 			int mipCount
-		) => format switch {
-			Bc3TextureData.Format => Bc3TextureData.GetPayloadLength(width, height, mipCount),
-			Rgba32Format => GetRgba32PayloadLength(width, height, mipCount),
-			_ => throw new NotSupportedException($"Unsupported texture payload format: {format}")
-		};
+		) {
+			var data = GetBCTextureData(format);
+			if (data != null)
+				return data.GetPayloadLength(width, height, mipCount);
+			if (format == Rgba32Format)
+				return GetRgba32PayloadLength(width, height, mipCount);
+
+			throw new NotSupportedException($"Unsupported texture payload format: {format}");
+		}
+
+		internal static bool TryAcquireAsyncEncoding(
+			TextureFormat format,
+			out BCTextureData.EncodingLease encodingLease
+		) {
+			var data = GetBCTextureData(format);
+			if (data != null)
+				return data.TryAcquireAsyncEncoding(out encodingLease);
+			if (format != Rgba32Format)
+				throw new NotSupportedException($"Unsupported texture payload format: {format}");
+
+			encodingLease = null;
+			return true;
+		}
+
+		internal static BCTextureData.EncodingLease AcquireSynchronousEncoding(TextureFormat format) {
+			var data = GetBCTextureData(format);
+			if (data != null)
+				return data.AcquireSynchronousEncoding();
+			if (format == Rgba32Format)
+				return null;
+
+			throw new NotSupportedException($"Unsupported texture payload format: {format}");
+		}
+
+		internal static byte[] EncodeGeneratedMipChain(
+			TextureFormat format,
+			NativeArray<Color32> mip0,
+			int width,
+			int height,
+			int mipCount,
+			BCTextureData.EncodingLease encodingLease
+		) {
+			var data = GetBCTextureData(format) ??
+				throw new NotSupportedException($"Unsupported generated mip format: {format}");
+			return data.EncodeGeneratedMipChain(mip0, width, height, mipCount, encodingLease);
+		}
 
 		internal static byte[] Encode(
 			TextureFormat format,
@@ -306,29 +137,27 @@ namespace Symphony.Features.BetterTextureFilter {
 			int width,
 			int height,
 			int mipCount,
-			Bc3TextureData.EncodingLease encodingLease
-		) => format switch {
-			Bc3TextureData.Format => Bc3TextureData.Encode(
-				mip0,
-				mips,
-				width,
-				height,
-				mipCount,
-				encodingLease
-			),
-			Rgba32Format => EncodeRgba32(mip0, mips, width, height, mipCount),
-			_ => throw new NotSupportedException($"Unsupported texture payload format: {format}")
-		};
+			BCTextureData.EncodingLease encodingLease
+		) {
+			var data = GetBCTextureData(format);
+			if (data != null)
+				return data.Encode(mip0, mips, width, height, mipCount, encodingLease);
+			if (format == Rgba32Format)
+				return EncodeRgba32(mip0, mips, width, height, mipCount);
+
+			throw new NotSupportedException($"Unsupported texture payload format: {format}");
+		}
 
 		internal static void Load(Texture2D target, byte[] data) {
 			if (!target) throw new ArgumentNullException(nameof(target));
 
-			if (target.format == Bc3TextureData.Format) {
-				Bc3TextureData.Load(target, data);
+			var bcTextureData = GetBCTextureData(target.format);
+			if (bcTextureData != null) {
+				bcTextureData.Load(target, data);
 				return;
 			}
 			if (target.format != Rgba32Format)
-				throw new InvalidOperationException("Texture data can only be loaded into a BC3 or RGBA32 texture.");
+				throw new InvalidOperationException("Texture data can only be loaded into a BC3, BC7 or RGBA32 texture.");
 			if (data == null)
 				throw new ArgumentNullException(nameof(data));
 
@@ -343,6 +172,12 @@ namespace Symphony.Features.BetterTextureFilter {
 
 			target.LoadRawTextureData(data);
 		}
+
+		private static BCTextureData GetBCTextureData(TextureFormat format) => format switch {
+			TextureFormat.DXT5 => BC3,
+			TextureFormat.BC7 => BC7,
+			_ => null
+		};
 
 		private static long GetRgba32PayloadLength(int width, int height, int mipCount) {
 			if (width <= 0) throw new ArgumentOutOfRangeException(nameof(width));
@@ -405,10 +240,9 @@ namespace Symphony.Features.BetterTextureFilter {
 		public IEnumerator CreateTextureAsync(
 			TextureCacheKey cacheKey,
 			Texture2D texture,
+			TextureFormatMode format,
 			Action<Texture2D> onComplete,
-			Action onFault = null,
-			byte pma = 0,
-			bool useBc3 = true
+			Action onFault = null
 		) {
 			if (onComplete == null)
 				throw new ArgumentNullException(nameof(onComplete));
@@ -417,12 +251,12 @@ namespace Symphony.Features.BetterTextureFilter {
 				yield break;
 			}
 
-			var target = CreateTargetTexture(texture, useBc3);
+			var target = CreateTargetTexture(texture, format);
 			var targetHideFlags = target.hideFlags;
 			target.hideFlags = targetHideFlags | HideFlags.DontUnloadUnusedAsset;
 			var handedOff = false;
 			var targetOwnershipTransferred = false;
-			Bc3TextureData.EncodingLease encodingLease = null;
+			BCTextureData.EncodingLease encodingLease = null;
 			try {
 				var cacheReadResult = CacheReadResult.Miss;
 				Exception cacheCompletionError = null;
@@ -452,15 +286,13 @@ namespace Symphony.Features.BetterTextureFilter {
 
 				if (cacheReadResult == CacheReadResult.Invalid) {
 					if (target) UnityEngine.Object.Destroy(target);
-					target = CreateTargetTexture(texture, useBc3);
+					target = CreateTargetTexture(texture, format);
 					targetHideFlags = target.hideFlags;
 					target.hideFlags = targetHideFlags | HideFlags.DontUnloadUnusedAsset;
 				}
 
-				if (target.format == Bc3TextureData.Format) {
-					while (!Bc3TextureData.TryAcquireAsyncEncoding(out encodingLease))
-						yield return null;
-				}
+				while (!TexturePayloadData.TryAcquireAsyncEncoding(target.format, out encodingLease))
+					yield return null;
 
 				yield return GetGPUPixelsAsync(
 					texture,
@@ -470,7 +302,6 @@ namespace Symphony.Features.BetterTextureFilter {
 							cacheKey,
 							pixels,
 							target,
-							pma,
 							transferredEncodingLease,
 							completedTexture => {
 								onComplete(completedTexture);
@@ -515,12 +346,11 @@ namespace Symphony.Features.BetterTextureFilter {
 		public Texture2D CreateTextureSync(
 			TextureCacheKey cacheKey,
 			Texture2D texture,
-			byte pma = 0,
-			bool useBc3 = true
+			TextureFormatMode format
 		) {
 			if (!texture) throw new ArgumentNullException(nameof(texture));
 
-			var target = CreateTargetTexture(texture, useBc3);
+			var target = CreateTargetTexture(texture, format);
 			var targetHideFlags = target.hideFlags;
 			target.hideFlags = targetHideFlags | HideFlags.DontUnloadUnusedAsset;
 			var completed = false;
@@ -536,20 +366,17 @@ namespace Symphony.Features.BetterTextureFilter {
 
 				if (cacheReadResult == CacheReadResult.Invalid) {
 					if (target) UnityEngine.Object.Destroy(target);
-					target = CreateTargetTexture(texture, useBc3);
+					target = CreateTargetTexture(texture, format);
 					targetHideFlags = target.hideFlags;
 					target.hideFlags = targetHideFlags | HideFlags.DontUnloadUnusedAsset;
 				}
 
 				var pixels = GetGPUPixelsSync(texture);
-				using var encodingLease = target.format == Bc3TextureData.Format
-					? Bc3TextureData.AcquireSynchronousEncoding()
-					: null;
+				using var encodingLease = TexturePayloadData.AcquireSynchronousEncoding(target.format);
 				var result = CreateTextureFromPixelsSync(
 					cacheKey,
 					pixels,
 					target,
-					pma,
 					encodingLease
 				);
 				completed = true;
@@ -574,8 +401,7 @@ namespace Symphony.Features.BetterTextureFilter {
 			TextureCacheKey cacheKey,
 			NativeArray<Color32> pixels,
 			Texture2D target,
-			byte pma,
-			Bc3TextureData.EncodingLease encodingLease,
+			BCTextureData.EncodingLease encodingLease,
 			Action<Texture2D> onComplete,
 			Action onFault
 		);
@@ -584,24 +410,16 @@ namespace Symphony.Features.BetterTextureFilter {
 			TextureCacheKey cacheKey,
 			NativeArray<Color32> pixels,
 			Texture2D target,
-			byte pma,
-			Bc3TextureData.EncodingLease encodingLease
+			BCTextureData.EncodingLease encodingLease
 		);
 
-		protected static Texture2D CreateTargetTexture(Texture2D source, bool useBc3) {
-			var format = useBc3 && TexturePatchService.CanEncode(source)
-				? Bc3TextureData.Format
-				: TexturePayloadData.Rgba32Format;
+		protected static Texture2D CreateTargetTexture(Texture2D source, TextureFormatMode fmt) {
+			var format = TexturePayloadData.ResolveFormat(fmt, TexturePatchService.CanEncode(source));
+
 			if (!SystemInfo.SupportsTextureFormat(format))
 				throw new NotSupportedException($"{format} textures are not supported by this graphics device.");
 
-			var result = new Texture2D(
-				source.width,
-				source.height,
-				format,
-				mipChain: true,
-				linear: false
-			) {
+			var result = new Texture2D(source.width, source.height, format, mipChain: true, linear: false) {
 				filterMode = FilterMode.Trilinear,
 				mipMapBias = 0f,
 				wrapModeU = source.wrapModeU,
@@ -1011,12 +829,23 @@ namespace Symphony.Features.BetterTextureFilter {
 			"lanczos" => LanczosPatcher,
 			_ => throw new ArgumentOutOfRangeException("Use_BetterTextureFilter_Patcher")
 		};
+		private static TextureFormatMode CurrentTextureFormat => Conf.Experimental.Use_BetterTextureFilter_Format.Value switch {
+			"RGBA32" => TextureFormatMode.RGBA32,
+			"BC3" => TextureFormatMode.BC3,
+			"BC7" => TextureFormatMode.BC7,
+			_ => throw new ArgumentOutOfRangeException("Use_BetterTextureFilter_Format")
+		};
+		internal static TexturePatchMode CurrentPatchMode => CurrentPatcher.Mode;
+		internal static TextureFormatMode CurrentFormatMode => CurrentTextureFormat;
 
-		internal static bool CanEncode(Texture2D texture) => texture && texture.width % 4 == 0 && texture.height % 4 == 0;
+		internal static bool CanEncode(int width, int height) =>
+			width > 0 && height > 0 && width % 4 == 0 && height % 4 == 0;
+		internal static bool CanEncode(Texture2D texture) =>
+			texture && CanEncode(texture.width, texture.height);
 
 		internal static bool CanPatch(Texture2D texture) =>
 			texture && SystemInfo.SupportsTextureFormat(
-				CanEncode(texture) ? Bc3TextureData.Format : TexturePayloadData.Rgba32Format
+				TexturePayloadData.ResolveFormat(CurrentTextureFormat, CanEncode(texture))
 			) &&
 			texture.mipmapCount <= 1 &&
 			!(texture.name ?? "").EndsWith(TexturePatcherBase.TextureFilterName, StringComparison.Ordinal);
@@ -1026,65 +855,29 @@ namespace Symphony.Features.BetterTextureFilter {
 		internal static TextureCacheKey CreateCacheKey(string bundleName,string assetName,Texture2D texture)
 			=> CreateCacheKey(bundleName, assetName, texture ? texture.name : "");
 
-		internal static Texture2D CreateTextureSync(
-			TextureCacheKey cacheKey,
-			Texture2D texture,
-			byte pma = 0,
-			bool useBc3 = true
-		) => CurrentPatcher.CreateTextureSync(cacheKey, texture, pma, useBc3);
-		internal static Texture2D CreateTextureSync(
-			string bundleName,
-			string assetName,
-			Texture2D texture,
-			byte pma = 0,
-			bool useBc3 = true
-		) => CreateTextureSync(
-			CreateCacheKey(bundleName, assetName, texture),
-			texture,
-			pma,
-			useBc3
-		);
+		internal static Texture2D CreateTextureSync(TextureCacheKey cacheKey, Texture2D texture)
+			=> CurrentPatcher.CreateTextureSync(cacheKey, texture, CurrentTextureFormat);
+		internal static Texture2D CreateTextureSync(string bundleName, string assetName, Texture2D texture)
+			=> CreateTextureSync(CreateCacheKey(bundleName, assetName, texture), texture);
 
 		internal static IEnumerator CreateTextureAsync(
 			TextureCacheKey cacheKey,
 			Texture2D texture,
 			Action<Texture2D> onComplete,
-			Action onFault = null,
-			byte pma = 0,
-			bool useBc3 = true
-		) => CurrentPatcher.CreateTextureAsync(
-			cacheKey,
-			texture,
-			onComplete,
-			onFault,
-			pma,
-			useBc3
-		);
+			Action onFault = null
+		) => CurrentPatcher.CreateTextureAsync(cacheKey, texture, CurrentTextureFormat, onComplete, onFault);
 		internal static IEnumerator CreateTextureAsync(
 			string bundleName,
 			string assetName,
 			Texture2D texture,
 			Action<Texture2D> onComplete,
-			Action onFault = null,
-			byte pma = 0,
-			bool useBc3 = true
-		) => CreateTextureAsync(
-			CreateCacheKey(bundleName, assetName, texture),
-			texture,
-			onComplete,
-			onFault,
-			pma,
-			useBc3
-		);
+			Action onFault = null
+		) => CreateTextureAsync(CreateCacheKey(bundleName, assetName, texture), texture, onComplete, onFault);
 
-		internal static Sprite CloneSpriteWithNewTexture(Sprite original, Texture2D newTexture) =>
-			TexturePatcherBase.CloneSpriteWithNewTexture(original, newTexture);
+		internal static Sprite CloneSpriteWithNewTexture(Sprite original, Texture2D newTexture)
+			=> TexturePatcherBase.CloneSpriteWithNewTexture(original, newTexture);
 
-		internal static Sprite CreateSpriteSync(
-			string bundleName,
-			string assetName,
-			Sprite sprite
-		) {
+		internal static Sprite CreateSpriteSync(string bundleName, string assetName, Sprite sprite) {
 			if (!sprite) throw new ArgumentNullException(nameof(sprite));
 
 			var replacement = CreateTextureSync(bundleName, assetName, sprite.texture);
@@ -1197,7 +990,7 @@ namespace Symphony.Features.BetterTextureFilter {
 					}
 
 					var cacheKey = CreateCacheKey(assetBundleName, assetName, group.source);
-					yield return patcher.CreateTextureAsync(cacheKey, group.source, Complete);
+					yield return patcher.CreateTextureAsync(cacheKey, group.source, CurrentTextureFormat, Complete);
 
 					if (!completed) allGroupsCompleted = false;
 				}
@@ -1208,7 +1001,12 @@ namespace Symphony.Features.BetterTextureFilter {
 			}
 		}
 
-		internal static void PatchUIPrefabTextures(MonoBehaviour coroutineRunner, string assetBundleName, string assetName, GameObject prefab) {
+		internal static void PatchUIPrefabTextures(
+			MonoBehaviour coroutineRunner,
+			string assetBundleName,
+			string assetName,
+			GameObject prefab
+		) {
 			if (!coroutineRunner || !prefab) return;
 
 			var state = UIPrefabPatchStates.GetValue(prefab, _ => new UIPrefabPatchState());
@@ -1380,7 +1178,12 @@ namespace Symphony.Features.BetterTextureFilter {
 			return appliedCount;
 		}
 
-		internal static IEnumerator PatchRendererTexturesAsync(string assetBundleName, string assetName, GameObject owner, Renderer[] renderers) {
+		internal static IEnumerator PatchRendererTexturesAsync(
+			string assetBundleName,
+			string assetName,
+			GameObject owner,
+			Renderer[] renderers
+		) {
 			if (!Conf.Experimental.Use_BetterTextureFilter.Value || !owner) yield break;
 
 			var ownerName = owner.name;
@@ -1413,7 +1216,7 @@ namespace Symphony.Features.BetterTextureFilter {
 					}
 
 					var cacheKey = CreateCacheKey(assetBundleName, assetName, group.cacheName);
-					yield return patcher.CreateTextureAsync(cacheKey, group.source, Complete);
+					yield return patcher.CreateTextureAsync(cacheKey, group.source, CurrentTextureFormat, Complete);
 				} finally {
 					if (replacement && !handedOff)
 						UnityEngine.Object.Destroy(replacement);

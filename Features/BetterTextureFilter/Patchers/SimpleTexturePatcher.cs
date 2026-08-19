@@ -1,3 +1,5 @@
+using Symphony.Features.BetterTextureFilter.Formats;
+
 using System;
 using System.Collections;
 using System.Threading;
@@ -14,8 +16,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 			TextureCacheKey cacheKey,
 			NativeArray<Color32> pixels,
 			Texture2D target,
-			byte pma,
-			Bc3TextureData.EncodingLease encodingLease,
+			BCTextureData.EncodingLease encodingLease,
 			Action<Texture2D> onComplete,
 			Action onFault
 		) {
@@ -70,9 +71,11 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 					var width = target.width;
 					var height = target.height;
 					var mipCount = target.mipmapCount;
+					var textureFormat = target.format;
 					encodingTask = Task.Run(() => {
 						try {
-							return Bc3TextureData.EncodeGeneratedMipChain(
+							return TexturePayloadData.EncodeGeneratedMipChain(
+								textureFormat,
 								workerPixels,
 								width,
 								height,
@@ -115,7 +118,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 				}
 
 				try {
-					Bc3TextureData.Load(target, encodedData);
+					TexturePayloadData.Load(target, encodedData);
 					encodedData = null;
 				} catch (Exception exception) {
 					Plugin.Logger.LogError(exception.ToString());
@@ -176,8 +179,7 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 			TextureCacheKey cacheKey,
 			NativeArray<Color32> pixels,
 			Texture2D target,
-			byte pma,
-			Bc3TextureData.EncodingLease encodingLease
+			BCTextureData.EncodingLease encodingLease
 		) {
 			try {
 				if (target.format == TexturePayloadData.Rgba32Format) {
@@ -188,14 +190,15 @@ namespace Symphony.Features.BetterTextureFilter.Patchers {
 					return target;
 				}
 
-				var encodedData = Bc3TextureData.EncodeGeneratedMipChain(
+				var encodedData = TexturePayloadData.EncodeGeneratedMipChain(
+					target.format,
 					pixels,
 					target.width,
 					target.height,
 					target.mipmapCount,
 					encodingLease
 				);
-				Bc3TextureData.Load(target, encodedData);
+				TexturePayloadData.Load(target, encodedData);
 				encodedData = null;
 
 				Cache.WriteTextureSync(cacheKey, Mode, target);

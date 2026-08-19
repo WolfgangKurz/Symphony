@@ -179,6 +179,7 @@ namespace Symphony {
 
 			public static readonly ConfigEntry<bool> Use_BetterTextureFilter = config.Bind("Experimental", "Use_BetterTextureFilter", false, "Use better mipmap and filter for textures");
 			public static readonly ConfigEntry<string> Use_BetterTextureFilter_Patcher = config.Bind("Experimental", "Use_BetterTextureFilter_Patcher", "simple", "Patcher key for BetterTextureFilter");
+			public static readonly ConfigEntry<string> Use_BetterTextureFilter_Format = config.Bind("Experimental", "Use_BetterTextureFilter_Format", "BC7", "Texture format key for BetterTextureFilter");
 		}
 		internal class KeyMapping {
 			public static readonly ConfigEntry<bool> Use_KeyMapping = config.Bind("KeyMapping", "Use_KeyMapping", false, "Use KeyMapping feature");

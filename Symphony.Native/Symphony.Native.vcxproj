@@ -73,12 +73,16 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="bc3.c" />
+    <ClCompile Include="bc7.c" />
+    <ClCompile Include="bc7enc16.c" />
     <ClCompile Include="lanczos.c" />
     <ClCompile Include="sharpen.c" />
     <ClCompile Include="util.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bc3.h" />
+    <ClInclude Include="bc7.h" />
+    <ClInclude Include="bc7enc16.h" />
     <ClInclude Include="common.h" />
     <ClInclude Include="header.h" />
     <ClInclude Include="lanczos.h" />

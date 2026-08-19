@@ -18,6 +18,12 @@
     <ClCompile Include="bc3.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="bc7.c">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
+    <ClCompile Include="bc7enc16.c">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
     <ClCompile Include="lanczos.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
@@ -30,6 +36,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="bc3.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="bc7.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="bc7enc16.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="lanczos.h">
