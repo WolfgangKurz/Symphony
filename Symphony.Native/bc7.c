@@ -1,5 +1,5 @@
 #include "bc7.h"
-#include "bc7enc16.h"
+#include "bc7enc.h"
 #include "util.h"
 
 #include <process.h>
@@ -27,15 +27,15 @@ typedef struct BC7_WORKER {
 } BC7_WORKER;
 
 static INIT_ONCE BC7_ENCODER_INIT_ONCE = INIT_ONCE_STATIC_INIT;
-static bc7enc16_compress_block_params BC7_PARAMETERS;
+static bc7enc_compress_block_params BC7_PARAMETERS;
 
 static BOOL CALLBACK initialize_encoder(PINIT_ONCE init_once, PVOID parameter, PVOID* context) {
     (void)init_once;
     (void)parameter;
     (void)context;
 
-    bc7enc16_compress_block_init();
-    bc7enc16_compress_block_params_init(&BC7_PARAMETERS);
+    bc7enc_compress_block_init();
+    bc7enc_compress_block_params_init(&BC7_PARAMETERS);
     return TRUE;
 }
 
@@ -163,7 +163,7 @@ static void compress_range(const BC7_WORKER* worker) {
 
         for (size_t block_index = first; block_index < end; block_index++) {
             copy_block(level, block_index, block);
-            bc7enc16_compress_block(
+            bc7enc_compress_block_mode5(
                 level->output + block_index * BC7_BLOCK_LENGTH,
                 block,
                 &BC7_PARAMETERS

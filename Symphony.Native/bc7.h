@@ -22,7 +22,7 @@ extern "C" {
 // Source is one RGBA32 base level. Output is a contiguous BC7 mip chain.
 // Each mip uses ceil(width / 4) * ceil(height / 4) * 16 bytes.
 // Partial 4x4 blocks replicate their nearest edge pixel.
-// Opaque blocks use BC7 modes 1 or 6. Alpha blocks use mode 6.
+// Every block is encoded with BC7 mode 5.
 // Thread count is clamped to the number of blocks and 64 internally.
 __declspec(dllexport)
 int32_t __cdecl bc7(

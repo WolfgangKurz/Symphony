@@ -20,7 +20,7 @@ using UnityEngine;
 namespace Symphony.Features.BetterTextureFilter {
 	internal static class Cache {
 		private const uint CACHE_MAGIC = 0x43465442; // BTFC
-		private const int CACHE_VERSION = 3;
+		private const int CACHE_VERSION = 1;
 		private const int CACHE_HEADER_LENGTH = sizeof(uint) + sizeof(int) * 6 + sizeof(long);
 
 		private static readonly object TASK_LOCK = new();

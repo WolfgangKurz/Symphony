@@ -303,10 +303,23 @@ namespace Symphony.Features {
 
 			private static void Patch_GetBundlePrefab(ref GameObject __result, string name) {
 				if (!Conf.Experimental.Use_BetterTextureFilter.Value || !__result) return;
-				if (name != "UIPcWarehouse" && name != "UIInvenSquad") return;
 				if (!coroutineRunner) return;
 
-				BTF.TexturePatchService.PatchUIPrefabTextures(coroutineRunner, "mainui", name, __result);
+				string bundleName;
+				switch (name) {
+					case "UIPcWarehouse":
+					case "UIInvenSquad":
+						bundleName = "mainui";
+						break;
+					case "UICharacterBook":
+					case "UICharacterBookTroopsPcIcon":
+						bundleName = "atlas";
+						break;
+					default:
+						return;
+				}
+
+				BTF.TexturePatchService.PatchUIPrefabTextures(coroutineRunner, bundleName, name, __result);
 			}
 
 			private static bool Patch_CommonUtils_GetRenderTexture(

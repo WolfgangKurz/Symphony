@@ -23,11 +23,7 @@ namespace Symphony.Features.BetterTextureFilter {
 		internal long BytesSaved => Math.Max(0, OriginalLength - CandidateLength);
 		internal bool ShouldReplace => Status == CacheRecompressionStatus.CandidateCreated;
 
-		internal CacheRecompressionResult(
-			CacheRecompressionStatus status,
-			long originalLength,
-			long candidateLength
-		) {
+		internal CacheRecompressionResult(CacheRecompressionStatus status, long originalLength, long candidateLength) {
 			Status = status;
 			OriginalLength = originalLength;
 			CandidateLength = candidateLength;
