@@ -110,6 +110,21 @@ namespace Symphony.Features {
 					AccessTools.Method(typeof(PrefabLoader), nameof(PrefabLoader.GetBundlePrefab)),
 					postfix: new HarmonyMethod(typeof(BetterTextureFilter), nameof(Patch_GetBundlePrefab))
 				);
+
+				#region Facility
+				var facilityAwakePostfix = new HarmonyMethod(
+					typeof(BetterTextureFilter),
+					nameof(Patch_FacilityAwake)
+				);
+				harmony.Patch(
+					AccessTools.Method(typeof(FixedFacility), "Awake", Type.EmptyTypes),
+					postfix: facilityAwakePostfix
+				);
+				harmony.Patch(
+					AccessTools.Method(typeof(InstallationFacility), "Awake", Type.EmptyTypes),
+					postfix: facilityAwakePostfix
+				);
+				#endregion
 			}
 
 			private static void Patch_InstantiateGameObjectAsyncCallback(
@@ -320,6 +335,39 @@ namespace Symphony.Features {
 				}
 
 				BTF.TexturePatchService.PatchUIPrefabTextures(coroutineRunner, bundleName, name, __result);
+			}
+
+			private static void Patch_FacilityAwake(FacilityModel __instance) {
+				if (
+					!Conf.Experimental.Use_BetterTextureFilter.Value || !coroutineRunner ||
+					!__instance || !__instance.gameObject
+				) return;
+
+				var facility = __instance.gameObject;
+				var assetName = facility.name ?? "";
+				const string cloneSuffix = "(Clone)";
+				if (assetName.EndsWith(cloneSuffix, StringComparison.Ordinal))
+					assetName = assetName.Substring(0, assetName.Length - cloneSuffix.Length);
+
+				try {
+					coroutineRunner.StartCoroutine(PatchFacilityAsync(facility, assetName));
+				} catch (Exception exception) {
+					Plugin.Logger.LogWarning(
+						$"[Symphony::Experimental] Failed to start facility texture patch for '{assetName}': {exception}"
+					);
+				}
+			}
+
+			private static IEnumerator PatchFacilityAsync(GameObject facility, string assetName) {
+				yield return null;
+				if (!facility) yield break;
+
+				yield return BTF.TexturePatchService.PatchRendererTexturesAsync(
+					"facility",
+					assetName,
+					facility,
+					facility.GetComponentsInChildren<Renderer>(true)
+				);
 			}
 
 			private static bool Patch_CommonUtils_GetRenderTexture(

@@ -1121,6 +1121,10 @@ namespace Symphony.Features.BetterTextureFilter {
 					case SkinnedMeshRenderer skinnedRenderer:
 						CollectMaterialRenderer(skinnedRenderer, rendererIndex);
 						break;
+
+					case ParticleSystemRenderer particleRenderer:
+						CollectMaterialRenderer(particleRenderer, rendererIndex);
+						break;
 				}
 			}
 
