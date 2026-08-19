@@ -1114,7 +1114,7 @@ namespace Symphony.Features.BetterTextureFilter {
 						}
 
 					case MeshRenderer meshRenderer:
-						if (!SpinePatcher.IsSpineRenderer(meshRenderer))
+						if (!meshRenderer.GetComponent<TextMesh>() && !SpinePatcher.IsSpineRenderer(meshRenderer))
 							CollectMaterialRenderer(meshRenderer, rendererIndex);
 						break;
 
