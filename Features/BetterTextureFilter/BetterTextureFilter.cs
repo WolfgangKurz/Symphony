@@ -328,6 +328,16 @@ namespace Symphony.Features {
 						break;
 					case "UICharacterBook":
 					case "UICharacterBookTroopsPcIcon":
+					case "UIShopSkin":
+					case "UIResearchLabArticleLine":
+					case "UIResearchBlueprint":
+					case "UIResearchLabComplete":
+					case "UIResearchModuleSlot":
+					case "UIShopItem":
+					case "UIShopItemBg":
+					case "UIShopItemBGM":
+					case "UIShopItemPackage":
+					case "UIShopPackageContentItem":
 						bundleName = "atlas";
 						break;
 					default:
