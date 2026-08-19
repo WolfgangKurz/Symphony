@@ -7,7 +7,7 @@ using System;
 
 namespace Symphony.Utils {
 	internal static class TextureTranscoder {
-		internal const int Dxt5TextureFormat = 12;
+		internal const int BC7TextureFormat = 25;
 
 		internal readonly struct TextureTranscodeRequest {
 			public TextureTranscodeRequest(int width, int height, int textureFormat, int mipCount, byte[] data) {
@@ -91,7 +91,7 @@ namespace Symphony.Utils {
 					return false;
 				}
 
-				var encoded = EncodeDxt5(
+				var encoded = EncodeTexture(
 					request.Width,
 					request.Height,
 					rgba,
@@ -171,7 +171,7 @@ namespace Symphony.Utils {
 			return output;
 		}
 
-		private static unsafe byte[] EncodeDxt5(
+		private static unsafe byte[] EncodeTexture(
 			int width,
 			int height,
 			byte[] rgbaBytes,
@@ -179,7 +179,7 @@ namespace Symphony.Utils {
 			int threadCount,
 			out int mipCount
 		) {
-			var outputLength = GetDxt5DataLength(width, height, generateMipMaps, out mipCount);
+			var outputLength = GetBc7DataLength(width, height, generateMipMaps, out mipCount);
 			var encoded = new byte[outputLength];
 
 			fixed (byte* source = rgbaBytes)
@@ -201,12 +201,7 @@ namespace Symphony.Utils {
 			return encoded;
 		}
 
-		private static int GetDxt5DataLength(
-			int width,
-			int height,
-			bool generateMipMaps,
-			out int mipCount
-		) {
+		private static int GetBc7DataLength(int width, int height, bool generateMipMaps, out int mipCount) {
 			var totalLength = 0L;
 			var mipWidth = width;
 			var mipHeight = height;
@@ -237,7 +232,7 @@ namespace Symphony.Utils {
 		}
 
 		private enum UnityTextureFormat {
-			DXT5 = 12,
+			BC7 = 25,
 			PVRTC_RGB2 = 30,
 			PVRTC_RGBA2 = 31,
 			PVRTC_RGB4 = 32,

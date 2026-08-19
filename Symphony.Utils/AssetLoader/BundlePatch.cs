@@ -565,7 +565,7 @@ namespace Symphony.Utils {
 					}
 
 					var overrides = new TextureObjectOverrides(
-						TextureTranscoder.Dxt5TextureFormat,
+						TextureTranscoder.BC7TextureFormat,
 						transcoded.Data.Length,
 						transcoded.MipCount,
 						Array.Empty<byte>(),
