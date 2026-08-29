@@ -4,7 +4,6 @@ using Symphony.Features.BetterTextureFilter.Formats;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 
@@ -850,8 +849,20 @@ namespace Symphony.Features.BetterTextureFilter {
 			texture.mipmapCount <= 1 &&
 			!(texture.name ?? "").EndsWith(TexturePatcherBase.TextureFilterName, StringComparison.Ordinal);
 
-		internal static TextureCacheKey CreateCacheKey(string bundleName,string assetName,string textureName) 
-			=> new(bundleName,assetName,Caching.GetCachedVersions(bundleName).FirstOrDefault(),textureName ?? "");
+		internal static TextureCacheKey CreateCacheKey(string bundleName, string assetName, string textureName) {
+			bundleName = bundleName?.ToLowerInvariant() ?? "";
+			var manifest = AssetBundles.AssetBundleManager.AssetBundleManifestObject;
+			var version = default(Hash128);
+			try {
+				if (manifest != null)
+					version = manifest.GetAssetBundleHash(bundleName);
+			} catch (Exception exception) {
+				Plugin.Logger.LogWarning(
+					$"[Symphony::Experimental] Failed to resolve current asset bundle version for '{bundleName}': {exception}"
+				);
+			}
+			return new TextureCacheKey(bundleName, assetName, version, textureName ?? "");
+		}
 		internal static TextureCacheKey CreateCacheKey(string bundleName,string assetName,Texture2D texture)
 			=> CreateCacheKey(bundleName, assetName, texture ? texture.name : "");
 

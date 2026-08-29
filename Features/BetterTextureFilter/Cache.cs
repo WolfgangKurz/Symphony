@@ -158,6 +158,7 @@ namespace Symphony.Features.BetterTextureFilter {
 			}
 
 			Compress.Initialize();
+			runner.StartCoroutine(CleanupOrphanCache());
 			runner.StartCoroutine(CleanupOutdated());
 			runner.StartCoroutine(ProcessTaskCleanup());
 		}
@@ -452,6 +453,90 @@ namespace Symphony.Features.BetterTextureFilter {
 			}
 		}
 
+		private static IEnumerator CleanupOrphanCache() {
+			(string bundleName, string assetName, string textureName)[] ORPHAN_CACHE_KEYS = [
+				("mainui", "UIPcWarehouse", "AndroidPC"),
+				("mainui", "UIPcWarehouse", "masterAtlas"),
+				("mainui", "UIPcWarehouse", "masterAtlas_V2"),
+				("mainui", "UIInvenSquad", "AndroidPC"),
+				("mainui", "UIInvenSquad", "masterAtlas_V2"),
+			];
+
+		var directory = cacheDirectory;
+			if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
+				yield break;
+
+			var orphanKeys = ORPHAN_CACHE_KEYS
+				.Select(key => (
+					bundleName: key.bundleName.ToLowerInvariant(),
+					bundleId: ComputeId(key.bundleName.ToLowerInvariant()),
+					key.assetName,
+					key.textureName
+				))
+				.ToArray();
+
+			string[] cachePaths;
+			try {
+				cachePaths = Directory.GetFiles(directory, "*.cache", SearchOption.AllDirectories);
+			} catch (Exception e) {
+				Plugin.Logger.LogWarning($"[Symphony::Experimental] Failed to enumerate orphan texture caches: {e}");
+				yield break;
+			}
+
+			var removedCount = 0;
+			for (var i = 0; i < cachePaths.Length; i++) {
+				if (Volatile.Read(ref shuttingDown) != 0) yield break;
+
+				var cachePath = cachePaths[i];
+				try {
+					var parts = Path.GetFileNameWithoutExtension(cachePath).Split('.');
+					if (
+						parts.Length != 4 ||
+						parts[1].Length != 32 || !parts[1].All(Uri.IsHexDigit) ||
+						!TryParseModeName(parts[2], out var mode)
+					)
+						continue;
+
+					var modeName = GetModeName(mode);
+					var isOrphan = orphanKeys.Any(key =>
+						string.Equals(parts[0], key.bundleId, StringComparison.OrdinalIgnoreCase) &&
+						string.Equals(
+							parts[3],
+							ComputeTextureId(
+								key.bundleName,
+								key.assetName,
+								parts[1],
+								key.textureName,
+								modeName
+							),
+							StringComparison.OrdinalIgnoreCase
+						)
+					);
+					if (!isOrphan) continue;
+
+					var removed = false;
+					lock (FILE_LOCK) {
+						if (File.Exists(cachePath)) {
+							File.Delete(cachePath);
+							AdvanceCacheFileGenerationUnsafe(cachePath);
+							removed = true;
+						}
+					}
+
+					if (removed)
+						removedCount++;
+				} catch (Exception e) {
+					Plugin.Logger.LogWarning($"[Symphony::Experimental] Failed to remove orphan texture cache '{cachePath}': {e}");
+				}
+
+				if ((i + 1) % 32 == 0)
+					yield return null;
+			}
+
+			if (removedCount > 0)
+				Plugin.Logger.LogInfo($"[Symphony::Experimental] Removed {removedCount} orphan texture cache file(s).");
+		}
+
 		private static IEnumerator CleanupOutdated() {
 			var directory = cacheDirectory;
 			if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory))
@@ -618,22 +703,36 @@ namespace Symphony.Features.BetterTextureFilter {
 
 		private static string GetCachePath(TextureCacheKey key, TexturePatchMode mode) {
 			var directory = cacheDirectory;
-			if (string.IsNullOrEmpty(directory)) return null;
+			if (string.IsNullOrEmpty(directory) || !key.version.isValid) return null;
 
 			var bundleName = (key.bundleName ?? "").ToLowerInvariant();
 			var version = key.versionText;
 			var modeName = GetModeName(mode);
 			var bundleId = ComputeId(bundleName);
-			var textureId = ComputeId(string.Concat(
-				EncodeKeyPart(bundleName),
-				EncodeKeyPart(key.assetName),
-				EncodeKeyPart(version),
-				EncodeKeyPart(key.texName),
-				EncodeKeyPart(modeName)
-			));
+			var textureId = ComputeTextureId(
+				bundleName,
+				key.assetName,
+				version,
+				key.texName,
+				modeName
+			);
 
 			return Path.Combine(directory, $"{bundleId}.{version}.{modeName}.{textureId}.cache");
 		}
+
+		private static string ComputeTextureId(
+			string bundleName,
+			string assetName,
+			string version,
+			string textureName,
+			string modeName
+		) => ComputeId(string.Concat(
+				EncodeKeyPart(bundleName),
+				EncodeKeyPart(assetName),
+				EncodeKeyPart(version),
+				EncodeKeyPart(textureName),
+				EncodeKeyPart(modeName)
+			));
 
 		private static string EncodeKeyPart(string value) => $"{value.Length}:{value ?? ""}";
 

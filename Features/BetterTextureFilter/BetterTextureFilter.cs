@@ -336,22 +336,20 @@ namespace Symphony.Features {
 
 				string bundleName;
 				switch (name) {
-					case "UIPcWarehouse":
-					case "UIInvenSquad":
-						bundleName = "mainui";
-						break;
-					case "UICharacterBook":
-					case "UICharacterBookTroopsPcIcon":
-					case "UIShopSkin":
-					case "UIResearchLabArticleLine":
-					case "UIResearchBlueprint":
-					case "UIResearchLabComplete":
-					case "UIResearchModuleSlot":
-					case "UIShopItem":
-					case "UIShopItemBg":
-					case "UIShopItemBGM":
-					case "UIShopItemPackage":
-					case "UIShopPackageContentItem":
+					case "UIPcWarehouse": // AndroidPC, masterAtlas, masterAtlas_V2
+					case "UIInvenSquad": // AndroidPC, masterAtlas_V2
+					case "UICharacterBook": // AndroidPC, masterAtlas
+					case "UICharacterBookTroopsPcIcon": // AndroidPC, masterAtlas
+					case "UIShopSkin": // AndroidPC, masterAtlas, masterAtlas_V2
+					case "UIResearchLabArticleLine": // ResearchLabIcon, masterAtlas
+					case "UIResearchBlueprint": // AndroidPC, masterAtlas
+					case "UIResearchLabComplete": // ResearchLabIcon, masterAtlas
+					case "UIResearchModuleSlot": // ItemIcon_Consumable
+					case "UIShopItem": // ItemIcon_Consumable, ItemIcon_ShopItem, masterAtlas, masterAtlas_V2
+					case "UIShopItemBg": // ItemIcon_BGLongImg, masterAtlas, masterAtlas_V2
+					case "UIShopItemBGM": // ItemIcon_Consumable, ItemIcon_ShopItem, masterAtlas, masterAtlas_V2
+					case "UIShopItemPackage": // ItemIcon_Consumable, ItemIcon_ShopItem, masterAtlas_V2
+					case "UIShopPackageContentItem": // ItemIcon_Consumable, masterAtlas_V2
 						bundleName = "atlas";
 						break;
 					default:
