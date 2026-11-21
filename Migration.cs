@@ -167,25 +167,6 @@ namespace Symphony {
 			#endregion
 
 			#region Migration renamed Configs
-			{ // HelpfulBase -> Automation
-				bool value_bool;
-
-				if (config.TryGetOrphanedEntry("HelpfulBase", "Use_GetAll", out value_bool)) {
-					Plugin.Logger.LogMessage("[Symphony] HelpfulBase configuration detected, migrate it.");
-					Conf.Automation.Use_Base_CollectAll_Restart.Value = value_bool;
-					config.RemoveAll(new ConfigDefinition("HelpfulBase", "Use_GetAll"));
-				}
-			}
-			{ // Automation.Use_Base_GetAll -> Automation.Use_Base_CollectAll_Restart
-				bool value_bool;
-
-				if (config.TryGetOrphanedEntry("Automation", "Use_Base_GetAll", out value_bool)) {
-					Plugin.Logger.LogMessage("[Symphony] Use_Base_GetAll configuration detected, migrate it.");
-					Conf.Automation.Use_Base_CollectAll_Restart.Value = value_bool;
-					config.RemoveAll(new ConfigDefinition("Automation", "Use_Base_GetAll"));
-				}
-			}
-
 			{ // LastBattle -> Notification (Section name not changed after copy-paste)
 				bool value_bool;
 
@@ -283,6 +264,21 @@ namespace Symphony {
 					.ToArray();
 				if (entries.Length > 0) {
 					Plugin.Logger.LogMessage("[Symphony] Automation.OfflineBattle Restart configuration detected, remove it.");
+					foreach (var e in entries) config.RemoveAll(e);
+				}
+			}
+			{ // Automation.Base CollectAll Restart (and its old names)
+				ConfigDefinition[] defs = [
+					new("HelpfulBase", "Use_GetAll"),
+					new("Automation", "Use_Base_GetAll"),
+					new("Automation", "Use_Base_CollectAll_Restart"),
+				];
+				var entries = config.GetAllOrphanedEntries("HelpfulBase")
+					.Concat(config.GetAllOrphanedEntries("Automation"))
+					.Where(x => defs.Contains(x))
+					.ToArray();
+				if (entries.Length > 0) {
+					Plugin.Logger.LogMessage("[Symphony] Automation.Base CollectAll Restart configuration detected, remove it.");
 					foreach (var e in entries) config.RemoveAll(e);
 				}
 			}

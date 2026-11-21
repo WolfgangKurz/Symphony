@@ -37,6 +37,7 @@ A collection of simple quality-of-life improvements for the game.
 - Allows the Story Viewer skip key to be reassigned.
 - Provides a faster logo screen, earlier title-screen interaction, and automatic login.
 - Prevents BGM from restarting after audio device changes.
+- `Base Craft All Except Unit Crafts` excludes unit crafting facilities from the Base Craft All function.
 
 The default key for toggling fullscreen/windowed mode is `F11`.
 
@@ -80,7 +81,6 @@ A collection of crafting preset features.
 - `Character Share` lets you export the current character or squad configuration—including stats, skill-use priorities, equipment, and full-link bonuses—as a share code, or import one. Importing automatically applies some settings, and squad sharing may cause problems.
   - Short codes upload the configuration data to `symphony-sharetext.swaytwig.com`. Select `원본 복사` (Copy Raw Data) to use the feature without uploading it.
   - Anyone with a short code can retrieve its uploaded configuration, so share it only with the intended recipients.
-- Restarts Base facilities after using the built-in Collect All function.
 
 ### Experimental
 A collection of experimental features.

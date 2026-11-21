@@ -51,6 +51,8 @@ namespace Symphony {
 			public static readonly ConfigEntry<bool> Use_AutoLogin = config.Bind("SimpleTweaks", "Use_AutoLogin", false, $"Do login automatically");
 
 			public static readonly ConfigEntry<bool> Use_ContinueBGM = config.Bind("SimpleTweaks", "Use_ContinueBGM", false, $"Continue BGM when any device changed and BGM has reset");
+
+			public static readonly ConfigEntry<bool> Use_Base_CraftAllExceptUnitCrafts = config.Bind("SimpleTweaks", "Use_Base_CraftAllExceptUnitCrafts", false, "Base Craft All Except Unit Crafts. Excludes unit crafting facilities from Base 'Craft All'");
 		}
 		internal class SimpleUI {
 			#region Battle
@@ -164,8 +166,6 @@ namespace Symphony {
 			public static readonly ConfigEntry<string> CharMaking_Preset_Data = config.Bind("Presets", "CharMaking_Preset_Data", "");
 		}
 		internal class Automation {
-			public static readonly ConfigEntry<bool> Use_Base_CollectAll_Restart = config.Bind("Automation", "Use_Base_CollectAll_Restart", false, "Restarts facility when 'Collect All' used");
-
 			public static readonly ConfigEntry<bool> Use_CharacterShare = config.Bind("Automation", "Use_CharacterShare", false, "Add 'Character Share' button and 'Load Shared Character' in Character Detail Screen");
 		}
 		internal class Experimental {

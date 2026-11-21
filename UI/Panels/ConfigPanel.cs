@@ -473,6 +473,11 @@ namespace Symphony.UI.Panels {
 
 							DrawToggle(ref offset, "BGM 초기화 방지하기", Conf.SimpleTweaks.Use_ContinueBGM);
 							DrawLabel(ref offset, "사운드 장치 등이 변경되었을 때, BGM이 초기화되어 처음부터 재생되는 것을 방지하고, 재생되던 위치부터 이어서 재생되도록 합니다.", Color_description, 12);
+
+							DrawSeparator(ref offset);
+
+							DrawToggle(ref offset, "전투원 제조 시설을 제외한 기지 일괄 제조", Conf.SimpleTweaks.Use_Base_CraftAllExceptUnitCrafts);
+							DrawLabel(ref offset, "기지의 '일괄 제조'에서 전투원 제조 시설을 제외합니다.\n시설을 직접 선택해 제조하는 경우에는 영향을 주지 않습니다.", Color_description, 12);
 							#endregion
 							break;
 
@@ -588,10 +593,6 @@ namespace Symphony.UI.Panels {
 스쿼드 내보내기와 불러오기는 불안정하며, 더욱 자동화된 기능입니다.
 사용에 주의하세요.
 """, Color_description, 12);
-
-							DrawSeparator(ref offset);
-
-							DrawToggle(ref offset, "기지 '일괄 수령' 재시작 사용하기", Conf.Automation.Use_Base_CollectAll_Restart);
 							#endregion
 							break;
 

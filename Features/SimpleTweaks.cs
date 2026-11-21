@@ -322,6 +322,13 @@ namespace Symphony.Features {
 
 				audio.time = lastBGMTime;
 			}
+
+			public static void Patch_LivingStation_ChkCraftCandidate(InstallationFacility _InstallationFacility, ref bool __result) {
+				if (!__result) return;
+				if (!Conf.SimpleTweaks.Use_Base_CraftAllExceptUnitCrafts.Value) return;
+
+				if (_InstallationFacility.Table.ProduceType == 2) __result = false;
+			}
 		}
 
 		//////////////////////////////////////////////////////////////////////////////////////
@@ -411,6 +418,12 @@ namespace Symphony.Features {
 			harmony.Patch(
 				AccessTools.Method(typeof(GameSoundManager), "OnAudioConfigurationChanged"),
 				postfix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_BGM_ContinueBGM))
+			);
+
+			// Base Craft All Except Unit Crafts
+			harmony.Patch(
+				AccessTools.Method(typeof(LivingStation), nameof(LivingStation.ChkCraftCandidate)),
+				postfix: new HarmonyMethod(typeof(SimpleTweaks_Patch), nameof(SimpleTweaks_Patch.Patch_LivingStation_ChkCraftCandidate))
 			);
 			#endregion
 
