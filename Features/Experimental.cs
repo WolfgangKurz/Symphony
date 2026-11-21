@@ -308,6 +308,7 @@ namespace Symphony.Features {
 		private static readonly FieldInfo ABM_IsRequestError = AccessTools.Field(typeof(AssetBundleManager), "m_IsRequestError");
 		private static readonly FieldInfo ABM_Dependencies = AccessTools.Field(typeof(AssetBundleManager), "m_Dependencies");
 		private static readonly	MethodInfo ABM_RemapVariantName = AccessTools.Method(typeof(AssetBundleManager), "RemapVariantName", [typeof(string)]);
+		private static readonly MethodInfo ABM_LoadDependencies = AccessTools.Method(typeof(AssetBundleManager), "LoadDependencies", [typeof(string)]);
 
 		private static Dictionary<string, UnityWebRequest> GetAssetBundleManagerDownloads()
 			=> (Dictionary<string, UnityWebRequest>)ABM_DownloadingWebRequest.GetValue(null);
@@ -340,6 +341,26 @@ namespace Symphony.Features {
 				if (loadedDependency == null) return false;
 			}
 			return true;
+		}
+
+		private static bool IsAssetBundleMissingDependencies(string bundleName) =>
+			!GetAssetBundleManagerDependencies().ContainsKey(bundleName) &&
+			!AreAssetBundleDependenciesLoaded(GetAssetBundleDependencies(bundleName));
+
+		private static bool RequestAssetBundleDependencies(string bundleName) {
+			if (GetAssetBundleManagerDependencies().ContainsKey(bundleName)) return true;
+
+			Plugin.Logger.LogInfo($"[Symphony::LazyLoad] {bundleName} was loaded without its dependencies; requesting them");
+			LazyLoadDictionaryBypassDepth++;
+			try {
+				ABM_LoadDependencies.Invoke(null, [bundleName]);
+				return true;
+			} catch (Exception e) {
+				Plugin.Logger.LogError($"[Symphony::LazyLoad] Failed to request dependencies of {bundleName}: {(e as TargetInvocationException)?.InnerException ?? e}");
+				return false;
+			} finally {
+				LazyLoadDictionaryBypassDepth--;
+			}
 		}
 
 		private static bool TryGetAssetBundleManagerError(string bundleName, out string error, string[] dependencies = null) {
@@ -659,7 +680,18 @@ namespace Symphony.Features {
 							) {
 								var bundleName = loadQueue.Dequeue();
 								madeProgress = true;
-								if (TryGetLoadedAssetBundleRaw(LoadedAssetBundlesTarget, bundleName, out _)) continue;
+								if (TryGetLoadedAssetBundleRaw(LoadedAssetBundlesTarget, bundleName, out var loadedRoot)) {
+									// Patched bundles are loaded without dependencies; preload those instead.
+									if (
+										loadedRoot != null &&
+										IsAssetBundleMissingDependencies(bundleName) &&
+										RequestAssetBundleDependencies(bundleName)
+									) {
+										running.Add(bundleName);
+										startedAt[bundleName] = DateTime.UtcNow;
+									}
+									continue;
+								}
 								if (TryGetAssetBundleManagerError(bundleName, out var previousError)) {
 									Plugin.Logger.LogError($"[Symphony::LazyLoad] Skipping failed preload {bundleName}: {previousError}");
 									continue;
@@ -1024,6 +1056,10 @@ namespace Symphony.Features {
 				// A non-null manager result already verified dependencies when it owns a map.
 				if (GetAssetBundleManagerDependencies().ContainsKey(key)) return true;
 				if (AreAssetBundleDependenciesLoaded(GetAssetBundleDependencies(key))) return true;
+
+				// Loaded without dependencies and nobody requested them; waiting alone would always time out.
+				// If requesting fails, return the bundle as-is rather than blocking the main thread.
+				if (!RequestAssetBundleDependencies(key)) return true;
 				value = LoadAssetBundleSynchronously(key, false);
 				return value != null;
 			}

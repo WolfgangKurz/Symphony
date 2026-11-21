@@ -1951,7 +1951,7 @@ namespace Symphony.Features {
 									var prevCount = curSquad.SquadSlotList.Count(x => x.PCId != 0);
 
 									Action<string, ulong, ulong, uint, byte> fn = squadType == SQUAD_TYPE.NORMAL
-										? C2WPacket.Send_C2W_UNSET_PC_TO_SQUAD
+										? (a, b, c, d, e) => C2WPacket.Send_C2W_UNSET_PC_TO_SQUAD(a, b, c, d, e) // remove return type
 										: C2WPacket.Send_C2W_INFINITEWAR_UNSET_PC_TO_SQUAD;
 
 									var wait = MonoSingleton<SceneBase>.Instance.ShowWaitMessage(true);
@@ -2026,7 +2026,7 @@ namespace Symphony.Features {
 									var prevCount = curSquad.SquadSlotList.Count(x => x.PCId != 0);
 
 									Action<string, ulong, ulong, uint, byte, byte> fnSet = squadType == SQUAD_TYPE.NORMAL
-										? C2WPacket.Send_C2W_SET_PC_TO_SQUAD
+										? (a, b, c, d, e, f) => C2WPacket.Send_C2W_SET_PC_TO_SQUAD(a, b, c, d, e, f)
 										: C2WPacket.Send_C2W_INFINITEWAR_SET_PC_TO_SQUAD;
 
 									var wait = MonoSingleton<SceneBase>.Instance.ShowWaitMessage(true);

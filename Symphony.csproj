@@ -56,6 +56,10 @@
       <HintPath>ref\Assembly-CSharp.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="PlayMaker">
+      <HintPath>ref\PlayMaker.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
     <Reference Include="spine-csharp">
       <HintPath>ref\spine-csharp.dll</HintPath>
       <Private>false</Private>
