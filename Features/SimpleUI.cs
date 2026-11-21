@@ -231,6 +231,10 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Panel_PcWarehouse), nameof(Panel_AndroidInventory.ToogleChange)),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_BasePc_ToggleChange))
 			);
+			harmony.Patch(
+				AccessTools.Method(typeof(Panel_PcWarehouse), "SetDisassemble"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.Patch_PcWarehouse_SetDisassemble_Favorite))
+			);
 			#endregion
 
 			#region Better Stat Enchant
@@ -1804,8 +1808,18 @@ namespace Symphony.Features {
 				sp.spriteName = btn.normalSprite;
 			}));
 		}
+		private static bool IsDisassembleWarehouse(Panel_BasePc panel)
+			=> panel is Panel_PcWarehouse
+				&& panel.XGetFieldValue<Panel_PcWarehouse.WAREHOUSETYPE>("_invenType") == Panel_PcWarehouse.WAREHOUSETYPE.INVENTYPE_DIASSEMBLE;
+
+		private static void Patch_PcWarehouse_SetDisassemble_Favorite(Panel_PcWarehouse __instance) {
+			var _costToggle = __instance.XGetFieldValue<UIToggle>("_costToggle");
+			var go = _costToggle?.transform.parent?.Find("FavoriteToggle");
+			if (go != null) go.gameObject.SetActive(false);
+		}
 		private static void Patch_BasePc_Favorite(Panel_BasePc __instance) {
 			if (!Conf.SimpleUI.Use_Character_Favorite.Value) return;
+			if (IsDisassembleWarehouse(__instance)) return;
 
 			var _costToggle = __instance.XGetFieldValue<UIToggle>("_costToggle");
 			if (_costToggle == null) {
@@ -1843,6 +1857,7 @@ namespace Symphony.Features {
 		}
 		private static void Patch_BasePc_ToggleChange(Panel_BasePc __instance) {
 			if (!Conf.SimpleUI.Use_Character_Favorite.Value || !Conf.Cache.FavoriteOnly) return;
+			if (IsDisassembleWarehouse(__instance)) return; // Toggle hidden, do not filter
 
 			var _reUseGrid = __instance.XGetFieldValue<UIReuseGrid>("_reUseGrid");
 			if (_reUseGrid == null) {
