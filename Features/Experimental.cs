@@ -77,8 +77,6 @@ namespace Symphony.Features {
 				prefix: new HarmonyMethod(typeof(Experimental), nameof(Experimental.Patch_AssetBundleManager_DictContainsKey))
 			);
 			#endregion
-
-			BetterTextureFilter.Patch(this, harmony);
 		}
 
 		#region Freezing fixers

@@ -15,39 +15,18 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="bc3.c">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
     <ClCompile Include="bc7.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
     <ClCompile Include="bc7enc.c">
       <Filter>소스 파일</Filter>
     </ClCompile>
-    <ClCompile Include="lanczos.c">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="sharpen.c">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
-    <ClCompile Include="util.c">
-      <Filter>소스 파일</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="bc3.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
     <ClInclude Include="bc7.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="bc7enc.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="lanczos.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="sharpen.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="header.h">
@@ -57,9 +36,6 @@
       <Filter>헤더 파일</Filter>
     </ClInclude>
     <ClInclude Include="util.h">
-      <Filter>헤더 파일</Filter>
-    </ClInclude>
-    <ClInclude Include="stb_dxt.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

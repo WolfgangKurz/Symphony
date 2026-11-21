@@ -47,7 +47,7 @@ namespace Symphony {
 				return;
 			}
 
-			Conf.Migrate();
+			Migration.Migrate();
 
 			StartCoroutine(this.InitUI());
 

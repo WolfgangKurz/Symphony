@@ -92,11 +92,6 @@ These features are not fully validated. Disable the affected option if you encou
 - Provides Fast Loading by skipping unnecessary assets during startup.
   - Assets required for the game to run are still loaded at startup.
   - Other assets skipped during startup are loaded when the game first references them, which may briefly cause the game to stutter.
-- `Better Texture Filter` improves mipmaps and filtering so textures look clearer in smaller game windows.
-  - Select either `Built-in` or `Lanczos + Sharpen` filtering and the `RGBA32`, `BC3/DXT5`, or `BC7` texture format.
-  - Spine models always use `Built-in` filtering and the `RGBA32` format.
-  - `RGBA32` is lossless but uses more memory and cache space; `BC7` offers better quality than `BC3` but takes longer to process.
-  - Processing a texture for the first time may briefly stutter the game. Generated caches are stored in `BetterTextureFilter/Caches` under the game folder.
 
 ### KeyMapping
 Simulates touches or clicks with keyboard input.
