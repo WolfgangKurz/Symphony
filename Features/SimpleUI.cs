@@ -374,6 +374,10 @@ namespace Symphony.Features {
 				AccessTools.Method(typeof(Scene_LivingStation), "GetFacilityStorageMenuList"),
 				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.BetterFacilityInventory_FacilityInstallation_StorageMenuList))
 			);
+			harmony.Patch(
+				AccessTools.Method(typeof(UIFacilityInstallCell), "UpdateData"),
+				postfix: new HarmonyMethod(typeof(SimpleUI), nameof(SimpleUI.BetterFacilityInventory_FacilityInstallCell_UpdateData))
+			);
 			#endregion
 
 			#region Give me back LivingStation navigation
@@ -2814,22 +2818,27 @@ namespace Symphony.Features {
 				var c1 = -a.Lv.CompareTo(b.Lv);
 				if (c1 != 0) return c1;
 
-				var aName = a.Name.StartsWith("[c")
-					? a.Name.Substring(a.Name.IndexOf(" ") + 1)
-					: a.Name.Localize();
-				var bName = b.Name.StartsWith("[c")
-					? b.Name.Substring(b.Name.IndexOf(" ") + 1)
-					: b.Name.Localize();
+				var aName = a.Name.Localize();
+				var bName = b.Name.Localize();
 
 				var c2 = string.Compare(aName, bName, Common.GetCultureInfo(), CompareOptions.StringSort);
 				if (c2 != 0) return c2;
 
 				return a.Sort.CompareTo(b.Sort);
 			});
-			foreach (var item in __result) {
-				if (!item.Name.StartsWith("["))
-					item.Name = $"{Common.COLOR_BLUE}Lv.{item.Lv}{Common.COLOR_END} {item.Name.Localize()}";
-			}
+		}
+		private static void BetterFacilityInventory_FacilityInstallCell_UpdateData(UIFacilityInstallCell __instance) {
+			if (!Conf.SimpleUI.Use_BetterFacilityInventory.Value) return;
+
+			// Decorate only the cell label, do not mutate shared Table_Facility data
+			var data = __instance.XGetFieldValue<UIFacilityInstallCellData>("mCellData");
+			if (data == null || data.type != Panel_FacilityInstallation.CategoryType.Storage) return;
+
+			var table = data.table;
+			var label = __instance.XGetFieldValue<UILabel>("kTitleLabel");
+			if (table == null || label == null) return;
+
+			label.text = $"{Common.COLOR_BLUE}Lv.{table.Lv}{Common.COLOR_END} {table.Name.Localize()}";
 		}
 		#endregion
 
