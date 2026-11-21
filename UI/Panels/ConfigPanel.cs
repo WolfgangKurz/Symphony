@@ -592,10 +592,6 @@ namespace Symphony.UI.Panels {
 							DrawSeparator(ref offset);
 
 							DrawToggle(ref offset, "기지 '일괄 수령' 재시작 사용하기", Conf.Automation.Use_Base_CollectAll_Restart);
-
-							DrawSeparator(ref offset);
-
-							DrawToggle(ref offset, "자율 전투 재시작 사용하기", Conf.Automation.Use_OfflineBattle_Restart);
 							#endregion
 							break;
 

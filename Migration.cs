@@ -276,6 +276,16 @@ namespace Symphony {
 					foreach (var e in entries) config.RemoveAll(e);
 				}
 			}
+			{ // Automation.OfflineBattle Restart
+				HashSet<string> keys = ["Use_OfflineBattle_Restart", "OfflineBattle_Last_CharDiscomp", "OfflineBattle_Last_EquipDiscomp"];
+				var entries = config.GetAllOrphanedEntries("Automation")
+					.Where(x => keys.Contains(x.Key))
+					.ToArray();
+				if (entries.Length > 0) {
+					Plugin.Logger.LogMessage("[Symphony] Automation.OfflineBattle Restart configuration detected, remove it.");
+					foreach (var e in entries) config.RemoveAll(e);
+				}
+			}
 			#endregion
 
 			config.Save();

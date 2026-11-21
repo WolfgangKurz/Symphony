@@ -81,7 +81,6 @@ A collection of crafting preset features.
   - Short codes upload the configuration data to `symphony-sharetext.swaytwig.com`. Select `원본 복사` (Copy Raw Data) to use the feature without uploading it.
   - Anyone with a short code can retrieve its uploaded configuration, so share it only with the intended recipients.
 - Restarts Base facilities after using the built-in Collect All function.
-- Adds a Restart function for completed Offline Battles. (Disassembly settings are taken from the last Offline Battle run on PC.)
 
 ### Experimental
 A collection of experimental features.
