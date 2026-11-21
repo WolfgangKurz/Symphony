@@ -154,11 +154,8 @@
   <data name="icon_graph" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>res\graph.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
-  <data name="UI_SelectWorldBtn_MainStory_Small" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>res\UI_SelectWorldBtn_MainStory_Small.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
-  </data>
-  <data name="UI_SelectWorldBtn_MainStory_Small_Half" type="System.Resources.ResXFileRef, System.Windows.Forms">
-    <value>res\UI_SelectWorldBtn_MainStory_Small_Half.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
+  <data name="UI_SelectWorldBtn_MainStory_Quarter" type="System.Resources.ResXFileRef, System.Windows.Forms">
+    <value>res\UI_SelectWorldBtn_MainStory_Quarter.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </data>
   <data name="UI_Import" type="System.Resources.ResXFileRef, System.Windows.Forms">
     <value>res\UI_Import.png;System.Byte[], mscorlib, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>

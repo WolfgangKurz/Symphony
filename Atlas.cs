@@ -15,8 +15,7 @@ namespace Symphony {
 
 		static Atlas() {
 			Setup_Atlas(new Dictionary<string, byte[]>() {
-				{ "UI_SelectWorldBtn_MainStory_Small", Resource.UI_SelectWorldBtn_MainStory_Small },
-				{ "UI_SelectWorldBtn_MainStory_Small_Half", Resource.UI_SelectWorldBtn_MainStory_Small_Half },
+				{ "UI_SelectWorldBtn_MainStory_Quarter", Resource.UI_SelectWorldBtn_MainStory_Quarter },
 				{ "UI_Import", Resource.UI_Import },
 				{ "UI_Export", Resource.UI_Export },
 			});

@@ -473,244 +473,310 @@ namespace Symphony.Features {
 
 		#region Battle
 		#region Last Battle Map & Last Offline Battle
-		private static void LastBattleMap_Panel_GameModeMenu_Start(Panel_GameModeMenu __instance) {
-			if (!Conf.SimpleUI.Use_LastBattleMap.Value && !Conf.SimpleUI.Use_LastOfflineBattle.Value) return;
+		private const float GameModeMenu_ColLeft = 460.8f;
+		private const float GameModeMenu_ColRight = 769.4f;
+		private const float GameModeMenu_RowTop = 348.3f;
+		private const float GameModeMenu_RowBottom = 105.7f;
+		private const int GameModeMenu_BtnWidth = 318;
+		private const int GameModeMenu_BtnHeight = 252;
+		private const float GameModeMenu_ContentLeft = -124f;
+		private const string GameModeMenu_BtnSprite = "UI_SelectWorldBtn_MainStory_Quarter";
 
+		private static void LastBattleMap_Panel_GameModeMenu_Start(Panel_GameModeMenu __instance) {
 			var use_lastBattle = Conf.SimpleUI.Use_LastBattleMap.Value;
 			var use_lastOffline = Conf.SimpleUI.Use_LastOfflineBattle.Value;
+			if (!use_lastBattle && !use_lastOffline) return;
 
-			#region Resize and Move down `goMain`
-			var goMain = (GameObject)__instance.GetType()
-				.GetField("_goMain", BindingFlags.Instance | BindingFlags.NonPublic)
-				.GetValue(__instance);
-
-			{ // goBtn adjust
-				var bgsp = goMain.transform.Find("BgSp");
-				bgsp.localPosition = new Vector3(bgsp.localPosition.x, 15f, bgsp.localPosition.z);
-
-				var box = goMain.GetComponent<BoxCollider>();
-				box.center = new Vector3(-20.96f, -113.26f, 0f);
-				box.size = new Vector3(646.504f, 247.321f, 0f);
-
-				var sp = bgsp.GetComponent<UISprite>();
-				sp.atlas = Atlas.atlas;
-				sp.spriteName = "UI_SelectWorldBtn_MainStory_Small";
-				sp.height = 280;
-
-				var lb_Title = goMain.transform.Find("ChapterTitleLb");
-				lb_Title.transform.localPosition -= new Vector3(0f, 70f, 0f);
-
-				var lb_Num = goMain.transform.Find("ChapterNumLb");
-				lb_Num.transform.localPosition -= new Vector3(0f, 70f, 0f);
-
-				var lb_Text = goMain.transform.Find("TextSetPositionUiSprite");
-				lb_Text.transform.localPosition -= new Vector3(0f, 70f, 0f);
+			var goMain = __instance.XGetFieldValue<GameObject>("_goMain"); // REBOOT
+			var goOldMain = __instance.XGetFieldValue<GameObject>("_goOldMain"); // CLASSIC
+			if (goMain == null || goOldMain == null
+				|| goMain.transform.parent != goOldMain.transform.parent
+				|| goMain.transform.Find("DefaultBtnNewMain") == null
+			) {
+				Plugin.Logger.LogWarning("[Symphony::SimpleUI] Unexpected GameModeMenu structure, skip LastBattleMap buttons");
+				return;
 			}
-			#endregion
 
-			if (use_lastBattle && use_lastOffline) {
-				string[] names = ["LastBattle", "LastOfflineBattle"];
-				string[] labels = ["마지막 전투 지역", "마지막 자율 전투"];
-				Table_MapStage[] maps = [
-					SingleTon<DataManager>.Instance.GetTableChapterStage(Conf.SimpleUI.LastBattleMapKey.Value),
-					SingleTon<DataManager>.Instance.GetTableChapterStage(Conf.SimpleUI.LastOfflineBattleKey.Value),
-				];
-				for (var i = 0; i < maps.Length; i++) {
-					var map = maps[i];
-					var chapter = map != null
-						? SingleTon<DataManager>.Instance.GetTableMapChapter(map?.ChapterIndex)
-						: null;
+			// CLASSIC -> top-right
+			GameModeMenu_SetupQuarterButton(goOldMain, GameModeMenu_ColRight, GameModeMenu_RowTop);
 
-					if (!string.IsNullOrEmpty(chapter?.Event_Category)) {
-						var evChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
-						if (evChapter.Event_OpenType == 0) { // Closed event
-							Plugin.Logger.LogWarning("[Symphony::SimpleUI] Last visited map was event and closed, reset to none");
+			// REBOOT -> top-left
+			GameModeMenu_ReshapeRebootButton(goMain);
 
-							if (use_lastBattle)
-								Conf.SimpleUI.LastBattleMapKey.Value = "";
-							else
-								Conf.SimpleUI.LastOfflineBattleKey.Value = "";
-							map = null;
-							chapter = null;
-						}
-					}
-
-					var btn = GameObject.Instantiate(goMain);
-					btn.name = names[i];
-					btn.transform.SetParent(goMain.transform.parent);
-					btn.transform.localScale = goMain.transform.localScale;
-					btn.transform.localPosition = goMain.transform.localPosition
-						+ new Vector3(323.252f * i, 0f);
-
-					{ // btn adjust
-						var bgsp = btn.transform.Find("BgSp");
-						bgsp.localPosition = new Vector3(bgsp.localPosition.x, 270f, bgsp.localPosition.z);
-
-						var box = btn.GetComponent<BoxCollider>();
-						box.center = new Vector3(-20.96f - 323.252f / 2f, 141.74f, 0f);
-						box.size = new Vector3(323.252f, 247.321f, 0f);
-
-						var sp = bgsp.GetComponent<UISprite>();
-						sp.atlas = Atlas.atlas;
-						sp.spriteName = "UI_SelectWorldBtn_MainStory_Small_Half";
-						sp.width = 350;
-						sp.height = 280;
-
-						var chapterName = !string.IsNullOrEmpty(chapter?.Event_Category)
-							? SingleTon<DataManager>.Instance.GetTableEventChapterByCategory()
-								.Find(x => x.Event_Category == chapter.Event_Category)
-								.Event_CategoryName.Localize()
-							: chapter?.ChapterString ?? "";
-
-						var lb_Title = btn.transform.Find("ChapterTitleLb");
-						lb_Title.transform.localPosition += new Vector3(-10f, 300f, 0f);
-						{
-							var cp = lb_Title.GetComponent<UILabel>();
-							cp.fontSize = 32;
-							cp.overflowMethod = UILabel.Overflow.ClampContent;
-							cp.width = 224;
-							cp.text = map?.StageName?.Localize() ?? "";
-						}
-
-						var lb_Num = btn.transform.Find("ChapterNumLb");
-						lb_Num.transform.localPosition += new Vector3(-10f, 300f, 0f);
-						{
-							var cp = lb_Num.GetComponent<UILabel>();
-							cp.pivot = UIWidget.Pivot.TopLeft;
-							cp.fontSize = 28;
-							cp.overflowMethod = UILabel.Overflow.ClampContent;
-							cp.width = 184;
-							cp.height = 56;
-							cp.text = map != null ? $"{chapterName}. {map.StageIdxString}" : "";
-						}
-
-						var lb_Text = btn.transform.Find("TextSetPositionUiSprite");
-						lb_Text.transform.localPosition += new Vector3(-10f, 270f, 0f);
-
-						lb_Text.Find("!").gameObject.SetActive(false);
-
-						var lb_Text_Title = lb_Text.Find("TitleLb");
-						Destroy(lb_Text_Title.GetComponent<UILocalize>());
-						{
-							var cp = lb_Text_Title.GetComponent<UILabel>();
-							cp.text = labels[i];
-							cp.fontSize = 32;
-						}
-
-						var uiBtn = btn.GetComponent<UIButton>();
-						uiBtn.onClick.Clear();
-						uiBtn.onClick.Add(new(() => {
-							if (map == null) return;
-
-							SimpleUI.LastBattleMap_Target = map;
-							SingleTon<GameManager>.Instance.MapInit();
-							SingleTon<GameManager>.Instance.MapChapter = chapter;
-							SingleTon<GameManager>.Instance.MapStage = map;
-							SingleTon<GameManager>.Instance.PlayMapStage = map;
-
-							if (string.IsNullOrEmpty(chapter?.Event_Category)) {
-								SingleTon<GameManager>.Instance.GameMode = GAME_MODE.STORY;
-							}
-							else {
-								SingleTon<GameManager>.Instance.MapEventChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
-								SingleTon<GameManager>.Instance.GameMode = GAME_MODE.EVENT;
-							}
-
-							Handler.Broadcast(new SceneChange(Const.Scene_World)); // __instance.ShowScene(Const.Scene_World);
-						}));
-					}
-				}
-			}
-			else {
-				var map = SingleTon<DataManager>.Instance.GetTableChapterStage(
-					use_lastBattle
-						? Conf.SimpleUI.LastBattleMapKey.Value
-						: Conf.SimpleUI.LastOfflineBattleKey.Value
+			// LAST -> bottom-left, OFFLINE -> bottom-right
+			if (use_lastBattle)
+				GameModeMenu_CreateLastMapButton(
+					__instance, goMain, goOldMain,
+					"LastBattle", "LAST", Conf.SimpleUI.LastBattleMapKey,
+					GameModeMenu_ColLeft, GameModeMenu_RowBottom
 				);
-				var chapter = map != null
-					? SingleTon<DataManager>.Instance.GetTableMapChapter(map?.ChapterIndex)
-					: null;
+			if (use_lastOffline)
+				GameModeMenu_CreateLastMapButton(
+					__instance, goMain, goOldMain,
+					"LastOfflineBattle", "OFFLINE", Conf.SimpleUI.LastOfflineBattleKey,
+					GameModeMenu_ColRight, GameModeMenu_RowBottom
+				);
+		}
 
-				if (!string.IsNullOrEmpty(chapter?.Event_Category)) {
-					var evChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
-					if (evChapter.Event_OpenType == 0) { // Closed event
-						Plugin.Logger.LogWarning("[Symphony::SimpleUI] Last visited map was event and closed, reset to none");
+		private static void GameModeMenu_SetupQuarterButton(GameObject btn, float x, float y) {
+			const int W = GameModeMenu_BtnWidth;
+			const int H = GameModeMenu_BtnHeight;
 
-						if (use_lastBattle)
-							Conf.SimpleUI.LastBattleMapKey.Value = "";
-						else
-							Conf.SimpleUI.LastOfflineBattleKey.Value = "";
-						map = null;
-						chapter = null;
+			var tr = btn.transform;
+			tr.localPosition = new Vector3(x, y, tr.localPosition.z);
+
+			var bgsp = tr.Find("BgSp")?.GetComponent<UISprite>();
+			if (bgsp != null) {
+				bgsp.atlas = Atlas.atlas;
+				bgsp.spriteName = GameModeMenu_BtnSprite;
+				bgsp.type = UIBasicSprite.Type.Simple;
+				bgsp.pivot = UIWidget.Pivot.Center; // moves transform, position reset below
+				bgsp.width = W;
+				bgsp.height = H;
+				bgsp.transform.localPosition = Vector3.zero;
+			}
+
+			var box = btn.GetComponent<BoxCollider>();
+			if (box != null) {
+				box.center = new Vector3(-3.82f, 0f, 0f);
+				box.size = new Vector3(W - 3.64f, H - 4.77f, 0f);
+			}
+
+			var lb = tr.Find("Lb");
+			if (lb != null)
+				lb.localPosition = new Vector3(GameModeMenu_ContentLeft, H / 2f - 56f, lb.localPosition.z);
+		}
+
+		private static void GameModeMenu_ReshapeRebootButton(GameObject goMain) {
+			const int W = GameModeMenu_BtnWidth;
+			const int H = GameModeMenu_BtnHeight;
+			const float L = GameModeMenu_ContentLeft;
+
+			GameModeMenu_SetupQuarterButton(goMain, GameModeMenu_ColLeft, GameModeMenu_RowTop);
+
+			var tr = goMain.transform;
+
+			var leftDay = tr.Find("LeftDayLb");
+			if (leftDay != null)
+				leftDay.localPosition = new Vector3(L, H / 2f - 96f, leftDay.localPosition.z);
+
+			var def = tr.Find("DefaultBtnNewMain");
+			if (def != null) {
+				def.localPosition = Vector3.zero;
+
+				var tsp = def.Find("TextSetPositionUiSprite");
+				if (tsp != null) {
+					// Stop repositioning red dot
+					var posComp = tsp.GetComponent<UI_MyTextRightSetPositionUiSprite>();
+					if (posComp != null) {
+						posComp.StopAllCoroutines();
+						posComp.enabled = false;
+						DestroyImmediate(posComp);
+					}
+
+					// Hide "전투 지도" text
+					tsp.Find("TitleLb")?.gameObject.SetActive(false);
+
+					// Red dot -> top-right of REBOOT
+					var dot = tsp.Find("!");
+					if (dot != null) {
+						dot.SetParent(tr, false);
+						dot.localPosition = new Vector3(W / 2f - 28f, H / 2f - 28f, 0f);
+						dot.GetComponent<UIWidget>()?.ParentHasChanged();
 					}
 				}
 
-				var btn = GameObject.Instantiate(goMain);
-				btn.name = use_lastBattle ? "LastBattle" : "LastOfflineBattle";
-				btn.transform.SetParent(goMain.transform.parent);
-				btn.transform.localScale = goMain.transform.localScale;
-				btn.transform.localPosition = goMain.transform.localPosition;
+				var title = def.Find("ChapterTitleLb")?.GetComponent<UILabel>();
+				if (title != null) {
+					title.overflowMethod = UILabel.Overflow.ShrinkContent;
+					title.fontSize = 40;
+					title.width = 270;
+					title.height = 44;
+					title.transform.localPosition = new Vector3(L, -30f, title.transform.localPosition.z);
+				}
 
-				{ // btn adjust
-					var bgsp = btn.transform.Find("BgSp");
-					bgsp.localPosition = new Vector3(bgsp.localPosition.x, 270f, bgsp.localPosition.z);
+				var num = def.Find("ChapterNumLb")?.GetComponent<UILabel>();
+				if (num != null) {
+					num.fontSize = 28;
+					num.transform.localPosition = new Vector3(L, -70f, num.transform.localPosition.z);
+				}
+			}
 
-					var box = btn.GetComponent<BoxCollider>();
-					box.center = new Vector3(-20.96f, 141.74f, 0f);
-					box.size = new Vector3(646.504f, 247.321f, 0f);
+			// Offline battle overlay (shown instead of DefaultBtnNewMain while offline battle running)
+			var ob = tr.Find("OfflineBattle");
+			if (ob != null) {
+				ob.localPosition = Vector3.zero;
 
-					var sp = bgsp.GetComponent<UISprite>();
-					sp.atlas = Atlas.atlas;
-					sp.spriteName = "UI_SelectWorldBtn_MainStory_Small";
-					sp.height = 280;
+				var obWidget = ob.GetComponent<UIWidget>();
+				if (obWidget != null) {
+					obWidget.width = W;
+					obWidget.height = H;
+				}
+				var obBox = ob.GetComponent<BoxCollider>();
+				if (obBox != null) {
+					obBox.center = new Vector3(-3.82f, 0f, 0f);
+					obBox.size = new Vector3(W - 3.64f, H - 4.77f, 0f);
+				}
 
-					var chapterName = !string.IsNullOrEmpty(chapter?.Event_Category)
-						? SingleTon<DataManager>.Instance.GetTableEventChapterByCategory()
-							.Find(x => x.Event_Category == chapter.Event_Category)
-							.Event_CategoryName.Localize()
-						: chapter?.ChapterString ?? "";
+				// Converts quarter-center coords to TopLeft pivot coords
+				Vector3 TL(float x, float y) => new(x + W / 2f, y - H / 2f, 0f);
 
-					var lb_Title = btn.transform.Find("ChapterTitleLb");
-					lb_Title.transform.localPosition += new Vector3(0f, 260f, 0f);
-					lb_Title.GetComponent<UILabel>().text = map?.StageName?.Localize() ?? "";
+				var inProgress = ob.Find("InProgress");
+				if (inProgress != null) {
+					inProgress.localPosition = new Vector3(-W / 2f, H / 2f, 0f);
+					var w = inProgress.GetComponent<UIWidget>();
+					if (w != null) {
+						w.width = W;
+						w.height = H;
+					}
 
-					var lb_Num = btn.transform.Find("ChapterNumLb");
-					lb_Num.transform.localPosition += new Vector3(0f, 260f, 0f);
-					lb_Num.GetComponent<UILabel>().text = map != null
+					var ipTitle = inProgress.Find("TitleLb")?.GetComponent<UILabel>();
+					if (ipTitle != null) {
+						ipTitle.pivot = UIWidget.Pivot.Left;
+						ipTitle.fontSize = 32;
+						ipTitle.transform.localPosition = TL(L, 20f);
+					}
+
+					var ipIcon = inProgress.Find("LodingIcon");
+					if (ipIcon != null) ipIcon.localPosition = TL(125f, 20f);
+
+					var ipTime = inProgress.Find("RemainTimeLb")?.GetComponent<UILabel>();
+					if (ipTime != null) {
+						ipTime.fontSize = 40;
+						ipTime.transform.localPosition = TL(L, -25f);
+					}
+
+					var ipStage = inProgress.Find("StageLb")?.GetComponent<UILabel>();
+					if (ipStage != null) {
+						ipStage.fontSize = 28;
+						ipStage.transform.localPosition = TL(L, -55f);
+					}
+				}
+
+				var complete = ob.Find("Complete");
+				if (complete != null) {
+					complete.localPosition = Vector3.zero;
+					var w = complete.GetComponent<UIWidget>();
+					if (w != null) {
+						w.width = W;
+						w.height = H;
+					}
+
+					var cTsp = complete.Find("TextSetPositionUiSprite");
+					if (cTsp != null) {
+						cTsp.localPosition = new Vector3(L + 1f, 20f, 0f); // Label is at (-125, 0)
+						var cLabel = cTsp.Find("Label")?.GetComponent<UILabel>();
+						if (cLabel != null) cLabel.fontSize = 32;
+					}
+
+					var cStage = complete.Find("StageLb")?.GetComponent<UILabel>();
+					if (cStage != null) {
+						cStage.fontSize = 28;
+						cStage.transform.localPosition = new Vector3(L, -15f, 0f); // TopLeft pivot
+					}
+				}
+			}
+		}
+
+		private static void GameModeMenu_CreateLastMapButton(
+			Panel_GameModeMenu instance,
+			GameObject goMain,
+			GameObject goOldMain,
+			string name,
+			string label,
+			BepInEx.Configuration.ConfigEntry<string> keyConf,
+			float x,
+			float y
+		) {
+			var map = SingleTon<DataManager>.Instance.GetTableChapterStage(keyConf.Value);
+			var chapter = map != null
+				? SingleTon<DataManager>.Instance.GetTableMapChapter(map.ChapterIndex)
+				: null;
+
+			if (!string.IsNullOrEmpty(chapter?.Event_Category)) {
+				var evChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
+				if (evChapter == null || evChapter.Event_OpenType == 0) { // Closed event
+					Plugin.Logger.LogWarning($"[Symphony::SimpleUI] {name} map was event and closed, reset to none");
+
+					keyConf.Value = "";
+					map = null;
+					chapter = null;
+				}
+			}
+
+			var btn = GameObject.Instantiate(goOldMain, goOldMain.transform.parent, false);
+			btn.name = name;
+			btn.transform.localScale = Vector3.one;
+			GameModeMenu_SetupQuarterButton(btn, x, y);
+
+			{ // Button label
+				var lb = btn.transform.Find("Lb");
+				if (lb != null) {
+					var loc = lb.GetComponent<UILocalize>();
+					if (loc != null) DestroyImmediate(loc);
+					lb.GetComponent<UILabel>().text = label;
+				}
+			}
+
+			var chapterName = !string.IsNullOrEmpty(chapter?.Event_Category)
+				? SingleTon<DataManager>.Instance.GetTableEventChapterByCategory()
+					.Find(x => x.Event_Category == chapter.Event_Category)
+					?.Event_CategoryName?.Localize() ?? ""
+				: chapter?.ChapterString ?? "";
+
+			{ // Stage labels, copied from REBOOT
+				var def = goMain.transform.Find("DefaultBtnNewMain");
+
+				var srcTitle = def?.Find("ChapterTitleLb");
+				if (srcTitle != null) {
+					var title = GameObject.Instantiate(srcTitle.gameObject, btn.transform, false);
+					title.name = "StageTitleLb";
+					title.transform.localPosition = srcTitle.localPosition;
+					title.GetComponent<UILabel>().text = map?.StageName?.Localize() ?? "";
+				}
+
+				var srcNum = def?.Find("ChapterNumLb");
+				if (srcNum != null) {
+					var num = GameObject.Instantiate(srcNum.gameObject, btn.transform, false);
+					num.name = "StageNumLb";
+					num.transform.localPosition = srcNum.localPosition;
+					num.GetComponent<UILabel>().text = map != null
 						? $"{chapterName}. {map.StageIdxString}"
 						: "";
-
-					var lb_Text = btn.transform.Find("TextSetPositionUiSprite");
-					lb_Text.transform.localPosition += new Vector3(0f, 260f, 0f);
-
-					lb_Text.Find("!").gameObject.SetActive(false);
-					var lb_Text_Title = lb_Text.Find("TitleLb");
-					Destroy(lb_Text_Title.GetComponent<UILocalize>());
-					lb_Text_Title.GetComponent<UILabel>().text = use_lastBattle ? "마지막 전투 지역" : "마지막 자율 전투";
-
-					var uiBtn = btn.GetComponent<UIButton>();
-					uiBtn.onClick.Clear();
-					uiBtn.onClick.Add(new(() => {
-						if (map == null) return;
-
-						SimpleUI.LastBattleMap_Target = map;
-						SingleTon<GameManager>.Instance.MapInit();
-						SingleTon<GameManager>.Instance.MapChapter = chapter;
-						SingleTon<GameManager>.Instance.MapStage = map;
-						SingleTon<GameManager>.Instance.PlayMapStage = map;
-
-						if (string.IsNullOrEmpty(chapter?.Event_Category)) {
-							SingleTon<GameManager>.Instance.GameMode = GAME_MODE.STORY;
-						}
-						else {
-							SingleTon<GameManager>.Instance.MapEventChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
-							SingleTon<GameManager>.Instance.GameMode = GAME_MODE.EVENT;
-						}
-
-						Handler.Broadcast(new SceneChange(Const.Scene_World)); // __instance.ShowScene(Const.Scene_World);
-					}));
 				}
 			}
+
+			var uiBtn = btn.GetComponent<UIButton>();
+			uiBtn.onClick.Clear();
+			uiBtn.onClick.Add(new(() => {
+				if (map == null) return;
+				GameModeMenu_GoToMap(map, chapter);
+			}));
+
+			// Same press tween as REBOOT/CLASSIC
+			try {
+				instance.XGetMethodVoid<GameObject>("RegisterMainButtonPressTween").Invoke(btn);
+			} catch (Exception e) {
+				Plugin.Logger.LogWarning($"[Symphony::SimpleUI] Failed to register press tween for {name}: {e.Message}");
+			}
+		}
+
+		private static void GameModeMenu_GoToMap(Table_MapStage map, Table_MapChapter chapter) {
+			SimpleUI.LastBattleMap_Target = map;
+			SingleTon<GameManager>.Instance.MapInit();
+			SingleTon<GameManager>.Instance.MapChapter = chapter;
+			SingleTon<GameManager>.Instance.MapStage = map;
+			SingleTon<GameManager>.Instance.PlayMapStage = map;
+
+			if (string.IsNullOrEmpty(chapter?.Event_Category)) {
+				SingleTon<GameManager>.Instance.GameMode = GAME_MODE.STORY;
+			}
+			else {
+				SingleTon<GameManager>.Instance.MapEventChapter = SingleTon<DataManager>.Instance.GetTableEventChapter(chapter.Key);
+				SingleTon<GameManager>.Instance.GameMode = GAME_MODE.EVENT;
+			}
+
+			Handler.Broadcast(new SceneChange(Const.Scene_World)); // __instance.ShowScene(Const.Scene_World);
 		}
 		private static void LastBattleMap_Panel_World_Start(Panel_World __instance) {
 			__instance.XGetMethodVoid<Table_MapChapter>("SetPanelChapter")
